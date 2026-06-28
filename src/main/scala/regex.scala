@@ -12,7 +12,7 @@ object regex {
     case _          => Tuple1[A]
   }
 
-  type FromTuple[A] = A match {
+  type FromTuple[A <: Tuple] = A match {
     case EmptyTuple => Unit
     case Tuple1[a] => a
     case _         => A
@@ -28,8 +28,11 @@ object regex {
     case (a, b)       => Either[a, b]
   }
 
-  sealed trait Regex[A] {
-    def get: A = ???
+  type CatCapture[A, B] = FromTuple[Concat[ToTuple[A], ToTuple[B]]]
+
+  type CaptureType[A] = FromTuple[String *: ToTuple[A]]
+
+  sealed trait Regex[+A] {
     def unapply(s: String): Option[A] = ???
   }
 
@@ -39,18 +42,18 @@ object regex {
 
   case object Dot extends Regex[Unit]
 
-  case class Opt[A](r: Regex[A]) extends Regex[OptCapture[FromTuple[A]]]
+  case class Opt[A](r: Regex[A]) extends Regex[OptCapture[A]]
 
-  case class Cat[A , B](r1: Regex[A], r2: Regex[B]) extends Regex[FromTuple[Concat[ToTuple[A], ToTuple[B]]]]
+  case class Alt[A , B](r1: Regex[A], r2: Regex[B]) extends Regex[AltCapture[A, B]]
 
-  case class Alt[A , B](r1: Regex[A], r2: Regex[B]) extends Regex[AltCapture[FromTuple[A], FromTuple[B]]]
+  case class Cat[A , B](r1: Regex[A], r2: Regex[B]) extends Regex[CatCapture[A, B]]
 
-  case class Capture[A](r: Regex[A]) extends Regex[FromTuple[String *: ToTuple[A]]]
+  case class Capture[A](r: Regex[A]) extends Regex[CaptureType[A]]
 
   private val tests: Unit = {
     val cap = Capture(Dot)
-    val y = cap.get
+    val y = cap.unapply(???).get
     val regex = Cat(Cat(Alt(cap, cap), Alt(Dot, Dot)), Cat(Opt(cap), Opt(Dot)))
-    val x = regex.get
+    val x = regex.unapply(???).get
   }
 }
