@@ -24,7 +24,7 @@ object matchtypes {
       case ')'  => L + 1 match {
         case U => (CloseGroup[Cap, Acc], U)
         case _ => CharAt[S, L + 1] match {
-          case '?' | '*' => (Option[CloseGroup[Cap, Acc]], L + 2)
+          case '?' | '*' => (Opt[CloseGroup[Cap, Acc]], L + 2)
           case _         => (CloseGroup[Cap, Acc], L + 1)
         }
       }
@@ -54,6 +54,16 @@ object matchtypes {
     case false => Tidy[Reverse[Acc]]
   }
 
+  type Opt[A] = A match {
+    case Unit => Unit
+    case _    => Option[A]
+  }
+
+  type Alt[A, B] = (A, B) match {
+    case (Unit, Unit) => Unit
+    case _            => Either[A, B]
+  }
+
   private val tests: Unit = {
     val zero: Captures["a"] = ()
     val one: Captures["(a)"] = "a"
@@ -75,6 +85,7 @@ object matchtypes {
     val nonCap: Captures["(?:a)"] = ()
     val capsInNonCap: Captures["(?:(a)(b))"] = ("a", "b")
     val capsInOptNonCap: Captures["(?:(a)(b))?"] = Some(("a", "b"))
+    val optNonCap: Captures["(?:a)?"] = ()
 
     // TODO: Keep track of level of brackets
     val bug: Captures["(a))"] = "a"
