@@ -1,12 +1,36 @@
 package experiments
 
-import scala.compiletime.ops.int.{+}
+import scala.compiletime.ops.int.{+, -}
 import scala.compiletime.ops.string.{CharAt, Length}
 import scala.Tuple.{Concat, Reverse}
 
 object matchtypes {
 
-  type Captures[S <: String & Singleton] = Go[S, 0, Length[S], false, EmptyTuple] match {
+  type Captures[S <: String & Singleton] = AltCaptures[S, 0, 0, Length[S]]
+
+  type AltCaptures[S <: String, L <: Int, M <: Int, U <: Int] = M match {
+    case U => TermCaptures[S, L, U]
+    case _ => CharAt[S, M] match {
+      case '\\' => AltCaptures[S, L, M + 2, U]
+      case '('  => AltCaptures[S, L, SkipGroup[S, M + 1, 1], U]
+      case '|'  => (TermCaptures[S, L, M], AltCaptures[S, M + 1, M + 1, U]) match {
+        case (Unit, Unit) => Unit
+        case (a, b)       => Either[a, b]
+      }
+      case _    => AltCaptures[S, L, M + 1, U]
+    }
+  }
+
+  type SkipGroup[S <: String, I <: Int, Depth <: Int] <: Int = Depth match {
+    case 0 => I
+    case _ => CharAt[S, I] match {
+      case '(' => SkipGroup[S, I + 1, Depth + 1]
+      case ')' => SkipGroup[S, I + 1, Depth - 1]
+      case _   => SkipGroup[S, I + 1, Depth]
+    }
+  }
+
+  type TermCaptures[S <: String, L <: Int, U <: Int] = Go[S, L, U, false, EmptyTuple] match {
     case (a, _) => a
   }
 
@@ -83,11 +107,18 @@ object matchtypes {
     val star: Captures["(a)*"] = Some("a")
 
     val nonCap: Captures["(?:a)"] = ()
+    val nonCapThenCap: Captures["(?:a)(b)"] = "b"
     val capsInNonCap: Captures["(?:(a)(b))"] = ("a", "b")
     val capsInOptNonCap: Captures["(?:(a)(b))?"] = Some(("a", "b"))
     val optNonCap: Captures["(?:a)?"] = ()
 
+    /* Bugs, should not compile */
     // TODO: Keep track of level of brackets
-    val bug: Captures["(a))"] = "a"
+    val extraClosed: Captures["(a))"] = "a"
+    // val noClosed: Captures["(a"] = ()
+
+    val alt: Captures["|"] = ()
+    val altCapture: Captures["(a)|(b)"] = Left("a")
+    val nestedAltCaptures: Captures["(a)|(b)|(c)"] = Right(Right("c"))
   }
 }
