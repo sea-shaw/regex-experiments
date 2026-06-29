@@ -3,7 +3,7 @@ package experiments
 import scala.compiletime.{summonInline}
 import scala.compiletime.ops.int.{+}
 import scala.compiletime.ops.string.{CharAt, Length}
-import scala.Tuple.Reverse
+import scala.Tuple.{Concat, Reverse}
 
 object matchtypes {
 
@@ -16,7 +16,10 @@ object matchtypes {
     case _ => CharAt[S, L] match {
       case '\\' => Go[S, L + 2, U, Acc]
       case '('  => Go[S, L + 1, U, EmptyTuple] match {
-        case (a, l) => Go[S, l, U, a *: Acc]
+        case (a, l) => a match {
+          case Tuple => Go[S, l, U, Concat[a, Acc]]
+          case _     => Go[S, l, U, a *: Acc]
+        }
       }
       case ')'  => L + 1 match {
         case U => (Tidy[String *: Reverse[Acc]], U)
@@ -39,8 +42,13 @@ object matchtypes {
     val zero: Captures["a"] = ()
     val one: Captures["(a)"] = "a"
     val two: Captures["(a)(b)"] = ("a", "b")
+
     val escape: Captures["\\(a\\)"] = ()
-    val nested: Captures["(a(b)(c))(d)"] = (("abc", "b", "c"), "d")
+
+    // TODO: Should these be flat or nested?
+    val nested: Captures["(a(b))(c)"] = ("abc", "b", "c")
+    val manyNested: Captures["(a(b(c(d)))(e))"] = ("a", "b", "c", "d", "e")
+
     val optional: Captures["(a)?"] = Some("a")
     val catOptional: Captures["(a)?(b)?"] = (Some("a"), Some("b"))
     val nestedOptional: Captures["(a(b)?)?"] = Some(("ab", Some("b")))
