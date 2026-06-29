@@ -15,10 +15,16 @@ object matchtypes {
     case U => (Tidy[Reverse[Acc]], U)
     case _ => CharAt[S, L] match {
       case '\\' => Go[S, L + 2, U, Acc]
-      case '('  => Go[S, L + 1, Nothing, EmptyTuple] match {
+      case '('  => Go[S, L + 1, U, EmptyTuple] match {
         case (a, l) => Go[S, l, U, a *: Acc]
       }
-      case ')'  => (Tidy[String *: Reverse[Acc]], L + 1)
+      case ')'  => L + 1 match {
+        case U => (Tidy[String *: Reverse[Acc]], U)
+        case _ => CharAt[S, L + 1] match {
+          case '?' => (Option[Tidy[String *: Reverse[Acc]]], L + 2)
+          case _   => (Tidy[String *: Reverse[Acc]], L + 1)
+        }
+      }
       case _    => Go[S, L + 1, U, Acc]
     }
   }
@@ -34,6 +40,9 @@ object matchtypes {
     val one: Captures["(a)"] = "a"
     val two: Captures["(a)(b)"] = ("a", "b")
     val escape: Captures["\\(a\\)"] = ()
-    val nested: Captures["(a(b)(c))(d)"] = (("a", "b", "c"), "d")
+    val nested: Captures["(a(b)(c))(d)"] = (("abc", "b", "c"), "d")
+    val optional: Captures["(a)?"] = Some("a")
+    val catOptional: Captures["(a)?(b)?"] = (Some("a"), Some("b"))
+    val nestedOptional: Captures["(a(b)?)?"] = Some(("ab", Some("b")))
   }
 }
