@@ -3,7 +3,7 @@ package experiments
 import cats.collections.Diet
 import scala.Tuple.Concat
 
-object regex {
+object gadt {
 
   type ToTuple[A] <: Tuple = A match {
     case EmptyTuple => EmptyTuple
