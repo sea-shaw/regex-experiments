@@ -50,8 +50,12 @@ object matchtypes {
 
     val optional: Captures["(a)?"] = Some("a")
     val catOptional: Captures["(a)?(b)?"] = (Some("a"), Some("b"))
+    val catInOptional: Captures["(a(b))?"] = Some(("a", "b"))
     val nestedOptional: Captures["(a(b)?)?"] = Some(("ab", Some("b")))
 
     val star: Captures["(a)*"] = Some("a")
+
+    // TODO: Keep track of level of brackets
+    val bug: Captures["(a))"] = ("a", "???")
   }
 }
