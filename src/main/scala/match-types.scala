@@ -6,21 +6,23 @@ import scala.compiletime.ops.string.{CharAt, Length}
 import scala.Tuple.Reverse
 
 object matchtypes {
-  type Captures[S <: String & Singleton] = Tidy[Reverse[Go[S, 0, Length[S], EmptyTuple]]]
-
-  type Tidy[T <: Tuple] = T match {
-    case EmptyTuple => Unit
-    case Tuple1[a]  => a
-    case _          => T
+  type Captures[S <: String & Singleton] = Go[S, 0, Length[S], EmptyTuple] match {
+    case (a, _) => a
   }
 
-  type Go[S <: String & Singleton, L <: Int, U <: Int, Acc <: Tuple] <: Tuple = L match {
-    case U => Acc
+  type Go[S <: String & Singleton, L <: Int, U <: Int, Acc <: Tuple] <: (Any, Int) = L match {
+    case U => (Tidy[Reverse[Acc]], U)
     case _ => CharAt[S, L] match {
       case '('  => Go[S, L + 1, U, String *: Acc]
       case '\\' => Go[S, L + 2, U, Acc]
       case _    => Go[S, L + 1, U, Acc]
     }
+  }
+
+  type Tidy[T <: Tuple] = T match {
+    case EmptyTuple => Unit
+    case Tuple1[a]  => a
+    case _          => T
   }
 
   private val tests: Unit = {
