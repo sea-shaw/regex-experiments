@@ -74,38 +74,38 @@ object matchtypes {
   }
 
   private val tests: Unit = {
-    val zero: Captures["a"] = ()
-    val one: Captures["(a)"] = "a"
-    val two: Captures["(a)(b)"] = ("a", "b")
+    summon[Captures["a"] =:= Unit]
+    summon[Captures["(a)"] =:= String]
+    summon[Captures["(a)(b)"] =:= (String, String)]
 
-    val escape: Captures["\\(a\\)"] = ()
+    summon[Captures["\\(a\\)"] =:= Unit]
 
     // TODO: Should these be flat or nested?
-    val nested: Captures["(a(b))(c)"] = ("ab", "b", "c") // (("ab", "b"), "c")
-    val manyNested: Captures["(a(b(c(d)))(e))"] = ("a", "b", "c", "d", "e") // ("a", ("b", ("c", "d")), "e")
+    summon[Captures["(a(b))(c)"] =:= (String, String, String)] // ((String, String), String)
+    summon[Captures["(a(b(c(d)))(e))"] =:= (String, String, String, String, String)] // (String, (String, (String, String)), String)
 
-    val optional: Captures["(a)?"] = Some("a")
-    val catOptional: Captures["(a)?(b)?"] = (Some("a"), Some("b"))
-    val catInOptional: Captures["(a(b))?"] = Some(("ab", "b"))
-    val nestedOptional: Captures["(a(b)?)?"] = Some(("ab", Some("b")))
+    summon[Captures["(a)?"] =:= Option[String]]
+    summon[Captures["(a)?(b)?"] =:= (Option[String], Option[String])]
+    summon[Captures["(a(b))?"] =:= Option[(String, String)]]
+    summon[Captures["(a(b)?)?"] =:= Option[(String, Option[String])]]
 
-    val star: Captures["(a)*"] = Some("a")
+    summon[Captures["(a)*"] =:= Option[String]]
 
-    val nonCap: Captures["(?:a)"] = ()
-    val nonCapThenCap: Captures["(?:a)(b)"] = "b"
-    val capsInNonCap: Captures["(?:(a)(b))"] = ("a", "b")
-    val capsInOptNonCap: Captures["(?:(a)(b))?"] = Some(("a", "b"))
-    val optNonCap: Captures["(?:a)?"] = ()
+    summon[Captures["(?:a)"] =:= Unit]
+    summon[Captures["(?:a)(b)"] =:= String]
+    summon[Captures["(?:(a)(b))"] =:= (String, String)]
+    summon[Captures["(?:(a)(b))?"] =:= Option[(String, String)]]
+    summon[Captures["(?:a)?"] =:= Unit]
 
     /* Bugs, should not compile */
     // TODO: Keep track of level of brackets
-    val extraClosed: Captures["(a))"] = "a"
-    // val noClosed: Captures["(a"] = ()
+    summon[Captures["(a))"] =:= String]
+    summon[Captures["(a"] =:= Unit]
 
-    val altNoCaps: Captures["a|b"] = ()
-    val altLeftCap: Captures["(a)|b"] = Right(())
-    val altCaps: Captures["(a)|(b)"] = Left("a")
-    val manyAltCaps: Captures["(a)|(b)|(c)"] = Right(Right("c"))
-    val nestedAltCaps: Captures["(?:(a)|(b))|(?:(c))"] = Left(Left("a"))
+    summon[Captures["a|b"] =:= Unit]
+    summon[Captures["(a)|b"] =:= Either[String, Unit]]
+    summon[Captures["(a)|(b)"] =:= Either[String, String]]
+    summon[Captures["(a)|(b)|(c)"] =:= Either[String, Either[String, String]]]
+    summon[Captures["(?:(a)|(b))|(?:(c))"] =:= Either[Either[String, String], String]]
   }
 }
