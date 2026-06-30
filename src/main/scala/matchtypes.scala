@@ -115,10 +115,10 @@ object matchtypes {
     }
   }
 
-  class Regex[S <: String & Singleton](regex: S)(using sanitiser: Sanitiser[Captures[S]]) {
+  class Regex[A] private (regex: String)(using sanitiser: Sanitiser[A]) {
     val pattern: Pattern = Pattern.compile(regex)
 
-    def unapply(s: String): Option[Captures[S]] = {
+    def unapply(s: String): Option[A] = {
       val m = pattern.matcher(s)
       if (m.matches()) {
         val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
@@ -127,6 +127,10 @@ object matchtypes {
         None
       }
     }
+  }
+
+  object Regex {
+    def apply[S <: String & Singleton](regex: S)(using Sanitiser[Captures[S]]): Regex[Captures[S]] = new Regex(regex)
   }
 
   private lazy val tests: Unit = {
