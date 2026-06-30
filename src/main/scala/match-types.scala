@@ -27,7 +27,10 @@ object matchtypes {
           case Unit  => Go[S, l, Cap, Acc]
           case _     => opt match {
             case true  => Go[S, l, Cap, Option[a] *: Acc]
-            case false => Go[S, l, Cap, a *: Acc]
+            case false => a match {
+              case Tuple => Go[S, l, Cap, Concat[a, Acc]]
+              case _     => Go[S, l, Cap, a *: Acc]
+            }
           }
         }
       }
@@ -70,11 +73,11 @@ object matchtypes {
 
   object Extractor {
     given Extractor[Unit] {
-      override def extract(captures: Array[String | Null], i: Int): (Option[Unit], Int) = (Some(()), i)
+      override def extract(captures: Array[String | Null], i: Int): (Some[Unit], i.type) = (Some(()), i)
     }
 
     given Extractor[EmptyTuple] {
-      override def extract(groups: Array[String | Null], i: Int): (Some[EmptyTuple], Int) = (Some(EmptyTuple), i)
+      override def extract(groups: Array[String | Null], i: Int): (Some[EmptyTuple], i.type) = (Some(EmptyTuple), i)
     }
 
     given Extractor[String] {
@@ -105,7 +108,7 @@ object matchtypes {
     }
   }
 
-  private val tests: Unit = {
+  private lazy val tests: Unit = {
     summon[Captures["a"] =:= Unit]
     summon[Captures["(a)"] =:= String]
     summon[Captures["(a)(b)"] =:= (String, String)]
@@ -113,8 +116,8 @@ object matchtypes {
     summon[Captures["\\(a\\)"] =:= Unit]
 
     // TODO: Should these be flat or nested?
-    summon[Captures["(a(b))(c)"] =:= ((String, String), String)]
-    summon[Captures["(a(b(c(d)))(e))"] =:= (String, (String, (String, String)), String)]
+    summon[Captures["(a(b))(c)"] =:= (String, String, String)] // ((String, String), String)
+    summon[Captures["(a(b(c(d)))(e))"] =:= (String, String, String, String, String)] // (String, (String, (String, String)), String)
 
     summon[Captures["(a)?"] =:= Option[String]]
     summon[Captures["(a)?(b)?"] =:= (Option[String], Option[String])]
@@ -137,6 +140,7 @@ object matchtypes {
 
     summon[Captures["(?:(a)|(b))?"] =:= Option[Either[String, String]]]
     summon[Captures["(?:(a)|(b)|(c))?"] =:= Option[Either[String, Either[String, String]]]]
+    summon[Captures["(a)?|(b)?"] =:= Either[Option[String], Option[String]]]
 
     // TODO: Keep track of level of brackets
     summon[Captures["(a))"] =:= String] // Should not compile
