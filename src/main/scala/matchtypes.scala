@@ -68,45 +68,45 @@ object matchtypes {
     case false => Tidy[Reverse[Acc]]
   }
 
-  sealed trait Extractor[+T] {
-    def extract(groups: Array[String | Null], i: Int): (Option[T], Int, Boolean)
+  sealed trait Sanitiser[+T] {
+    def sanitise(groups: Array[String | Null], i: Int): (Option[T], Int, Boolean)
   }
 
-  object Extractor {
-    given Extractor[Unit] {
-      override def extract(captures: Array[String | Null], i: Int): (Some[Unit], i.type, false) = (Some(()), i, false)
+  object Sanitiser {
+    given Sanitiser[Unit] {
+      override def sanitise(captures: Array[String | Null], i: Int): (Some[Unit], i.type, false) = (Some(()), i, false)
     }
 
-    given Extractor[EmptyTuple] {
-      override def extract(groups: Array[String | Null], i: Int): (Some[EmptyTuple], i.type, false) = (Some(EmptyTuple), i, false)
+    given Sanitiser[EmptyTuple] {
+      override def sanitise(groups: Array[String | Null], i: Int): (Some[EmptyTuple], i.type, false) = (Some(EmptyTuple), i, false)
     }
 
-    given Extractor[String] {
-      override def extract(groups: Array[String | Null], i: Int): (Option[String], Int, Boolean) = {
+    given Sanitiser[String] {
+      override def sanitise(groups: Array[String | Null], i: Int): (Option[String], Int, Boolean) = {
         val cap = Option(groups(i))
         (cap, i + 1, cap.isDefined)
       }
     }
 
-    given [A, T <: Tuple](using head: Extractor[A], tail: Extractor[T]): Extractor[A *: T] = new {
-      override def extract(groups: Array[String | Null], i: Int): (Option[A *: T], Int, Boolean) = {
-        val (headCaps, j, anyHead) = head.extract(groups, i)
-        val (tailCaps, k, anyTail) = tail.extract(groups, j)
+    given [A, T <: Tuple](using head: Sanitiser[A], tail: Sanitiser[T]): Sanitiser[A *: T] = new {
+      override def sanitise(groups: Array[String | Null], i: Int): (Option[A *: T], Int, Boolean) = {
+        val (headCaps, j, anyHead) = head.sanitise(groups, i)
+        val (tailCaps, k, anyTail) = tail.sanitise(groups, j)
         ((headCaps, tailCaps).mapN(_ *: _), k, anyHead || anyTail)
       }
     }
 
-    given [A](using extractor: Extractor[A]): Extractor[Option[A]] = new {
-      override def extract(groups: Array[String | Null], i: Int): (Some[Option[A]], Int, Boolean) = {
-        val (caps, j, any) = extractor.extract(groups, i)
+    given [A](using sanitiser: Sanitiser[A]): Sanitiser[Option[A]] = new {
+      override def sanitise(groups: Array[String | Null], i: Int): (Some[Option[A]], Int, Boolean) = {
+        val (caps, j, any) = sanitiser.sanitise(groups, i)
         (Some(caps), j, any)
       }
     }
 
-    given [A, B](using leftExtractor: Extractor[A], rightExtractor: Extractor[B]): Extractor[Either[A, B]] = new {
-      override def extract(groups: Array[String | Null], i: Int): (Option[Either[A, B]], Int, Boolean) = {
-        val (leftCaps, j, anyLeft) = leftExtractor.extract(groups, i)
-        val (rightCaps, k, anyRight) = rightExtractor.extract(groups, j)
+    given [A, B](using leftSanitiser: Sanitiser[A], rightSanitiser: Sanitiser[B]): Sanitiser[Either[A, B]] = new {
+      override def sanitise(groups: Array[String | Null], i: Int): (Option[Either[A, B]], Int, Boolean) = {
+        val (leftCaps, j, anyLeft) = leftSanitiser.sanitise(groups, i)
+        val (rightCaps, k, anyRight) = rightSanitiser.sanitise(groups, j)
         val left = leftCaps.map(Left(_))
         val right = rightCaps.map(Right(_))
         val caps = if anyLeft then left.orElse(right) else right.orElse(left)
@@ -115,14 +115,14 @@ object matchtypes {
     }
   }
 
-  class Regex[S <: String & Singleton](regex: S)(using extractor: Extractor[Captures[S]]) {
+  class Regex[S <: String & Singleton](regex: S)(using sanitiser: Sanitiser[Captures[S]]) {
     val pattern: Pattern = Pattern.compile(regex)
 
     def unapply(s: String): Option[Captures[S]] = {
       val m = pattern.matcher(s)
       if (m.matches()) {
         val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
-        extractor.extract(a, 0)._1
+        sanitiser.sanitise(a, 0)._1
       } else {
         None
       }
@@ -167,6 +167,6 @@ object matchtypes {
     summon[Captures["(a))"] =:= String] // Should not compile
     summon[Captures["(a"] =:= String] // Should not compile
 
-    summon[Extractor[Captures["(?:(a)|(b)|(c))?"]]]
+    summon[Sanitiser[Captures["(?:(a)|(b)|(c))?"]]]
   }
 }
