@@ -6,20 +6,18 @@ import scala.Tuple.{Concat, Reverse}
 
 object matchtypes {
 
-  type Captures[S <: String & Singleton] = Fst[Go[S, 0, false, EmptyTuple]]
-
-  type Fst[T <: Tuple2[?, ?]] = T match {
+  type Captures[S <: String & Singleton] = Go[S, 0, false, EmptyTuple] match {
     case (a, _) => a
   }
 
   type Go[S <: String, L <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int) = L match {
-    case Length[S] => (Tidy[Reverse[Acc]], Length[S])
-    case _ => CharAt[S, L] match {
+    case Length[S] => (CloseGroup[Cap, Acc], Length[S])
+    case _         => CharAt[S, L] match {
       case '\\' => Go[S, L + 2, Cap, Acc]
       case '|'  => Go[S, L + 1, false, EmptyTuple] match {
         case (Unit, l) => Acc match {
           case EmptyTuple => (CloseGroup[Cap, EmptyTuple], l)
-          case _    => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l)
+          case _          => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l)
         }
         case (b, l)    => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l)
       }
@@ -32,7 +30,7 @@ object matchtypes {
       }
       case ')'  => L + 1 match {
         case Length[S] => (CloseGroup[Cap, Acc], Length[S])
-        case _ => CharAt[S, L + 1] match {
+        case _         => CharAt[S, L + 1] match {
           case '?' | '*' => (Opt[CloseGroup[Cap, Acc]], L + 2)
           case _         => (CloseGroup[Cap, Acc], L + 1)
         }
@@ -97,15 +95,14 @@ object matchtypes {
     summon[Captures["(?:(a)(b))?"] =:= Option[(String, String)]]
     summon[Captures["(?:a)?"] =:= Unit]
 
-    /* Bugs, should not compile */
-    // TODO: Keep track of level of brackets
-    summon[Captures["(a))"] =:= String]
-    summon[Captures["(a"] =:= Unit]
-
     summon[Captures["a|b"] =:= Unit]
     summon[Captures["(a)|b"] =:= Either[String, Unit]]
     summon[Captures["(a)|(b)"] =:= Either[String, String]]
     summon[Captures["(a)|(b)|(c)"] =:= Either[String, Either[String, String]]]
     summon[Captures["(?:(a)|(b))|(?:(c))"] =:= Either[Either[String, String], String]]
+
+    // TODO: Keep track of level of brackets
+    summon[Captures["(a))"] =:= String] // Should not compile
+    summon[Captures["(a"] =:= String] // Should not compile 
   }
 }
