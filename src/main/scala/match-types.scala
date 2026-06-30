@@ -69,56 +69,56 @@ object matchtypes {
   }
 
   sealed trait Extractor[+T] {
-    def extract(groups: Array[String | Null], i: Int): (Option[T], Int)
+    def extract(groups: Array[String | Null], i: Int): (Option[T], Int, Boolean)
   }
 
   object Extractor {
     given Extractor[Unit] {
-      override def extract(captures: Array[String | Null], i: Int): (Some[Unit], i.type) = (Some(()), i)
+      override def extract(captures: Array[String | Null], i: Int): (Some[Unit], i.type, false) = (Some(()), i, false)
     }
 
     given Extractor[EmptyTuple] {
-      override def extract(groups: Array[String | Null], i: Int): (Some[EmptyTuple], i.type) = (Some(EmptyTuple), i)
+      override def extract(groups: Array[String | Null], i: Int): (Some[EmptyTuple], i.type, false) = (Some(EmptyTuple), i, false)
     }
 
     given Extractor[String] {
-      override def extract(groups: Array[String | Null], i: Int): (Option[String], Int) = (Option(groups(i)), i + 1)
+      override def extract(groups: Array[String | Null], i: Int): (Option[String], Int, Boolean) = {
+        val cap = Option(groups(i))
+        (cap, i + 1, cap.isDefined)
+      }
     }
 
     given [A, T <: Tuple](using head: Extractor[A], tail: Extractor[T]): Extractor[A *: T] = new {
-      override def extract(groups: Array[String | Null], i: Int): (Option[A *: T], Int) = {
-        val (headCaps, j) = head.extract(groups, i)
-        val (tailCaps, k) = tail.extract(groups, j)
-        ((headCaps, tailCaps).mapN(_ *: _), k)
+      override def extract(groups: Array[String | Null], i: Int): (Option[A *: T], Int, Boolean) = {
+        val (headCaps, j, anyHead) = head.extract(groups, i)
+        val (tailCaps, k, anyTail) = tail.extract(groups, j)
+        ((headCaps, tailCaps).mapN(_ *: _), k, anyHead || anyTail)
       }
     }
 
     given [A](using extractor: Extractor[A]): Extractor[Option[A]] = new {
-      override def extract(groups: Array[String | Null], i: Int): (Some[Option[A]], Int) = {
-        val (caps, j) = extractor.extract(groups, i)
-        (Some(caps), j)
+      override def extract(groups: Array[String | Null], i: Int): (Some[Option[A]], Int, Boolean) = {
+        val (caps, j, any) = extractor.extract(groups, i)
+        (Some(caps), j, any)
       }
     }
 
     given [A, B](using leftExtractor: Extractor[A], rightExtractor: Extractor[B]): Extractor[Either[A, B]] = new {
-      override def extract(groups: Array[String | Null], i: Int): (Option[Either[A, B]], Int) = {
-        val (leftCaps, j) = leftExtractor.extract(groups, i)
-        val (rightCaps, k) = rightExtractor.extract(groups, j)
-        val anyLeft = i != j
+      override def extract(groups: Array[String | Null], i: Int): (Option[Either[A, B]], Int, Boolean) = {
+        val (leftCaps, j, anyLeft) = leftExtractor.extract(groups, i)
+        val (rightCaps, k, anyRight) = rightExtractor.extract(groups, j)
         val left = leftCaps.map(Left(_))
         val right = rightCaps.map(Right(_))
         val caps = if anyLeft then left.orElse(right) else right.orElse(left)
-        (caps, k)
+        (caps, k, anyLeft || anyRight)
       }
     }
   }
 
-  class Regex[S <: String & Singleton](regex: S) {
+  class Regex[S <: String & Singleton](regex: S)(using extractor: Extractor[Captures[S]]) {
     val pattern: Pattern = Pattern.compile(regex)
 
-    type A = Captures[S]
-
-    def unapply(s: String)(using extractor: Extractor[A]): Option[A] = {
+    def unapply(s: String): Option[Captures[S]] = {
       val m = pattern.matcher(s)
       if (m.matches()) {
         val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
