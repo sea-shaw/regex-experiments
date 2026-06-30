@@ -6,16 +6,24 @@ import scala.Tuple.{Concat, Reverse}
 
 object matchtypes {
 
-  type Captures[S <: String & Singleton] = AltCaptures[S, 0, 0, Length[S]]
+  type Captures[S <: String & Singleton] = AltCaptures[S, 0, 0, Length[S]] match {
+    case (a, _) => a
+  }
 
-  type AltCaptures[S <: String, L <: Int, M <: Int, U <: Int] = M match {
+  type AltCaptures[S <: String, L <: Int, M <: Int, U <: Int] <: (Any, Int) = M match {
     case U => TermCaptures[S, L, U]
     case _ => CharAt[S, M] match {
       case '\\' => AltCaptures[S, L, M + 2, U]
       case '('  => AltCaptures[S, L, SkipGroup[S, M + 1, 1], U]
-      case '|'  => (TermCaptures[S, L, M], AltCaptures[S, M + 1, M + 1, U]) match {
-        case (Unit, Unit) => Unit
-        case (a, b)       => Either[a, b]
+      case ')'  => TermCaptures[S, L, M]
+      case '|'  => TermCaptures[S, L, M] match {
+        case (Unit, _) => AltCaptures[S, M + 1, M + 1, U] match {
+          case (Unit, i) => (Unit, i)
+          case (b, i)    => (Either[Unit, b], i)
+        }
+        case (a, _)    => AltCaptures[S, M + 1, M + 1, U] match {
+          case (b, i) => (Either[a, b], i)
+        }
       }
       case _    => AltCaptures[S, L, M + 1, U]
     }
@@ -30,9 +38,7 @@ object matchtypes {
     }
   }
 
-  type TermCaptures[S <: String, L <: Int, U <: Int] = Go[S, L, U, false, EmptyTuple] match {
-    case (a, _) => a
-  }
+  type TermCaptures[S <: String, L <: Int, U <: Int] = Go[S, L, U, false, EmptyTuple]
 
   type Go[S <: String, L <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int) = L match {
     case U => (Tidy[Reverse[Acc]], U)
@@ -118,7 +124,9 @@ object matchtypes {
     // val noClosed: Captures["(a"] = ()
 
     val alt: Captures["|"] = ()
-    val altCapture: Captures["(a)|(b)"] = Left("a")
-    val nestedAltCaptures: Captures["(a)|(b)|(c)"] = Right(Right("c"))
+    val altCaps: Captures["(a)|(b)"] = Left("a")
+    val manyAltCaps: Captures["(a)|(b)|(c)"] = Right(Right("c"))
+    // TODO: Handle nested alternation
+    val nestedAltCaps: Captures["(?:(a)|(b))|(?:(c)|(d))"] = Left(("a", "b")) /* Left(Left("a")) */
   }
 }
