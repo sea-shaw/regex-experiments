@@ -8,32 +8,34 @@ import scala.Tuple.{Concat, Reverse}
 object matchtypes {
 
   type Captures[S <: String & Singleton] = Go[S, 0, false, EmptyTuple] match {
-    case (a, _) => a
+    case (a, _, _) => a
   }
 
-  type Go[S <: String, L <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int) = L match {
-    case Length[S] => (CloseGroup[Cap, Acc], Length[S])
+  type Go[S <: String, L <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int, Boolean) = L match {
+    case Length[S] => (CloseGroup[Cap, Acc], Length[S], false)
     case _         => CharAt[S, L] match {
       case '\\' => Go[S, L + 2, Cap, Acc]
       case '|'  => Go[S, L + 1, false, EmptyTuple] match {
-        case (Unit, l) => Acc match {
-          case EmptyTuple => (CloseGroup[Cap, EmptyTuple], l)
-          case _          => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l)
+        case (Unit, l, opt) => Acc match {
+          case EmptyTuple => (CloseGroup[Cap, EmptyTuple], l, opt)
+          case _          => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l, opt)
         }
-        case (b, l)    => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l)
+        case (b, l, opt)    => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt)
       }
       case '('  => Go[S, L + 1, IsCapturing[S, L + 1], EmptyTuple] match {
-        case (a, l) => a match {
-          case Tuple => Go[S, l, Cap, Concat[a, Acc]]
+        case (a, l, opt) => a match {
           case Unit  => Go[S, l, Cap, Acc]
-          case _     => Go[S, l, Cap, a *: Acc]
+          case _     => opt match {
+            case true  => Go[S, l, Cap, Option[a] *: Acc]
+            case false => Go[S, l, Cap, a *: Acc]
+          }
         }
       }
       case ')'  => L + 1 match {
-        case Length[S] => (CloseGroup[Cap, Acc], Length[S])
+        case Length[S] => (CloseGroup[Cap, Acc], Length[S], false)
         case _         => CharAt[S, L + 1] match {
-          case '?' | '*' => (Opt[CloseGroup[Cap, Acc]], L + 2)
-          case _         => (CloseGroup[Cap, Acc], L + 1)
+          case '?' | '*' => (CloseGroup[Cap, Acc], L + 2, true)
+          case _         => (CloseGroup[Cap, Acc], L + 1, false)
         }
       }
       case _    => Go[S, L + 1, Cap, Acc]
@@ -60,16 +62,6 @@ object matchtypes {
   type CloseGroup[Cap <: Boolean, Acc <: Tuple] = Cap match {
     case true  => Tidy[String *: Reverse[Acc]]
     case false => Tidy[Reverse[Acc]]
-  }
-
-  type Opt[A] = A match {
-    case Unit => Unit
-    case _    => Option[A]
-  }
-
-  type Alt[A, B] = (A, B) match {
-    case (Unit, Unit) => Unit
-    case _            => Either[A, B]
   }
 
   sealed trait Extractor[+T] {
@@ -121,8 +113,8 @@ object matchtypes {
     summon[Captures["\\(a\\)"] =:= Unit]
 
     // TODO: Should these be flat or nested?
-    summon[Captures["(a(b))(c)"] =:= (String, String, String)] // ((String, String), String)
-    summon[Captures["(a(b(c(d)))(e))"] =:= (String, String, String, String, String)] // (String, (String, (String, String)), String)
+    summon[Captures["(a(b))(c)"] =:= ((String, String), String)]
+    summon[Captures["(a(b(c(d)))(e))"] =:= (String, (String, (String, String)), String)]
 
     summon[Captures["(a)?"] =:= Option[String]]
     summon[Captures["(a)?(b)?"] =:= (Option[String], Option[String])]
@@ -143,9 +135,8 @@ object matchtypes {
     summon[Captures["(a)|(b)|(c)"] =:= Either[String, Either[String, String]]]
     summon[Captures["(?:(a)|(b))|(?:(c))"] =:= Either[Either[String, String], String]]
 
-    // TODO: Handle alternation inside optional
-    summon[Captures["(?:(a)|(b))?"] =:= Either[String, Option[String]]]
-    // summon[Captures["(?:(a)|(b))?"] =:= Option[Either[String, String]]]
+    summon[Captures["(?:(a)|(b))?"] =:= Option[Either[String, String]]]
+    summon[Captures["(?:(a)|(b)|(c))?"] =:= Option[Either[String, Either[String, String]]]]
 
     // TODO: Keep track of level of brackets
     summon[Captures["(a))"] =:= String] // Should not compile
