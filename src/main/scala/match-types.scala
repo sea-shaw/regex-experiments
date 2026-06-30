@@ -6,38 +6,38 @@ import scala.Tuple.{Concat, Reverse}
 
 object matchtypes {
 
-  type Captures[S <: String & Singleton] = Fst[Go[S, 0, Length[S], false, EmptyTuple]]
+  type Captures[S <: String & Singleton] = Fst[Go[S, 0, false, EmptyTuple]]
 
   type Fst[T <: Tuple2[?, ?]] = T match {
     case (a, _) => a
   }
 
-  type Go[S <: String, L <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int) = L match {
-    case U => (Tidy[Reverse[Acc]], U)
+  type Go[S <: String, L <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int) = L match {
+    case Length[S] => (Tidy[Reverse[Acc]], Length[S])
     case _ => CharAt[S, L] match {
-      case '\\' => Go[S, L + 2, U, Cap, Acc]
-      case '|'  => Go[S, L + 1, U, false, EmptyTuple] match {
+      case '\\' => Go[S, L + 2, Cap, Acc]
+      case '|'  => Go[S, L + 1, false, EmptyTuple] match {
         case (Unit, l) => Acc match {
           case EmptyTuple => (CloseGroup[Cap, EmptyTuple], l)
           case _    => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l)
         }
         case (b, l)    => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l)
       }
-      case '('  => Go[S, L + 1, U, IsCapturing[S, L + 1], EmptyTuple] match {
+      case '('  => Go[S, L + 1, IsCapturing[S, L + 1], EmptyTuple] match {
         case (a, l) => a match {
-          case Tuple => Go[S, l, U, Cap, Concat[a, Acc]]
-          case Unit  => Go[S, l, U, Cap, Acc]
-          case _     => Go[S, l, U, Cap, a *: Acc]
+          case Tuple => Go[S, l, Cap, Concat[a, Acc]]
+          case Unit  => Go[S, l, Cap, Acc]
+          case _     => Go[S, l, Cap, a *: Acc]
         }
       }
       case ')'  => L + 1 match {
-        case U => (CloseGroup[Cap, Acc], U)
+        case Length[S] => (CloseGroup[Cap, Acc], Length[S])
         case _ => CharAt[S, L + 1] match {
           case '?' | '*' => (Opt[CloseGroup[Cap, Acc]], L + 2)
           case _         => (CloseGroup[Cap, Acc], L + 1)
         }
       }
-      case _    => Go[S, L + 1, U, Cap, Acc]
+      case _    => Go[S, L + 1, Cap, Acc]
     }
   }
 
