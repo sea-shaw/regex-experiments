@@ -6,44 +6,23 @@ import scala.Tuple.{Concat, Reverse}
 
 object matchtypes {
 
-  type Captures[S <: String & Singleton] = AltCaptures[S, 0, 0, Length[S]] match {
+  type Captures[S <: String & Singleton] = Fst[Go[S, 0, Length[S], false, EmptyTuple]]
+
+  type Fst[T <: Tuple2[?, ?]] = T match {
     case (a, _) => a
   }
-
-  type AltCaptures[S <: String, L <: Int, M <: Int, U <: Int] <: (Any, Int) = M match {
-    case U => TermCaptures[S, L, U]
-    case _ => CharAt[S, M] match {
-      case '\\' => AltCaptures[S, L, M + 2, U]
-      case '('  => AltCaptures[S, L, SkipGroup[S, M + 1, 1], U]
-      case ')'  => TermCaptures[S, L, M]
-      case '|'  => TermCaptures[S, L, M] match {
-        case (Unit, _) => AltCaptures[S, M + 1, M + 1, U] match {
-          case (Unit, i) => (Unit, i)
-          case (b, i)    => (Either[Unit, b], i)
-        }
-        case (a, _)    => AltCaptures[S, M + 1, M + 1, U] match {
-          case (b, i) => (Either[a, b], i)
-        }
-      }
-      case _    => AltCaptures[S, L, M + 1, U]
-    }
-  }
-
-  type SkipGroup[S <: String, I <: Int, Depth <: Int] <: Int = Depth match {
-    case 0 => I
-    case _ => CharAt[S, I] match {
-      case '(' => SkipGroup[S, I + 1, Depth + 1]
-      case ')' => SkipGroup[S, I + 1, Depth - 1]
-      case _   => SkipGroup[S, I + 1, Depth]
-    }
-  }
-
-  type TermCaptures[S <: String, L <: Int, U <: Int] = Go[S, L, U, false, EmptyTuple]
 
   type Go[S <: String, L <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int) = L match {
     case U => (Tidy[Reverse[Acc]], U)
     case _ => CharAt[S, L] match {
-      case '\\' => Go[S, L + 2, Cap, U, Acc]
+      case '\\' => Go[S, L + 2, U, Cap, Acc]
+      case '|'  => Go[S, L + 1, U, false, EmptyTuple] match {
+        case (Unit, l) => Acc match {
+          case EmptyTuple => (CloseGroup[Cap, EmptyTuple], l)
+          case _    => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l)
+        }
+        case (b, l)    => (CloseGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l)
+      }
       case '('  => Go[S, L + 1, U, IsCapturing[S, L + 1], EmptyTuple] match {
         case (a, l) => a match {
           case Tuple => Go[S, l, U, Cap, Concat[a, Acc]]
@@ -123,10 +102,10 @@ object matchtypes {
     val extraClosed: Captures["(a))"] = "a"
     // val noClosed: Captures["(a"] = ()
 
-    val alt: Captures["|"] = ()
+    val altNoCaps: Captures["a|b"] = ()
+    val altLeftCap: Captures["(a)|b"] = Right(())
     val altCaps: Captures["(a)|(b)"] = Left("a")
     val manyAltCaps: Captures["(a)|(b)|(c)"] = Right(Right("c"))
-    // TODO: Handle nested alternation
-    val nestedAltCaps: Captures["(?:(a)|(b))|(?:(c)|(d))"] = Left(("a", "b")) /* Left(Left("a")) */
+    val nestedAltCaps: Captures["(?:(a)|(b))|(?:(c))"] = Left(Left("a"))
   }
 }
