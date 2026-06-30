@@ -1,6 +1,7 @@
 package experiments
 
 import cats.syntax.all.*
+import java.util.regex.Pattern
 import scala.compiletime.ops.int.{+, -}
 import scala.compiletime.ops.string.{CharAt, Length}
 import scala.Tuple.{Concat, Reverse}
@@ -108,6 +109,22 @@ object matchtypes {
         val right = rightCaps.map(Right(_))
         val caps = if anyLeft then left.orElse(right) else right.orElse(left)
         (caps, k)
+      }
+    }
+  }
+
+  class Regex[S <: String & Singleton](regex: S) {
+    val pattern: Pattern = Pattern.compile(regex)
+
+    type A = Captures[S]
+
+    def unapply(s: String)(using extractor: Extractor[A]): Option[A] = {
+      val m = pattern.matcher(s)
+      if (m.matches()) {
+        val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
+        extractor.extract(a, 0)._1
+      } else {
+        None
       }
     }
   }
