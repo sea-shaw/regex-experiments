@@ -1,10 +1,10 @@
-package experiments
+package experiments.matchtypes
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.*
-import experiments.matchtypes.Regex
+import experiments.matchtypes.implicitsearch.Regex
 
-class MatchTypesUnitTests extends AnyFlatSpec {
+class ImplicitSearchUnitTests extends AnyFlatSpec {
 
   behavior of "Regex"
 
