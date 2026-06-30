@@ -143,6 +143,10 @@ object matchtypes {
     summon[Captures["(a)|(b)|(c)"] =:= Either[String, Either[String, String]]]
     summon[Captures["(?:(a)|(b))|(?:(c))"] =:= Either[Either[String, String], String]]
 
+    // TODO: Handle alternation inside optional
+    summon[Captures["(?:(a)|(b))?"] =:= Either[String, Option[String]]]
+    // summon[Captures["(?:(a)|(b))?"] =:= Option[Either[String, String]]]
+
     // TODO: Keep track of level of brackets
     summon[Captures["(a))"] =:= String] // Should not compile
     summon[Captures["(a"] =:= String] // Should not compile
