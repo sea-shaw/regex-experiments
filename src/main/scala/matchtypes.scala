@@ -115,7 +115,7 @@ object matchtypes {
     }
   }
 
-  class Regex[A] private (regex: String)(using sanitiser: Sanitiser[A]) {
+  class Regex[+A] private (regex: String)(using sanitiser: Sanitiser[A]) {
     val pattern: Pattern = Pattern.compile(regex)
 
     def unapply(s: String): Option[A] = {

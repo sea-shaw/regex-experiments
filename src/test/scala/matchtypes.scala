@@ -34,6 +34,13 @@ class MatchTypesUnitTests extends AnyFlatSpec {
     "" should matchPattern { case r(None) => }
   }
 
+  it should "match nested optional capture groups" in {
+    val r = Regex("(a(b)?)?")
+    "" should matchPattern { case r(None) => }
+    "a" should matchPattern { case r(Some("a", None)) => }
+    "ab" should matchPattern { case r(Some("ab", Some("b"))) => }
+  }
+
   it should "match star capture groups" in {
     val r = Regex("(a)*")
     "aaaa" should matchPattern { case r(Some("a")) => }
@@ -41,12 +48,18 @@ class MatchTypesUnitTests extends AnyFlatSpec {
   }
 
   it should "match alternative capture groups" in {
-    val aOrB = Regex("(a)|(b)")
-    "a" should matchPattern { case aOrB(Left("a")) => }
-    "b" should matchPattern { case aOrB(Right("b")) => }
+    val r = Regex("(a)|(b)")
+    "a" should matchPattern { case r(Left("a")) => }
+    "b" should matchPattern { case r(Right("b")) => }
   }
 
-  it should "match many alternative capture groups" in {
+  it should "match alternatives with multiple capture groups on either side" in {
+    val r = Regex("(a)(b)|(c)(d)")
+    "ab" should matchPattern { case r(Left("a", "b")) => }
+    "cd" should matchPattern { case r(Right("c", "d")) => }
+  }
+
+  it should "match many chained alternative capture groups" in {
     val r = Regex("(a)|(b)|(c)|(d)")
     "a" should matchPattern { case r(Left("a")) => }
     "b" should matchPattern { case r(Right(Left("b"))) => }
@@ -77,5 +90,13 @@ class MatchTypesUnitTests extends AnyFlatSpec {
     "a" should matchPattern { case r(Some(Left("a"))) => }
     "b" should matchPattern { case r(Some(Right("b"))) => }
     "" should matchPattern { case r(None) => }
+  }
+
+  it should "match nested alternative capture groups" in {
+    val r = Regex("(?:(a)|(b))|(?:(c)|(d))")
+    "a" should matchPattern { case r(Left(Left("a"))) => }
+    "b" should matchPattern { case r(Left(Right("b"))) => }
+    "c" should matchPattern { case r(Right(Left("c"))) => }
+    "d" should matchPattern { case r(Right(Right("d"))) => }
   }
 }
