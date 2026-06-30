@@ -99,11 +99,15 @@ object matchtypes {
       }
     }
 
-    given [A, B](using left: Extractor[A], right: Extractor[B]): Extractor[Either[A, B]] = new {
+    given [A, B](using leftExtractor: Extractor[A], rightExtractor: Extractor[B]): Extractor[Either[A, B]] = new {
       override def extract(groups: Array[String | Null], i: Int): (Option[Either[A, B]], Int) = {
-        val (leftCaps, j) = left.extract(groups, i)
-        val (rightCaps, k) = right.extract(groups, j)
-        (leftCaps.map(Left(_)).orElse(rightCaps.map(Right(_))), k)
+        val (leftCaps, j) = leftExtractor.extract(groups, i)
+        val (rightCaps, k) = rightExtractor.extract(groups, j)
+        val anyLeft = i != j
+        val left = leftCaps.map(Left(_))
+        val right = rightCaps.map(Right(_))
+        val caps = if anyLeft then left.orElse(right) else right.orElse(left)
+        (caps, k)
       }
     }
   }
@@ -145,5 +149,7 @@ object matchtypes {
     // TODO: Keep track of level of brackets
     summon[Captures["(a))"] =:= String] // Should not compile
     summon[Captures["(a"] =:= String] // Should not compile
+
+    summon[Extractor[Captures["(?:(a)|(b)|(c))?"]]]
   }
 }
