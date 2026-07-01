@@ -6,7 +6,7 @@ import experiments.matchtypes.implicitsearch.Regex
 
 class ImplicitSearchUnitTests extends AnyFlatSpec {
 
-  behavior of "Regex"
+  behavior of "Implicit search regex"
 
   it should "match zero capture groups" in {
     val r = Regex("a")

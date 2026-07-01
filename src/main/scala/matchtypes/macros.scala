@@ -14,26 +14,22 @@ object macros {
   }
 
   object Regex {
-    transparent inline def apply[R <: String & Singleton](inline regex: R): Regex[Captures[R]] = ${ regexCode[Captures[R]]('regex) }
+    inline def apply[R <: String & Singleton](inline regex: R): Regex[Captures[R]] = ${ regexCode[Captures[R]]('regex) }
   }
 
-  private def regexCode[A: Type](regex: Expr[String])(using Quotes): Expr[Regex[A]] = {
-    val r = '{
-      new Regex[A] {
-        val pattern: Pattern = Pattern.compile($regex)
-        override def unapply(s: String): Option[A] = {
-          val m = pattern.matcher(s)
-          if (m.matches()) {
-            val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
-            ${sanitiserCode[A]}(a, 0)._1
-          } else {
-            None
-          }
+  private def regexCode[A: Type](regex: Expr[String])(using Quotes): Expr[Regex[A]] = '{
+    new Regex[A] {
+      val pattern: Pattern = Pattern.compile($regex)
+      override def unapply(s: String): Option[A] = {
+        val m = pattern.matcher(s)
+        if (m.matches()) {
+          val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
+          ${sanitiserCode[A]}(a, 0)._1
+        } else {
+          None
         }
       }
     }
-    println(r.show)
-    r
   }
 
   private def sanitiserCode[A: Type](using Quotes): Expr[Sanitiser[A]] = {
