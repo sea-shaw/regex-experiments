@@ -11,7 +11,7 @@ object matchtypes {
   /**
     * Returns the type of the capture groups of the regular expression `R`.
     */
-  type Captures[R <: String & Singleton] = Fst[Go[R, 0, false, EmptyTuple]]
+  type Captures[R <: String & Singleton] = Fst[Go[R, 0, Length[R], false, EmptyTuple]]
 
   type Fst[T <: Tuple3[?, ?, ?]] = T match {
     case (a, _, _) => a
@@ -23,51 +23,50 @@ object matchtypes {
     * as well as the index of the next character in the regex and whether these
     * capture groups are optional.
     */
-  type Go[R <: String, I <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int, Boolean) = I match {
+  type Go[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int, Boolean) = I match {
     /* End of regex. */
-    case Length[R] => (Group[Cap, Acc], Length[R], false)
+    case U => (Group[Cap, Acc], U, false)
 
     /* Check current character */
     case _         => CharAt[R, I] match {
       /* Escape character, so ignore next character. */
-      case '\\' => Go[R, I + 2, Cap, Acc]
+      case '\\' => Go[R, I + 2, U, Cap, Acc]
 
       /* Alternation. `Acc` is LHS, so get RHS and optionality using new empty
          accumulator and combine with `Either`, unless both contain no capture
          groups. */
-      case '|'  => Go[R, I + 1, false, EmptyTuple] match {
-        case (Unit, l, opt) => Acc match {
-          case EmptyTuple => (Group[Cap, EmptyTuple], l, opt)
-          case _          => (Group[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l, opt)
+      case '|'  => Go[R, I + 1, U, false, EmptyTuple] match {
+        case (b, l, opt) => b match {
+          case Unit => Acc match {
+            case EmptyTuple => (Group[Cap, EmptyTuple], l, opt)
+            case _          => (Group[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l, opt) 
+          }
+          case _    => (Group[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt)
         }
-        case (b, l, opt)    => (Group[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt)
       }
 
       /* Beginning of group. Get type of group, and add it to `Acc`. Continue
          from next character after group. */
-      case '('  => Go[R, I + 1, IsCapturing[R, I + 1], EmptyTuple] match {
+      case '('  => Go[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple] match {
         case (a, l, opt) => a match {
-          case Unit  => Go[R, l, Cap, Acc]
+          case Unit  => Go[R, l, U, Cap, Acc]
           case _     => opt match {
-            case true  => Go[R, l, Cap, Option[a] *: Acc]
-            case false => a match {
-              case Tuple => Go[R, l, Cap, Concat[a, Acc]]
-              case _     => Go[R, l, Cap, a *: Acc]
-            }
+            case true  => Go[R, l, U, Cap, Option[a] *: Acc]
+            case false => Go[R, l, U, Cap, a *: Acc]
           }
         }
       }
 
       /* End of group, so return type of group and optionality. */
       case ')'  => I + 1 match {
-        case Length[R] => (Group[Cap, Acc], Length[R], false)
+        case U => (Group[Cap, Acc], U, false)
         case _         => CharAt[R, I + 1] match {
           case '?' | '*' => (Group[Cap, Acc], I + 2, true)
           case _         => (Group[Cap, Acc], I + 1, false)
         }
       }
 
-      case _    => Go[R, I + 1, Cap, Acc]
+      case _    => Go[R, I + 1, U, Cap, Acc]
     }
   }
 
@@ -116,8 +115,8 @@ object matchtypes {
     summon[Captures["\\(a\\)"] =:= Unit]
 
     // TODO: Should these be flat or nested?
-    summon[Captures["(a(b))(c)"] =:= (String, String, String)] // ((String, String), String)
-    summon[Captures["(a(b(c(d)))(e))"] =:= (String, String, String, String, String)] // (String, (String, (String, String)), String)
+    summon[Captures["(a(b))(c)"] =:= ((String, String), String)]
+    summon[Captures["(a(b(c(d)))(e))"] =:= (String, (String, (String, String)), String)]
 
     summon[Captures["(a)?"] =:= Option[String]]
     summon[Captures["(a)?(b)?"] =:= (Option[String], Option[String])]
