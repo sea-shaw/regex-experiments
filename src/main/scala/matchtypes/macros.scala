@@ -24,7 +24,8 @@ object macros {
         val m = pattern.matcher(s)
         if (m.matches()) {
           val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
-          ${sanitiseCode[A]('a, Expr(0))}._1
+          val sanitised = ${ sanitiseCode[A]('a, Expr(0)) }
+          sanitised._1
         } else {
           None
         }
@@ -45,17 +46,17 @@ object macros {
         (cap, $i + 1, cap.isDefined)
       }
       case '[a *: as] => '{
-        val (headCaps, j, anyHead) = ${sanitiseCode[a](groups, i)}
-        val (tailCaps, k, anyTail) = ${sanitiseCode[as](groups, 'j)}
+        val (headCaps, j, anyHead) = ${ sanitiseCode[a](groups, i) }
+        val (tailCaps, k, anyTail) = ${ sanitiseCode[as](groups, 'j) }
         ((headCaps, tailCaps).mapN(_ *: _), k, anyHead || anyTail)
       }
       case '[Option[a]] => '{
-        val (caps, j, any) = ${sanitiseCode[a](groups, i)}
+        val (caps, j, any) = ${ sanitiseCode[a](groups, i) }
         (Some(caps), j, any)
       }
       case '[Either[a, b]] => '{
-        val (leftCaps, j, anyLeft) = ${sanitiseCode[a](groups, i)}
-        val (rightCaps, k, anyRight) = ${sanitiseCode[b](groups, 'j)}
+        val (leftCaps, j, anyLeft) = ${ sanitiseCode[a](groups, i) }
+        val (rightCaps, k, anyRight) = ${ sanitiseCode[b](groups, 'j) }
         val left = leftCaps.map(Left(_))
         val right = rightCaps.map(Right(_))
         val caps = if anyLeft then left.orElse(right) else right.orElse(left)
