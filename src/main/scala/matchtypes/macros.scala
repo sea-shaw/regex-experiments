@@ -3,7 +3,7 @@ package experiments.matchtypes
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
 import experiments.matchtypes.matchtypes.Captures
 import java.util.regex.Pattern
-import scala.quoted.{Expr, Quotes, Type}
+import scala.quoted.{Expr, quotes, Quotes, Type}
 
 object macros {
 
@@ -15,20 +15,25 @@ object macros {
     inline def apply[R <: String & Singleton](inline regex: R): Regex[Captures[R]] = ${ regexCode[Captures[R]]('regex) }
   }
 
-  private def regexCode[A: Type](regex: Expr[String])(using Quotes): Expr[Regex[A]] = '{
-    new Regex[A] {
-      val pattern: Pattern = Pattern.compile($regex)
-      override def unapply(s: String): Option[A] = {
-        val m = pattern.matcher(s)
-        if (m.matches()) {
-          val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
-          val (sanitised, _, _) = ${ sanitiseCode[A]('a, Expr(0)) }
-          sanitised
-        } else {
-          None
+  private def regexCode[A: Type](regex: Expr[String])(using Quotes): Expr[Regex[A]] = {
+    import quotes.reflect.{Position, report}
+    val expr = '{
+      new Regex[A] {
+        val pattern: Pattern = Pattern.compile($regex)
+        override def unapply(s: String): Option[A] = {
+          val m = pattern.matcher(s)
+          if (m.matches()) {
+            val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
+            val (sanitised, _, _) = ${ sanitiseCode[A]('a, Expr(0)) }
+            sanitised
+          } else {
+            None
+          }
         }
       }
     }
+    report.info(expr.show, Position.ofMacroExpansion)
+    expr
   }
 
   private def sanitiseCode[A: Type](groups: Expr[Array[String | Null]], i: Expr[Int])(using Quotes): Expr[(Option[A], Int, Boolean)] = {
