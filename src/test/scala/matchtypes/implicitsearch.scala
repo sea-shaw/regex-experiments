@@ -74,7 +74,7 @@ class ImplicitSearchUnitTests extends AnyFlatSpec {
 
   it should "match capture groups with shared optionality" in {
     val r = Regex("(?:(a)(b))?")
-    "ab" should matchPattern { case r(Some(("a", "b"))) => }
+    "ab" should matchPattern { case r(Some("a", "b")) => }
     "" should matchPattern { case r(None) => }
   }
 
