@@ -42,7 +42,7 @@ object macros {
       }
       case '[String] => '{ (groups: Array[String | Null], i: Int) =>
         val cap = Option(groups(i))
-        (cap, i, cap.isDefined)
+        (cap, i + 1, cap.isDefined)
       }
       case '[a *: as] => '{ (groups: Array[String | Null], i: Int) =>
         val (headCaps, j, anyHead) = ${sanitiserCode[a]}(groups, i)
