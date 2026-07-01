@@ -33,10 +33,11 @@ object dependenttyping {
     case t: (_, _, _) => t._1
   }
 
-  // This just returns something of the correct type for Go.
-  // Defaults to `Some` for `?` and `Left` for `|`.
+  /** This just returns something of the correct type for `Go`.
+    * Defaults to `""` for a capture group, `Some` for `?` and `Left` for `|`.
+    */
   private def goShape[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple](r: R, i: I, cap: Cap, acc: Acc): Go[R, I, U, Cap, Acc] = i match {
-    case u: U   => (groupShape(cap, acc), u, false) // TODO: Fix type test. Needs to be `U` or `Length[R]` but neither can be checked at runtime.
+    case u: U   => (groupShape(cap, acc), u, false) // TODO: Fix type test. Needs to be `U` or `Length[R]` but neither can be checked at runtime. Type test must be `=:=` to the one in the match type.
     case _: Any => charAt(r, i) match {
       case _: '\\' => goShape[R, I + 2, U, Cap, Acc](r, i plus 2, cap, acc)
       case _: '|'  => goShape[R, I + 1, U, false, EmptyTuple](r, i plus 1, false, EmptyTuple) match {
@@ -74,6 +75,7 @@ object dependenttyping {
   }
 
   // I think it's impossible to implement this without `asInstanceOf`, which defeats the point
+  // Compiler can handle return type of `Go[...]` without `asInstanceOf` but not `Option[Go[...]]`
   private def go[R <: String, I <: Int & Singleton, U <: Int, Cap <: Boolean & Singleton, Acc <: Tuple](r: R, i: I, cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int): (Option[Go[R, I, U, Cap, Acc]], Int, Boolean) = ???
 
   private def tidy[T <: Tuple](t: T): Tidy[T] = t match {
@@ -93,8 +95,10 @@ object dependenttyping {
     case _: Any => true
   }
 
+  // Neither of these functions exist in the standard library as far as I can
+  // tell.
+
   extension [I <: Int] (i: I) {
-    // TODO: Hide `+` from standard library
     private infix def plus[J <: Int & Singleton](j: J): I + J = (i + j).asInstanceOf[I + J]
   }
 
