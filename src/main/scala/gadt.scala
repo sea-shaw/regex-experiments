@@ -78,7 +78,7 @@ object gadt {
       case _: Unit => r2.shape match {
         case _: Unit => ()
       }
-      case x: Any => Right(r2.shape)
+      case _: Any => Right(r2.shape)
     }
   }
 
@@ -90,13 +90,5 @@ object gadt {
     override def shape: CaptureType[A] = {
       fromTuple(("" *: toTuple(r.shape)))
     }
-  }
-
-  private val tests: Unit = {
-    val cap = Capture(Dot)
-    val y = cap.unapply(???).get
-    val regex = Cat(Cat(Alt(cap, cap), Alt(Dot, Dot)), Cat(Opt(cap), Opt(Dot)))
-    val x = regex.unapply(???).get
-    val s = regex.shape
   }
 }

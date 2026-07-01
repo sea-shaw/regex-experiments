@@ -18,5 +18,12 @@ lazy val root = project
     scalacOptions ++= Seq(
       "-Yexplicit-nulls",
       "-Xcheck-macros",
+      "-explaintypes",
+      "-deprecation",
+      "-unchecked",
+      "-Wimplausible-patterns",
+      "-Wunused:all",
+      "-Wsafe-init",
+      "-feature",
     )
   )
