@@ -32,6 +32,7 @@ object dependenttyping {
     case t: (_, _, _) => t._1
   }
 
+  // I think it's impossible to implement this without `asInstanceOf`, which defeats the point
   private def go[R <: String, I <: Int & Singleton, Cap <: Boolean & Singleton, Acc <: Tuple](r: R, i: I, cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int): (Option[Go[R, I, Cap, Acc]], Int, Boolean) = ???
 
   private def tidy[T <: Tuple](t: T): Tidy[T] = t match {
