@@ -17,51 +17,55 @@ object macros {
     inline def apply[R <: String & Singleton](inline regex: R): Regex[Captures[R]] = ${ regexCode[Captures[R]]('regex) }
   }
 
-  private def regexCode[A: Type](regex: Expr[String])(using Quotes): Expr[Regex[A]] = '{
-    new Regex[A] {
-      val pattern: Pattern = Pattern.compile($regex)
-      override def unapply(s: String): Option[A] = {
-        val m = pattern.matcher(s)
-        if (m.matches()) {
-          val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
-          ${sanitiserCode[A]}(a, 0)._1
-        } else {
-          None
+  private def regexCode[A: Type](regex: Expr[String])(using Quotes): Expr[Regex[A]] = {
+    val r = '{
+      new Regex[A] {
+        val pattern: Pattern = Pattern.compile($regex)
+        override def unapply(s: String): Option[A] = {
+          val m = pattern.matcher(s)
+          if (m.matches()) {
+            val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
+            ${sanitiseCode[A]('a, Expr(0))}._1
+          } else {
+            None
+          }
         }
       }
     }
+    println(r.show)
+    r
   }
 
-  private def sanitiserCode[A: Type](using Quotes): Expr[Sanitiser[A]] = {
+  private def sanitiseCode[A: Type](groups: Expr[Array[String | Null]], i: Expr[Int])(using Quotes): Expr[(Option[A], Int, Boolean)] = {
     val sanitiser = Type.of[A] match {
-      case '[Unit] => '{ (_: Array[String | Null], i: Int) =>
-        (Some(()), i, false)
+      case '[Unit] => '{
+        (Some(()), $i, false)
       }
-      case '[EmptyTuple] => '{ (_: Array[String | Null], i: Int) =>
-        (Some(EmptyTuple), i, false)
+      case '[EmptyTuple] => '{
+        (Some(EmptyTuple), $i, false)
       }
-      case '[String] => '{ (groups: Array[String | Null], i: Int) =>
-        val cap = Option(groups(i))
-        (cap, i + 1, cap.isDefined)
+      case '[String] => '{
+        val cap = Option($groups($i))
+        (cap, $i + 1, cap.isDefined)
       }
-      case '[a *: as] => '{ (groups: Array[String | Null], i: Int) =>
-        val (headCaps, j, anyHead) = ${sanitiserCode[a]}(groups, i)
-        val (tailCaps, k, anyTail) = ${sanitiserCode[as]}(groups, j)
+      case '[a *: as] => '{
+        val (headCaps, j, anyHead) = ${sanitiseCode[a](groups, i)}
+        val (tailCaps, k, anyTail) = ${sanitiseCode[as](groups, 'j)}
         ((headCaps, tailCaps).mapN(_ *: _), k, anyHead || anyTail)
       }
-      case '[Option[a]] => '{ (groups: Array[String | Null], i: Int) =>
-        val (caps, j, any) = ${sanitiserCode[a]}(groups, i)
+      case '[Option[a]] => '{
+        val (caps, j, any) = ${sanitiseCode[a](groups, i)}
         (Some(caps), j, any)
       }
-      case '[Either[a, b]] => '{ (groups: Array[String | Null], i: Int) =>
-        val (leftCaps, j, anyLeft) = ${sanitiserCode[a]}(groups, i)
-        val (rightCaps, k, anyRight) = ${sanitiserCode[b]}(groups, j)
+      case '[Either[a, b]] => '{
+        val (leftCaps, j, anyLeft) = ${sanitiseCode[a](groups, i)}
+        val (rightCaps, k, anyRight) = ${sanitiseCode[b](groups, 'j)}
         val left = leftCaps.map(Left(_))
         val right = rightCaps.map(Right(_))
         val caps = if anyLeft then left.orElse(right) else right.orElse(left)
         (caps, k, anyLeft || anyRight)
       }
     }
-    sanitiser.asExprOf[Sanitiser[A]]
+    sanitiser.asExprOf[(Option[A], Int, Boolean)]
   }
 }
