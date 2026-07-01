@@ -15,5 +15,8 @@ lazy val root = project
       "org.typelevel" %% "cats-collections-core" % "0.9.10",
     ),
 
-    scalacOptions += "-Yexplicit-nulls",
+    scalacOptions ++= Seq(
+      "-Yexplicit-nulls",
+      "-Xcheck-macros",
+    )
   )
