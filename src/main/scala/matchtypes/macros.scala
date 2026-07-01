@@ -3,7 +3,7 @@ package experiments.matchtypes
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
 import experiments.matchtypes.matchtypes.Captures
 import java.util.regex.Pattern
-import scala.quoted.{Expr, quotes, Quotes, Type}
+import scala.quoted.{Expr, Quotes, Type}
 
 object macros {
 

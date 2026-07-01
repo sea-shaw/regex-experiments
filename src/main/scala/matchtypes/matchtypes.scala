@@ -1,8 +1,6 @@
 package experiments.matchtypes
 
-import cats.syntax.all.*
-import java.util.regex.Pattern
-import scala.compiletime.ops.int.{+, -}
+import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.{CharAt, Length}
 import scala.Tuple.{Concat, Reverse}
 
@@ -107,7 +105,7 @@ object matchtypes {
     case false => Tidy[Reverse[Acc]]
   }
 
-  private lazy val tests: Unit = {
+  {
     summon[Captures["a"] =:= Unit]
     summon[Captures["(a)"] =:= String]
     summon[Captures["(a)(b)"] =:= (String, String)]
