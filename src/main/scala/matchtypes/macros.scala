@@ -24,7 +24,7 @@ object macros {
           val m = pattern.matcher(s)
           if (m.matches()) {
             val a = Array.tabulate(m.groupCount)(i => m.group(i + 1))
-            val (sanitised, _, _) = ${ sanitiseCode[A]('a, Expr(0)) }
+            val (sanitised, _) = ${ sanitiseCode[A]('a, 0)._1 }
             sanitised
           } else {
             None
@@ -36,40 +36,58 @@ object macros {
     expr
   }
 
-  private def sanitiseCode[A: Type](groups: Expr[Array[String | Null]], i: Expr[Int])(using Quotes): Expr[(Option[A], Int, Boolean)] = {
-    val sanitised = Type.of[A] match {
-      case '[Unit]         => '{ (Some(()), $i, false) }
-      case '[EmptyTuple]   => '{ (Some(EmptyTuple), $i, false) }
+  private def sanitiseCode[A: Type](groups: Expr[Array[String | Null]], i: Int)(using Quotes): (Expr[(Option[A], Boolean)], Int) = {
+    val (sanitised, j) = Type.of[A] match {
+      case '[Unit]         => ('{ (Some(()), false) }, i)
+      case '[EmptyTuple]   => ('{ (Some(EmptyTuple), false) }, i)
       case '[String]       => sanitiseStringCode(groups, i)
       case '[a *: t]       => sanitiseTupleCode[a, t](groups, i)
       case '[Option[a]]    => sanitiseOptionCode[a](groups, i)
       case '[Either[a, b]] => sanitiseEitherCode[a, b](groups, i)
     }
-    sanitised.asExprOf[(Option[A], Int, Boolean)]
+    (sanitised.asExprOf[(Option[A], Boolean)], j)
   }
 
-  private def sanitiseStringCode(groups: Expr[Array[String | Null]], i: Expr[Int])(using Quotes): Expr[(Option[String], Int, Boolean)] = '{
-    val cap = Option($groups($i))
-    (cap, $i + 1, cap.isDefined)
+  private def sanitiseStringCode(groups: Expr[Array[String | Null]], i: Int)(using Quotes): (Expr[(Option[String], Boolean)], Int) = {
+    val idx = Expr(i)
+    val sanitised = '{
+      val cap = Option($groups($idx))
+      (cap, cap.isDefined)
+    }
+    (sanitised, i + 1)
   }
 
-  private def sanitiseTupleCode[A: Type, T <: Tuple: Type](groups: Expr[Array[String | Null]], i: Expr[Int])(using Quotes): Expr[(Option[A *: T], Int, Boolean)] = '{
-    val (headCaps, j, anyHead) = ${ sanitiseCode[A](groups, i) }
-    val (tailCaps, k, anyTail) = ${ sanitiseCode[T](groups, 'j) }
-    ((headCaps, tailCaps).mapN(_ *: _), k, anyHead || anyTail)
+  private def sanitiseTupleCode[A: Type, T <: Tuple: Type](groups: Expr[Array[String | Null]], i: Int)(using Quotes): (Expr[(Option[A *: T], Boolean)], Int) = {
+    val (sanitisedHead, j) = sanitiseCode[A](groups, i)
+    val (sanitisedTail, k) = sanitiseCode[T](groups, j)
+    val sanitised = '{
+      val (headCaps, anyHead) = $sanitisedHead
+      val (tailCaps, anyTail) = $sanitisedTail
+      ((headCaps, tailCaps).mapN(_ *: _), anyHead || anyTail)
+    }
+    (sanitised, k)
   }
 
-  private def sanitiseOptionCode[A: Type](groups: Expr[Array[String | Null]], i: Expr[Int])(using Quotes): Expr[(Option[Option[A]], Int, Boolean)] = '{
-    val (caps, j, any) = ${ sanitiseCode[A](groups, i) }
-    (Some(caps), j, any)
+  private def sanitiseOptionCode[A: Type](groups: Expr[Array[String | Null]], i: Int)(using Quotes): (Expr[(Option[Option[A]], Boolean)], Int) = {
+    val (sanitisedValue, j) = sanitiseCode[A](groups, i)
+    val sanitised = '{
+      val (caps, any) = $sanitisedValue
+      (Some(caps), any)
+    }
+    (sanitised, j)
   }
 
-  private def sanitiseEitherCode[A: Type, B: Type](groups: Expr[Array[String | Null]], i: Expr[Int])(using Quotes): Expr[(Option[Either[A, B]], Int, Boolean)] = '{
-    val (leftCaps, j, anyLeft) = ${ sanitiseCode[A](groups, i) }
-    val (rightCaps, k, anyRight) = ${ sanitiseCode[B](groups, 'j) }
-    val left = leftCaps.map(Left(_))
-    val right = rightCaps.map(Right(_))
-    val caps = if anyLeft then left.orElse(right) else right.orElse(left)
-    (caps, k, anyLeft || anyRight)
+  private def sanitiseEitherCode[A: Type, B: Type](groups: Expr[Array[String | Null]], i: Int)(using Quotes): (Expr[(Option[Either[A, B]], Boolean)], Int) = {
+    val (sanitisedLeft, j) = sanitiseCode[A](groups, i)
+    val (sanitisedRight, k) = sanitiseCode[B](groups, j)
+    val sanitised = '{
+      val (leftCaps, anyLeft) = $sanitisedLeft
+      val (rightCaps, anyRight) = $sanitisedRight
+      val left = leftCaps.map(Left(_))
+      val right = rightCaps.map(Right(_))
+      val caps = if anyLeft then left.orElse(right) else right.orElse(left)
+      (caps, anyLeft || anyRight)
+    }
+    (sanitised, k)
   }
 }
