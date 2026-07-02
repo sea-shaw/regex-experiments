@@ -42,8 +42,8 @@ object dependenttyping {
   private def goShape[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple](r: R, i: I, u: U, cap: Cap, acc: Acc): Go[R, I, U, Cap, Acc] = (equals(i, u)) match {
     case _: true  => (groupShape(cap, acc), u, false)
     case _: false => charAt(r, i) match {
-      case _: '\\' => goShape[R, I + 2, U, Cap, Acc](r, i plus 2, u, cap, acc)
-      case _: '|'  => goShape[R, I + 1, U, false, EmptyTuple](r, i plus 1, u, false, EmptyTuple) match {
+      case _: '\\' => goShape[R, I + 2, U, Cap, Acc](r, plus(i, 2), u, cap, acc)
+      case _: '|'  => goShape[R, I + 1, U, false, EmptyTuple](r, plus(i, 1), u, false, EmptyTuple) match {
         case res: (_, _, _) => res._1 match {
           case _: Unit => acc match {
             case _: EmptyTuple => (groupShape(cap, EmptyTuple), res._2, res._3)
@@ -52,9 +52,9 @@ object dependenttyping {
           case _: Any  => (groupShape(cap, Tuple1(Left(tidy(acc.reverse)))), res._2, res._3)
         }
       }
-      case _: '('  => goShape[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple](r, i plus 1, u, isCapturing(r, i plus 1), EmptyTuple) match {
+      case _: '('  => goShape[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple](r, plus(i, 1), u, isCapturing(r, plus(i, 1)), EmptyTuple) match {
         case res: (a, l, _) => res._1 match {
-          case _: Unit     => goShape[R, l, U, Cap, Acc](r, res._2, u, cap, acc)
+          case _: Unit  => goShape[R, l, U, Cap, Acc](r, res._2, u, cap, acc)
           case t: Tuple => res._3 match {
             case _: true  => goShape[R, l, U, Cap, Option[a] *: Acc](r, res._2, u, cap, Some(res._1) *: acc)
             case _: false => goShape[R, l, U, Cap, (a & Tuple) ++ Acc](r, res._2, u, cap, (t ++ acc))
@@ -65,19 +65,19 @@ object dependenttyping {
           }
         }
       }
-      case _: ')'  => equals(i plus 1, u) match {
+      case _: ')'  => equals(plus(i, 1), u) match {
         case _: true  => (groupShape(cap, acc), u, false)
-        case _: false => charAt(r, i plus 1) match {
-          case _: ('?' | '*') => (groupShape(cap, acc), i plus 2, true)
-          case _: Any         => (groupShape(cap, acc), i plus 1, false)
+        case _: false => charAt(r, plus(i, 1)) match {
+          case _: ('?' | '*') => (groupShape(cap, acc), plus(i, 2), true)
+          case _: Any         => (groupShape(cap, acc), plus(i, 1), false)
         }
       }
-      case _: Any => goShape[R, I + 1, U, Cap, Acc](r, i plus 1, u, cap, acc)
+      case _: Any  => goShape[R, I + 1, U, Cap, Acc](r, plus(i, 1), u, cap, acc)
     }
   }
 
   private def groupShape[Cap <: Boolean, Acc <: Tuple](cap: Cap, acc: Acc): Group[Cap, Acc] = cap match {
-    case _: true => tidy("\"\"" *: acc.reverse)
+    case _: true => tidy("" *: acc.reverse)
     case _: false => tidy(acc.reverse)
   }
 
@@ -92,8 +92,8 @@ object dependenttyping {
   }
 
   private def isCapturing[R <: String, I <: Int](r: R, i: I): IsCapturing[R, I] = charAt(r, i) match {
-    case _: '?' => charAt(r, i plus 1) match {
-      case _: '<' => charAt(r, i plus 2) match {
+    case _: '?' => charAt(r, plus(i, 1)) match {
+      case _: '<' => charAt(r, plus(i, 2)) match {
         case _: ('=' | '!') => false
         case _: Any       => true
       }
@@ -102,16 +102,9 @@ object dependenttyping {
     case _: Any => true
   }
 
-  // Neither of these functions exist in the standard library as far as I can
-  // tell.
-
-  extension [I <: Int] (i: I) {
-    private infix def plus[J <: Int & Singleton](j: J): I + J = (i + j).asInstanceOf[I + J]
-  }
-
+  // None of these functions exist in the standard library as far as I can tell.
+  private def plus[I <: Int, J <: Int & Singleton](i: I, j: J) = (i + j).asInstanceOf[I + J]
   private def equals[X, Y](x: X, y: Y): X == Y = (x == y).asInstanceOf[X == Y]
-
-  private def length[S <: String & Singleton](s: S): Length[S] = s.length.asInstanceOf[Length[S]]
-
+  private def length[S <: String](s: S): Length[S] = s.length.asInstanceOf[Length[S]]
   private def charAt[S <: String, I <: Int](s: S, i: I): CharAt[S, I] = s.charAt(i).asInstanceOf[CharAt[S, I]]
 }
