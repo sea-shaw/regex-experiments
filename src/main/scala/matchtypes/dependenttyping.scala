@@ -41,7 +41,22 @@ object dependenttyping {
         case t: ((Option[b], l, opt), Int, Boolean) => ???
       }
       case _: '('  => ???
-      case _: ')'  => ???
+      case _: ')'  => equals(plus(i, 1), u) match {
+        case _: true => {
+          val capture = optionGroup(cap, acc)(groups, groupNo)
+          ((capture, u, false), groupNo + 1, capture.isDefined)
+        }
+        case _: false => charAt(r, plus(i, 1)) match {
+          case _: ('?' | '*') => {
+            val capture = optionGroup(cap, acc)(groups, groupNo)
+            ((capture, plus(i, 2), true), groupNo + 1, capture.isDefined)
+          }
+          case _: Any         => {
+            val capture = optionGroup(cap, acc)(groups, groupNo)
+            ((capture, plus(i, 1), false), groupNo + 1, capture.isDefined)
+          }
+        }
+      }
       case _: Any  => optionGo(r, plus(i, 1), u, cap, acc)(groups, groupNo, any)
     }
   }
