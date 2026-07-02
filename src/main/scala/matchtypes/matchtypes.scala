@@ -7,23 +7,27 @@ import scala.Tuple.{Concat => ++, Reverse}
 
 object matchtypes {
 
-  type OptionCaptures[R <: String & Singleton] = Fst[OptionGo[R, 0, Length[R], false, EmptyTuple]]
+  type OptionCaptures[R <: String & Singleton] = OptionGo[R, 0, Length[R], false, EmptyTuple] match {
+    case ((a, _, _), _, _) => a
+  }
 
-  type OptionGo[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Option[Any], Int, Boolean) = (I == U) match {
-    case true  => (OptionGroup[Cap, Acc], U, false)
+  type None = None.type
+
+  type OptionGo[R <: String, I <: Int, U <: Length[R], Cap <: Boolean, Acc <: Tuple] <: ((Option[Any], Int, Boolean), Int, Boolean) = (I == U) match {
+    case true  => ((OptionGroup[Cap, Acc], U, false), Int, Boolean)
     case false => CharAt[R, I] match {
       case '\\' => OptionGo[R, I + 2, U, Cap, Acc]
       case '|'  => OptionGo[R, I + 1, U, false, EmptyTuple] match {
-        case (Option[b], l, opt) => b match {
+        case ((Option[b], l, opt), _, _) => b match {
           case Unit => Acc match {
-            case EmptyTuple => (OptionGroup[Cap, EmptyTuple], l, opt)
-            case _          => (OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l, opt) 
+            case EmptyTuple => ((OptionGroup[Cap, EmptyTuple], l, opt), Int, Boolean)
+            case _          => ((OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l, opt), Int, Boolean)
           }
-          case _    => (OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt)
+          case _    => ((OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt), Int, Boolean)
         }
       }
       case '('  => OptionGo[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple] match {
-        case (Option[a], l, opt) => a match {
+        case ((Option[a], l, opt), _, _) => a match {
           case Unit  => OptionGo[R, l, U, Cap, Acc]
           case Tuple => opt match {
             case true  => OptionGo[R, l, U, Cap, Option[a] *: Acc]
@@ -36,10 +40,10 @@ object matchtypes {
         }
       }
       case ')'  => I + 1 == U match {
-        case true  => (OptionGroup[Cap, Acc], U, false)
+        case true  => ((OptionGroup[Cap, Acc], U, false), Int, Boolean)
         case false => CharAt[R, I + 1] match {
-          case '?' | '*' => (OptionGroup[Cap, Acc], I + 2, true)
-          case _         => (OptionGroup[Cap, Acc], I + 1, false)
+          case '?' | '*' => ((OptionGroup[Cap, Acc], I + 2, true), Int, Boolean)
+          case _         => ((OptionGroup[Cap, Acc], I + 1, false), Int, Boolean)
         }
       }
       case _    => OptionGo[R, I + 1, U, Cap, Acc]
