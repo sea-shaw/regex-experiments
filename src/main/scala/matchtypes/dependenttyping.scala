@@ -1,9 +1,10 @@
 package experiments.matchtypes
 
-import experiments.matchtypes.matchtypes.{Captures, Fst, Go, Group, IsCapturing, Tidy}
+import experiments.matchtypes.matchtypes.{Captures, Fst, Go, IsCapturing, Tidy}
 import scala.compiletime.ops.int.+
-import scala.compiletime.ops.string.{CharAt, Length}
+import scala.compiletime.ops.string.CharAt
 import java.util.regex.Pattern
+import scala.annotation.unused
 
 object dependenttyping {
 
@@ -35,13 +36,13 @@ object dependenttyping {
   // I think it's impossible to implement this without `asInstanceOf`, which defeats the point
   private def go[R <: String, I <: Int & Singleton, Cap <: Boolean & Singleton, Acc <: Tuple](r: R, i: I, cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int): (Option[Go[R, I, Cap, Acc]], Int, Boolean) = ???
 
-  private def tidy[T <: Tuple](t: T): Tidy[T] = t match {
+  @unused private def tidy[T <: Tuple](t: T): Tidy[T] = t match {
     case _: EmptyTuple => ()
     case t: Tuple1[_]  => t._1
     case t: Any        => t
   }
 
-  private def isCapturing[R <: String, I <: Int](r: R, i: I): IsCapturing[R, I] = charAt(r, i) match {
+  @unused private def isCapturing[R <: String, I <: Int](r: R, i: I): IsCapturing[R, I] = charAt(r, i) match {
     case _: '?' => charAt(r, i plus 1) match {
       case _: '<' => charAt(r, i plus 2) match {
         case _: ('=' | '!') => false
@@ -53,7 +54,6 @@ object dependenttyping {
   }
 
   extension [I <: Int] (i: I) {
-    // TODO: Hide `+` from standard library
     private infix def plus[J <: Int & Singleton](j: J): I + J = (i + j).asInstanceOf[I + J]
   }
 
