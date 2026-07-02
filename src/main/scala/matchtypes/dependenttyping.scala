@@ -1,6 +1,6 @@
 package experiments.matchtypes
 
-import experiments.matchtypes.types.{Captures, Fst, Go, IsCapturing, Tidy}
+import experiments.matchtypes.types.{Captures, Go, IsCapturing, Tidy}
 import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.CharAt
 import java.util.regex.Pattern
@@ -26,11 +26,7 @@ object dependenttyping {
   }
 
   def sanitise[R <: String & Singleton](r: R)(groups: Array[String | Null]): Option[Captures[R]] = {
-    go(r, 0, false, EmptyTuple)(groups, 0)._1.map(fst)
-  }
-
-  private def fst[T <: Tuple3[?, ?, ?]](t: T): Fst[T] = t match {
-    case t: (_, _, _) => t._1
+    go(r, 0, false, EmptyTuple)(groups, 0)._1.map(_.head)
   }
 
   // I think it's impossible to implement this without `asInstanceOf`, which defeats the point

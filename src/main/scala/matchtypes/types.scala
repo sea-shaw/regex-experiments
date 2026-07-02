@@ -2,18 +2,14 @@ package experiments.matchtypes
 
 import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.{CharAt, Length}
-import scala.Tuple.{Concat, Reverse}
+import scala.Tuple.{Concat, Head, Reverse}
 
 object types {
 
   /**
     * Returns the type of the capture groups of the regular expression `R`.
     */
-  type Captures[R <: String & Singleton] = Fst[Go[R, 0, false, EmptyTuple]]
-
-  type Fst[T <: Tuple3[?, ?, ?]] = T match {
-    case (a, _, _) => a
-  }
+  type Captures[R <: String & Singleton] = Head[Go[R, 0, false, EmptyTuple]]
 
   /**
     * Returns the type of the capture groups of the regular expression `R`
