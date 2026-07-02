@@ -18,24 +18,24 @@ object matchtypes {
     case false => CharAt[R, I] match {
       case '\\' => OptionGo[R, I + 2, U, Cap, Acc]
       case '|'  => OptionGo[R, I + 1, U, false, EmptyTuple] match {
-        case ((Option[b], l, opt), _, _) => b match {
+        case ((Option[b], i, opt), _, _) => b match {
           case Unit => Acc match {
-            case EmptyTuple => ((OptionGroup[Cap, EmptyTuple], l, opt), Int, Boolean)
-            case _          => ((OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l, opt), Int, Boolean)
+            case EmptyTuple => ((OptionGroup[Cap, EmptyTuple], i, opt), Int, Boolean)
+            case _          => ((OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], i, opt), Int, Boolean)
           }
-          case _    => ((OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt), Int, Boolean)
+          case _    => ((OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], i, opt), Int, Boolean)
         }
       }
       case '('  => OptionGo[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple] match {
-        case ((Option[a], l, opt), _, _) => a match {
-          case Unit  => OptionGo[R, l, U, Cap, Acc]
+        case ((Option[a], i, opt), _, _) => a match {
+          case Unit  => OptionGo[R, i, U, Cap, Acc]
           case Tuple => opt match {
-            case true  => OptionGo[R, l, U, Cap, Option[a] *: Acc]
-            case false => OptionGo[R, l, U, Cap, (a & Tuple) ++ Acc]
+            case true  => OptionGo[R, i, U, Cap, Option[a] *: Acc]
+            case false => OptionGo[R, i, U, Cap, (a & Tuple) ++ Acc]
           }
           case _     => opt match {
-            case true  => OptionGo[R, l, U, Cap, Option[a] *: Acc]
-            case false => OptionGo[R, l, U, Cap, a *: Acc]
+            case true  => OptionGo[R, i, U, Cap, Option[a] *: Acc]
+            case false => OptionGo[R, i, U, Cap, a *: Acc]
           }
         }
       }
@@ -83,27 +83,27 @@ object matchtypes {
          accumulator and combine with `Either`, unless both contain no capture
          groups. */
       case '|'  => Go[R, I + 1, U, false, EmptyTuple] match {
-        case (b, l, opt) => b match {
+        case (b, i, opt) => b match {
           case Unit => Acc match {
-            case EmptyTuple => (Group[Cap, EmptyTuple], l, opt)
-            case _          => (Group[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l, opt) 
+            case EmptyTuple => (Group[Cap, EmptyTuple], i, opt)
+            case _          => (Group[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], i, opt) 
           }
-          case _    => (Group[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt)
+          case _    => (Group[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], i, opt)
         }
       }
 
       /* Beginning of group. Get type of group, and add it to `Acc`. Continue
          from next character after group. */
       case '('  => Go[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple] match {
-        case (a, l, opt) => a match {
-          case Unit  => Go[R, l, U, Cap, Acc]
+        case (a, i, opt) => a match {
+          case Unit  => Go[R, i, U, Cap, Acc]
           case Tuple => opt match {
-            case true  => Go[R, l, U, Cap, Option[a] *: Acc]
-            case false => Go[R, l, U, Cap, (a & Tuple) ++ Acc]
+            case true  => Go[R, i, U, Cap, Option[a] *: Acc]
+            case false => Go[R, i, U, Cap, (a & Tuple) ++ Acc]
           }
           case _     => opt match {
-            case true  => Go[R, l, U, Cap, Option[a] *: Acc]
-            case false => Go[R, l, U, Cap, a *: Acc]
+            case true  => Go[R, i, U, Cap, Option[a] *: Acc]
+            case false => Go[R, i, U, Cap, a *: Acc]
           }
         }
       }
