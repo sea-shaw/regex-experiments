@@ -1,6 +1,6 @@
 package experiments.matchtypes
 
-import experiments.matchtypes.matchtypes.{Captures, Fst, Go, IsCapturing, Tidy}
+import experiments.matchtypes.types.{Captures, Fst, Go, IsCapturing, Tidy}
 import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.CharAt
 import java.util.regex.Pattern

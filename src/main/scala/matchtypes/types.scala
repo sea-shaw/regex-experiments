@@ -4,7 +4,7 @@ import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.{CharAt, Length}
 import scala.Tuple.{Concat, Reverse}
 
-object matchtypes {
+object types {
 
   /**
     * Returns the type of the capture groups of the regular expression `R`.

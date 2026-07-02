@@ -1,7 +1,7 @@
 package experiments.matchtypes
 
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
-import experiments.matchtypes.matchtypes.Captures
+import experiments.matchtypes.types.Captures
 import java.util.regex.Pattern
 
 object implicitsearch {
