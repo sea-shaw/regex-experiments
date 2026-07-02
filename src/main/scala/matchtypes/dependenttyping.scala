@@ -4,6 +4,7 @@ import experiments.matchtypes.matchtypes.{Captures, Fst, Go, Group, IsCapturing,
 import scala.compiletime.ops.any.==
 import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.{CharAt, Length}
+import scala.Tuple.{Concat => ++}
 import java.util.regex.Pattern
 
 object dependenttyping {
@@ -53,8 +54,12 @@ object dependenttyping {
       }
       case _: '('  => goShape[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple](r, i plus 1, u, isCapturing(r, i plus 1), EmptyTuple) match {
         case res: (a, l, _) => res._1 match {
-          case _: Unit => goShape[R, l, U, Cap, Acc](r, res._2, u, cap, acc)
-          case _: Any  => res._3 match {
+          case _: Unit     => goShape[R, l, U, Cap, Acc](r, res._2, u, cap, acc)
+          case t: Tuple => res._3 match {
+            case _: true  => goShape[R, l, U, Cap, Option[a] *: Acc](r, res._2, u, cap, Some(res._1) *: acc)
+            case _: false => goShape[R, l, U, Cap, (a & Tuple) ++ Acc](r, res._2, u, cap, (t ++ acc))
+          }
+          case _: Any   => res._3 match {
             case _: true  => goShape[R, l, U, Cap, Option[a] *: Acc](r, res._2, u, cap, Some(res._1) *: acc)
             case _: false => goShape[R, l, U, Cap, a *: Acc](r, res._2, u, cap, res._1 *: acc)
           }
@@ -72,7 +77,7 @@ object dependenttyping {
   }
 
   private def groupShape[Cap <: Boolean, Acc <: Tuple](cap: Cap, acc: Acc): Group[Cap, Acc] = cap match {
-    case _: true => tidy("" *: acc.reverse)
+    case _: true => tidy("\"\"" *: acc.reverse)
     case _: false => tidy(acc.reverse)
   }
 

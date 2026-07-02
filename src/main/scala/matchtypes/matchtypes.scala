@@ -3,7 +3,7 @@ package experiments.matchtypes
 import scala.compiletime.ops.any.==
 import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.{CharAt, Length}
-import scala.Tuple.Reverse
+import scala.Tuple.{Concat => ++, Reverse}
 
 object matchtypes {
 
@@ -49,6 +49,10 @@ object matchtypes {
       case '('  => Go[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple] match {
         case (a, l, opt) => a match {
           case Unit  => Go[R, l, U, Cap, Acc]
+          case Tuple => opt match {
+            case true  => Go[R, l, U, Cap, Option[a] *: Acc]
+            case false => Go[R, l, U, Cap, (a & Tuple) ++ Acc]
+          }
           case _     => opt match {
             case true  => Go[R, l, U, Cap, Option[a] *: Acc]
             case false => Go[R, l, U, Cap, a *: Acc]
@@ -114,8 +118,8 @@ object matchtypes {
     summon[Captures["\\(a\\)"] =:= Unit]
 
     // TODO: Should these be flat or nested?
-    summon[Captures["(a(b))(c)"] =:= ((String, String), String)]
-    summon[Captures["(a(b(c(d)))(e))"] =:= (String, (String, (String, String)), String)]
+    summon[Captures["(a(b))(c)"] =:= (String, String, String)]
+    summon[Captures["(a(b(c(d)))(e))"] =:= (String, String, String, String, String)]
 
     summon[Captures["(a)?"] =:= Option[String]]
     summon[Captures["(a)?(b)?"] =:= (Option[String], Option[String])]
