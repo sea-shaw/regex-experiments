@@ -10,17 +10,9 @@ object matchtypes {
   type OptionCaptures[R <: String & Singleton] = Fst[OptionGo[R, 0, Length[R], false, EmptyTuple]]
 
   type OptionGo[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Option[Any], Int, Boolean) = (I == U) match {
-    /* End of regex. */
     case true  => (OptionGroup[Cap, Acc], U, false)
-
-    /* Check current character */
     case false => CharAt[R, I] match {
-      /* Escape character, so ignore next character. */
       case '\\' => OptionGo[R, I + 2, U, Cap, Acc]
-
-      /* Alternation. `Acc` is LHS, so get RHS and optionality using new empty
-         accumulator and combine with `Either`, unless both contain no capture
-         groups. */
       case '|'  => OptionGo[R, I + 1, U, false, EmptyTuple] match {
         case (Option[b], l, opt) => b match {
           case Unit => Acc match {
@@ -30,9 +22,6 @@ object matchtypes {
           case _    => (OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt)
         }
       }
-
-      /* Beginning of group. Get type of group, and add it to `Acc`. Continue
-         from next character after group. */
       case '('  => OptionGo[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple] match {
         case (Option[a], l, opt) => a match {
           case Unit  => OptionGo[R, l, U, Cap, Acc]
@@ -46,8 +35,6 @@ object matchtypes {
           }
         }
       }
-
-      /* End of group, so return type of group and optionality. */
       case ')'  => I + 1 == U match {
         case true  => (OptionGroup[Cap, Acc], U, false)
         case false => CharAt[R, I + 1] match {
@@ -55,7 +42,6 @@ object matchtypes {
           case _         => (OptionGroup[Cap, Acc], I + 1, false)
         }
       }
-
       case _    => OptionGo[R, I + 1, U, Cap, Acc]
     }
   }

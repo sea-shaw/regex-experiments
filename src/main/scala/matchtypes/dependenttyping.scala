@@ -1,6 +1,6 @@
 package experiments.matchtypes
 
-import experiments.matchtypes.matchtypes.{Captures, Fst, Go, Group, IsCapturing, Tidy}
+import experiments.matchtypes.matchtypes.{Captures, Fst, Go, Group, IsCapturing, OptionCaptures, OptionGo, OptionGroup, Tidy}
 import scala.compiletime.ops.any.==
 import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.{CharAt, Length}
@@ -23,11 +23,23 @@ object dependenttyping {
   }
 
   object Regex {
-    def apply[R <: String & Singleton](r: R): Regex[Captures[R]] = new Regex(r, sanitise(r))
+    def apply[R <: String & Singleton](r: R): Regex[OptionCaptures[R]] = new Regex(r, ???)
   }
 
-  def sanitise[R <: String & Singleton](r: R)(groups: Array[String | Null]): Option[Captures[R]] = {
-    go[R, 0, Length[R], false, EmptyTuple](r, 0, false, EmptyTuple)(groups, 0)._1.map(fst)
+  def sanitise[R <: String & Singleton](r: R)(groups: Array[String | Null]): OptionCaptures[R] = {
+    fst(optionGo[R, 0, Length[R], false, EmptyTuple](r, 0, length(r), false, EmptyTuple)(groups, 0))
+  }
+
+  // I think it's impossible to implement this without `asInstanceOf`, which defeats the point
+  // Compiler can handle return type of `Go[...]` without `asInstanceOf` but not `Option[Go[...]]`
+  private def optionGo[R <: String, I <: Int & Singleton, U <: Int, Cap <: Boolean & Singleton, Acc <: Tuple](r: R, i: I, u: U, cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int): OptionGo[R, I, U, Cap, Acc] = equals(i, u) match {
+    case _: true  => (optionGroup(cap, acc)(groups, groupNo), u, false)
+    case _: false => ???
+  }
+
+  private def optionGroup[Cap <: Boolean, Acc <: Tuple](cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int): OptionGroup[Cap, Acc] = cap match {
+    case _: true => Option(groups(groupNo)).map(s => tidy(s *: acc.reverse))
+    case _: false => Some(tidy(acc.reverse))
   }
 
   def capturesShape[R <: String & Singleton](r: R): Captures[R] = fst(goShape(r, 0, length(r), false, EmptyTuple))
@@ -80,10 +92,6 @@ object dependenttyping {
     case _: true => tidy("" *: acc.reverse)
     case _: false => tidy(acc.reverse)
   }
-
-  // I think it's impossible to implement this without `asInstanceOf`, which defeats the point
-  // Compiler can handle return type of `Go[...]` without `asInstanceOf` but not `Option[Go[...]]`
-  private def go[R <: String, I <: Int & Singleton, U <: Int, Cap <: Boolean & Singleton, Acc <: Tuple](r: R, i: I, cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int): (Option[Go[R, I, U, Cap, Acc]], Int, Boolean) = ???
 
   private def tidy[T <: Tuple](t: T): Tidy[T] = t match {
     case _: EmptyTuple => ()
