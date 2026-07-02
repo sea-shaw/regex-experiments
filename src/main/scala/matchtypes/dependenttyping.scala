@@ -26,15 +26,24 @@ object dependenttyping {
     def apply[R <: String & Singleton](r: R): Regex[OptionCaptures[R]] = new Regex(r, ???)
   }
 
-  def sanitise[R <: String & Singleton](r: R)(groups: Array[String | Null]): OptionCaptures[R] = {
-    fst(optionGo[R, 0, Length[R], false, EmptyTuple](r, 0, length(r), false, EmptyTuple)(groups, 0))
+  private def optionCaptures[R <: String & Singleton](r: R)(groups: Array[String | Null]): OptionCaptures[R] = optionGo[R, 0, Length[R], false, EmptyTuple](r, 0, length(r), false, EmptyTuple)(groups, 0, false) match {
+    case t: ((_, _, _), _, _) => t._1._1
   }
 
   // I think it's impossible to implement this without `asInstanceOf`, which defeats the point
   // Compiler can handle return type of `Go[...]` without `asInstanceOf` but not `Option[Go[...]]`
-  private def optionGo[R <: String, I <: Int & Singleton, U <: Int, Cap <: Boolean & Singleton, Acc <: Tuple](r: R, i: I, u: U, cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int): OptionGo[R, I, U, Cap, Acc] = equals(i, u) match {
-    case _: true  => (optionGroup(cap, acc)(groups, groupNo), u, false)
-    case _: false => ???
+  private def optionGo[R <: String, I <: Int, U <: Length[R], Cap <: Boolean, Acc <: Tuple](r: R, i: I, u: U, cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int, any: Boolean): OptionGo[R, I, U, Cap, Acc] = equals(i, u) match {
+    case _: true  => ((optionGroup(cap, acc)(groups, groupNo), u, false), groupNo, any)
+    case _: false => charAt(r, i) match {
+      case _: '\\' => optionGo(r, plus(i, 2), u, cap, acc)(groups, groupNo, any)
+      case _: '|'  => optionGo(r, plus(i, 1), u, false, EmptyTuple)(groups, groupNo, false) match {
+        // Why isn't this giving a type test warning? SBT and Metals both don't complain.
+        case t: ((Option[b], l, opt), Int, Boolean) => ???
+      }
+      case _: '('  => ???
+      case _: ')'  => ???
+      case _: Any  => optionGo(r, plus(i, 1), u, cap, acc)(groups, groupNo, any)
+    }
   }
 
   private def optionGroup[Cap <: Boolean, Acc <: Tuple](cap: Cap, acc: Acc)(groups: Array[String | Null], groupNo: Int): OptionGroup[Cap, Acc] = cap match {
@@ -51,7 +60,7 @@ object dependenttyping {
   /** This just returns something of the correct type for `Go`.
     * Defaults to `""` for a capture group, `Some` for `?` and `Left` for `|`.
     */
-  private def goShape[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple](r: R, i: I, u: U, cap: Cap, acc: Acc): Go[R, I, U, Cap, Acc] = (equals(i, u)) match {
+  private def goShape[R <: String, I <: Int, U <: Length[R], Cap <: Boolean, Acc <: Tuple](r: R, i: I, u: U, cap: Cap, acc: Acc): Go[R, I, U, Cap, Acc] = (equals(i, u)) match {
     case _: true  => (groupShape(cap, acc), u, false)
     case _: false => charAt(r, i) match {
       case _: '\\' => goShape[R, I + 2, U, Cap, Acc](r, plus(i, 2), u, cap, acc)
