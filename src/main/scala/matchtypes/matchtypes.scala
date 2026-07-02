@@ -7,6 +7,64 @@ import scala.Tuple.{Concat => ++, Reverse}
 
 object matchtypes {
 
+  type OptionCaptures[R <: String & Singleton] = Fst[OptionGo[R, 0, Length[R], false, EmptyTuple]]
+
+  type OptionGo[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Option[Any], Int, Boolean) = (I == U) match {
+    /* End of regex. */
+    case true  => (OptionGroup[Cap, Acc], U, false)
+
+    /* Check current character */
+    case false => CharAt[R, I] match {
+      /* Escape character, so ignore next character. */
+      case '\\' => OptionGo[R, I + 2, U, Cap, Acc]
+
+      /* Alternation. `Acc` is LHS, so get RHS and optionality using new empty
+         accumulator and combine with `Either`, unless both contain no capture
+         groups. */
+      case '|'  => OptionGo[R, I + 1, U, false, EmptyTuple] match {
+        case (Option[b], l, opt) => b match {
+          case Unit => Acc match {
+            case EmptyTuple => (OptionGroup[Cap, EmptyTuple], l, opt)
+            case _          => (OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], Unit]]], l, opt) 
+          }
+          case _    => (OptionGroup[Cap, Tuple1[Either[Tidy[Reverse[Acc]], b]]], l, opt)
+        }
+      }
+
+      /* Beginning of group. Get type of group, and add it to `Acc`. Continue
+         from next character after group. */
+      case '('  => OptionGo[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple] match {
+        case (Option[a], l, opt) => a match {
+          case Unit  => OptionGo[R, l, U, Cap, Acc]
+          case Tuple => opt match {
+            case true  => OptionGo[R, l, U, Cap, Option[a] *: Acc]
+            case false => OptionGo[R, l, U, Cap, (a & Tuple) ++ Acc]
+          }
+          case _     => opt match {
+            case true  => OptionGo[R, l, U, Cap, Option[a] *: Acc]
+            case false => OptionGo[R, l, U, Cap, a *: Acc]
+          }
+        }
+      }
+
+      /* End of group, so return type of group and optionality. */
+      case ')'  => I + 1 == U match {
+        case true  => (OptionGroup[Cap, Acc], U, false)
+        case false => CharAt[R, I + 1] match {
+          case '?' | '*' => (OptionGroup[Cap, Acc], I + 2, true)
+          case _         => (OptionGroup[Cap, Acc], I + 1, false)
+        }
+      }
+
+      case _    => OptionGo[R, I + 1, U, Cap, Acc]
+    }
+  }
+
+  type OptionGroup[Cap <: Boolean, Acc <: Tuple] <: Option[Any] = Cap match {
+    case true  => Option[Tidy[String *: Reverse[Acc]]]
+    case false => Option[Tidy[Reverse[Acc]]]
+  }
+
   /**
     * Returns the type of the capture groups of the regular expression `R`.
     */
@@ -145,7 +203,35 @@ object matchtypes {
     summon[Captures["(a)?|(b)?"] =:= Either[Option[String], Option[String]]]
 
     // TODO: Keep track of level of brackets
+    // This isn't a parser, does this really matter?
     summon[Captures["(a))"] =:= String] // Should not compile
     summon[Captures["(a"] =:= String] // Should not compile
+  }
+
+  {
+    summon[OptionCaptures["a"] =:= Option[Unit]]
+    summon[OptionCaptures["(a)"] =:= Option[String]]
+    summon[OptionCaptures["(a)(b)"] =:= Option[(String, String)]]
+    summon[OptionCaptures["\\(a\\)"] =:= Option[Unit]]
+    summon[OptionCaptures["(a(b))(c)"] =:= Option[(String, String, String)]]
+    summon[OptionCaptures["(a(b(c(d)))(e))"] =:= Option[(String, String, String, String, String)]]
+    summon[OptionCaptures["(a)?"] =:= Option[Option[String]]]
+    summon[OptionCaptures["(a)?(b)?"] =:= Option[(Option[String], Option[String])]]
+    summon[OptionCaptures["(a(b))?"] =:= Option[Option[(String, String)]]]
+    summon[OptionCaptures["(a(b)?)?"] =:= Option[Option[(String, Option[String])]]]
+    summon[OptionCaptures["(a)*"] =:= Option[Option[String]]]
+    summon[OptionCaptures["(?:a)"] =:= Option[Unit]]
+    summon[OptionCaptures["(?:a)(b)"] =:= Option[String]]
+    summon[OptionCaptures["(?:(a)(b))"] =:= Option[(String, String)]]
+    summon[OptionCaptures["(?:(a)(b))?"] =:= Option[Option[(String, String)]]]
+    summon[OptionCaptures["(?:a)?"] =:= Option[Unit]]
+    summon[OptionCaptures["a|b"] =:= Option[Unit]]
+    summon[OptionCaptures["(a)|b"] =:= Option[Either[String, Unit]]]
+    summon[OptionCaptures["(a)|(b)"] =:= Option[Either[String, String]]]
+    summon[OptionCaptures["(a)|(b)|(c)"] =:= Option[Either[String, Either[String, String]]]]
+    summon[OptionCaptures["(?:(a)|(b))|(?:(c))"] =:= Option[Either[Either[String, String], String]]]
+    summon[OptionCaptures["(?:(a)|(b))?"] =:= Option[Option[Either[String, String]]]]
+    summon[OptionCaptures["(?:(a)|(b)|(c))?"] =:= Option[Option[Either[String, Either[String, String]]]]]
+    summon[OptionCaptures["(a)?|(b)?"] =:= Option[Either[Option[String], Option[String]]]]
   }
 }
