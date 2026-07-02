@@ -8,7 +8,7 @@ import scala.annotation.unused
 
 object dependenttyping {
 
-  class Regex[+A] private(regex: String, sanitise: Array[String | Null] => Option[A]) {
+  class Regex[A] private(regex: String, sanitise: Array[String | Null] => Option[A]) {
     private val pattern: Pattern = Pattern.compile(regex)
     def unapply(s: String): Option[A] = {
       val m = pattern.matcher(s)

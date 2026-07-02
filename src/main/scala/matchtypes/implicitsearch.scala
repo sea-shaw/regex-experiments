@@ -5,7 +5,7 @@ import experiments.matchtypes.types.Captures
 import java.util.regex.Pattern
 
 object implicitsearch {
-  sealed trait Sanitiser[+A] {
+  sealed trait Sanitiser[A] {
     /**
       * Returns sanitised capture groups from `groups` of type `A`, the index of
       * the next capture group in `groups`, and whether the capture groups of
@@ -57,7 +57,7 @@ object implicitsearch {
     }
   }
 
-  class Regex[+A] private (regex: String)(using sanitiser: Sanitiser[A]) {
+  class Regex[A] private (regex: String)(using sanitiser: Sanitiser[A]) {
     val pattern: Pattern = Pattern.compile(regex)
 
     def unapply(s: String): Option[A] = {

@@ -7,7 +7,7 @@ import scala.quoted.{Expr, quotes, Quotes, Type}
 
 object macros {
 
-  sealed trait Regex[+A] {
+  sealed trait Regex[A] {
     def unapply(s: String): Option[A]
   }
 

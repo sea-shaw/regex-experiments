@@ -47,7 +47,7 @@ object gadt {
     case x: Any        => x
   }
 
-  sealed trait Regex[+A] {
+  sealed trait Regex[A] {
     def unapply(s: String): Option[A] = ???
     def shape: A
   }
