@@ -1,8 +1,9 @@
 package experiments.matchtypes
 
+import scala.compiletime.ops.any.==
 import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.{CharAt, Length}
-import scala.Tuple.{Concat, Reverse}
+import scala.Tuple.Reverse
 
 object matchtypes {
 
@@ -21,12 +22,12 @@ object matchtypes {
     * as well as the index of the next character in the regex and whether these
     * capture groups are optional.
     */
-  type Go[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int, Boolean) = I match {
+  type Go[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple] <: (Any, Int, Boolean) = (I == U) match {
     /* End of regex. */
-    case U => (Group[Cap, Acc], U, false)
+    case true  => (Group[Cap, Acc], U, false)
 
     /* Check current character */
-    case _         => CharAt[R, I] match {
+    case false => CharAt[R, I] match {
       /* Escape character, so ignore next character. */
       case '\\' => Go[R, I + 2, U, Cap, Acc]
 
@@ -56,9 +57,9 @@ object matchtypes {
       }
 
       /* End of group, so return type of group and optionality. */
-      case ')'  => I + 1 match {
-        case U => (Group[Cap, Acc], U, false)
-        case _         => CharAt[R, I + 1] match {
+      case ')'  => I + 1 == U match {
+        case true  => (Group[Cap, Acc], U, false)
+        case false => CharAt[R, I + 1] match {
           case '?' | '*' => (Group[Cap, Acc], I + 2, true)
           case _         => (Group[Cap, Acc], I + 1, false)
         }

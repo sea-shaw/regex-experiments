@@ -1,9 +1,9 @@
 package experiments.matchtypes
 
 import experiments.matchtypes.matchtypes.{Captures, Fst, Go, Group, IsCapturing, Tidy}
+import scala.compiletime.ops.any.==
 import scala.compiletime.ops.int.+
 import scala.compiletime.ops.string.{CharAt, Length}
-import scala.Tuple.{Concat}
 import java.util.regex.Pattern
 
 object dependenttyping {
@@ -29,6 +29,8 @@ object dependenttyping {
     go[R, 0, Length[R], false, EmptyTuple](r, 0, false, EmptyTuple)(groups, 0)._1.map(fst)
   }
 
+  def capturesShape[R <: String & Singleton](r: R): Captures[R] = fst(goShape(r, 0, length(r), false, EmptyTuple))
+
   private def fst[T <: Tuple3[?, ?, ?]](t: T): Fst[T] = t match {
     case t: (_, _, _) => t._1
   }
@@ -36,11 +38,11 @@ object dependenttyping {
   /** This just returns something of the correct type for `Go`.
     * Defaults to `""` for a capture group, `Some` for `?` and `Left` for `|`.
     */
-  private def goShape[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple](r: R, i: I, cap: Cap, acc: Acc): Go[R, I, U, Cap, Acc] = i match {
-    case u: U   => (groupShape(cap, acc), u, false) // TODO: Fix type test. Needs to be `U` or `Length[R]` but neither can be checked at runtime. Type test must be `=:=` to the one in the match type.
-    case _: Any => charAt(r, i) match {
-      case _: '\\' => goShape[R, I + 2, U, Cap, Acc](r, i plus 2, cap, acc)
-      case _: '|'  => goShape[R, I + 1, U, false, EmptyTuple](r, i plus 1, false, EmptyTuple) match {
+  private def goShape[R <: String, I <: Int, U <: Int, Cap <: Boolean, Acc <: Tuple](r: R, i: I, u: U, cap: Cap, acc: Acc): Go[R, I, U, Cap, Acc] = (equals(i, u)) match {
+    case _: true  => (groupShape(cap, acc), u, false)
+    case _: false => charAt(r, i) match {
+      case _: '\\' => goShape[R, I + 2, U, Cap, Acc](r, i plus 2, u, cap, acc)
+      case _: '|'  => goShape[R, I + 1, U, false, EmptyTuple](r, i plus 1, u, false, EmptyTuple) match {
         case res: (_, _, _) => res._1 match {
           case _: Unit => acc match {
             case _: EmptyTuple => (groupShape(cap, EmptyTuple), res._2, res._3)
@@ -49,23 +51,23 @@ object dependenttyping {
           case _: Any  => (groupShape(cap, Tuple1(Left(tidy(acc.reverse)))), res._2, res._3)
         }
       }
-      case _: '('  => goShape[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple](r, i plus 1, isCapturing(r, i plus 1), EmptyTuple) match {
-        case res: (a, l, opt) => res._1 match {
-          case _: Unit => goShape[R, l, U, Cap, Acc](r, res._2, cap, acc)
+      case _: '('  => goShape[R, I + 1, U, IsCapturing[R, I + 1], EmptyTuple](r, i plus 1, u, isCapturing(r, i plus 1), EmptyTuple) match {
+        case res: (a, l, _) => res._1 match {
+          case _: Unit => goShape[R, l, U, Cap, Acc](r, res._2, u, cap, acc)
           case _: Any  => res._3 match {
-            case _: true  => goShape[R, l, U, Cap, Option[a] *: Acc](r, res._2, cap, Some(res._1) *: acc)
-            case _: false => goShape[R, l, U, Cap, a *: Acc](r, res._2, cap, res._1 *: acc)
+            case _: true  => goShape[R, l, U, Cap, Option[a] *: Acc](r, res._2, u, cap, Some(res._1) *: acc)
+            case _: false => goShape[R, l, U, Cap, a *: Acc](r, res._2, u, cap, res._1 *: acc)
           }
         }
       }
-      case _: ')'  => (i plus 1) match {
-        case u: U   => (groupShape(cap, acc), u, false) // TODO: Fix type test.
-        case _: Any => charAt(r, i plus 1) match {
+      case _: ')'  => equals(i plus 1, u) match {
+        case _: true  => (groupShape(cap, acc), u, false)
+        case _: false => charAt(r, i plus 1) match {
           case _: ('?' | '*') => (groupShape(cap, acc), i plus 2, true)
           case _: Any         => (groupShape(cap, acc), i plus 1, false)
         }
       }
-      case _: Any => goShape[R, I + 1, U, Cap, Acc](r, i plus 1, cap, acc)
+      case _: Any => goShape[R, I + 1, U, Cap, Acc](r, i plus 1, u, cap, acc)
     }
   }
 
@@ -101,6 +103,10 @@ object dependenttyping {
   extension [I <: Int] (i: I) {
     private infix def plus[J <: Int & Singleton](j: J): I + J = (i + j).asInstanceOf[I + J]
   }
+
+  private def equals[X, Y](x: X, y: Y): X == Y = (x == y).asInstanceOf[X == Y]
+
+  private def length[S <: String & Singleton](s: S): Length[S] = s.length.asInstanceOf[Length[S]]
 
   private def charAt[S <: String, I <: Int](s: S, i: I): CharAt[S, I] = s.charAt(i).asInstanceOf[CharAt[S, I]]
 }
