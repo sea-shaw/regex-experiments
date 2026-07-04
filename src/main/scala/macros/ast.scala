@@ -1,5 +1,6 @@
 package experiments.macros
 
+import cats.collections.Diet
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
 import experiments.macros.hlist.{Concat, HCons, HList, HNil, ++}
 import scala.quoted.{Expr, Quotes, Type}
@@ -8,6 +9,17 @@ object ast {
   sealed trait Regex[A <: HList] {
     def sanitiseCode(groups: Expr[Array[String | Null]], i: Int)(using Quotes, Type[A]): (Expr[(Option[A], Boolean)], Int)
   }
+
+  sealed trait Match extends Regex[HNil] {
+    override def sanitiseCode(groups: Expr[Array[String | Null]], i: Int)(using Quotes, Type[HNil]): (Expr[(Option[HNil], Boolean)], Int) = {
+      val sanitised = '{ (Some(HNil), false) }
+      (sanitised, i)
+    }
+  }
+
+  case object Dot extends Match
+  case class Lit(c: Int) extends Match
+  case class Range(cs: Diet[Int]) extends Match
 
   case class Capture[A <: HList: Type](inner: Regex[A]) extends Regex[HCons[String, A]] {
     override def sanitiseCode(groups: Expr[Array[String | Null]], i: Int)(using Quotes, Type[HCons[String, A]]): (Expr[(Option[HCons[String, A]], Boolean)], Int) = {
@@ -23,6 +35,10 @@ object ast {
       }
       (sanitised, j)
     }
+  }
+
+  case class NonCapture[A <: HList: Type](inner: Regex[A]) extends Regex[A] {
+    override def sanitiseCode(groups: Expr[Array[String | Null]], i: Int)(using Quotes, Type[A]): (Expr[(Option[A], Boolean)], Int) = inner.sanitiseCode(groups, i)
   }
 
   case class Alt[A <: HList: Type, B <: HList: Type](left: Regex[A], right: Regex[B]) extends Regex[HCons[Either[A, B], HNil]] {
@@ -62,13 +78,6 @@ object ast {
         ((leftCaps, rightCaps).mapN(_ ++ _), anyLeft || anyRight)
       }
       (sanitised, k)
-    }
-  }
-
-  case class Lit(s: String) extends Regex[HNil] {
-    override def sanitiseCode(groups: Expr[Array[String | Null]], i: Int)(using Quotes, Type[HNil]): (Expr[(Option[HNil], Boolean)], Int) = {
-      val sanitised = '{ (Some(HNil), false) }
-      (sanitised, i)
     }
   }
 }
