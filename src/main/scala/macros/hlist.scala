@@ -13,6 +13,14 @@ object hlist {
     case HCons[h, t] => ReverseOnto[t, HCons[h, B]]
   }
 
+  type Tidy[A <: HList] = A match {
+    case HNil           => Unit
+    case HCons[a, b] => b match {
+      case HNil => a
+      case _    => ToTuple[A]
+    }
+  }
+
   type ToTuple[H <: HList] <: Tuple = H match {
     case HNil        => EmptyTuple
     case HCons[h, t] => h *: ToTuple[t]
@@ -38,5 +46,15 @@ object hlist {
       case _: HNil            => ys
       case hcons: HCons[_, _] => hcons.tail.reverseOnto(hcons.head :: ys)
     }
+
+    def tidy: Tidy[A] = xs match {
+      case _: HNil            => ()
+      case hcons: HCons[_, _] => hcons.tail match {
+        case _: HNil => hcons.head
+        case _: Any  => xs.toTuple
+      }
+    }
+
+    def toTuple: ToTuple[A] = ???
   }
 }
