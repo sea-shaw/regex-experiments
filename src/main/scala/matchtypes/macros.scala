@@ -19,7 +19,7 @@ object macros {
     import quotes.reflect.{Position, report}
     val expr = '{
       new Regex[A] {
-        val pattern: Pattern = Pattern.compile($regex)
+        private val pattern: Pattern = Pattern.compile($regex)
         override def unapply(s: String): Option[A] = {
           val m = pattern.matcher(s)
           if (m.matches()) {
