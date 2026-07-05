@@ -3,7 +3,7 @@ package experiments.macros
 import cats.collections.Diet
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
 import experiments.macros.hlist.{Concat, HCons, HList, HNil, ++}
-import scala.quoted.{Expr, Quotes, Type, quotes}
+import scala.quoted.{Expr, Quotes, Type}
 
 object ast {
   sealed trait Regex[A <: HList] {
@@ -41,8 +41,7 @@ object ast {
     }
     override def getType(using Quotes): Type[HCons[String, A]] = {
       given Type[A] = inner.getType
-
-      apply2[HCons, String, A]
+      Type.of[HCons[String, A]]
     }
   }
 
@@ -72,9 +71,8 @@ object ast {
     override def getType(using Quotes): Type[HCons[Either[A, B], HNil]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
-      given Type[Either[A, B]] = apply2[Either, A, B]
 
-      apply2[HCons, Either[A, B], HNil]
+      Type.of[HCons[Either[A, B], HNil]]
     }
   }
 
@@ -92,9 +90,8 @@ object ast {
 
     override def getType(using Quotes): Type[HCons[Option[A], HNil]] = {
       given Type[A] = inner.getType
-      given Type[Option[A]] = apply1[Option, A]
 
-      apply2[HCons, Option[A], HNil]
+      Type.of[HCons[Option[A], HNil]]
     }
   }
 
@@ -117,33 +114,7 @@ object ast {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
-      apply2[Concat, A, B]
+      Type.of[Concat[A, B]]
     }
-  }
-
-  /**
-    * Given instances of `Type[F]` and `Type[A]`, returns an instance of
-    * `Type[F[A]]`
-    */
-  private def apply1[F[_ <: A]: Type, A: Type](using Quotes): Type[F[A]] = {
-    import quotes.reflect.TypeRepr
-
-    TypeRepr.of[F]
-      .appliedTo(TypeRepr.of[A])
-      .asType
-      .asInstanceOf[Type[F[A]]]
-  }
-
-  /**
-    * Given instances of `Type[F]`, `Type[A]`, and `Type[B]`, returns an
-    * instance of `Type[F[A, B]]`
-    */
-  private def apply2[F[_ <: A, _ <: B]: Type, A: Type, B: Type](using Quotes): Type[F[A, B]] = {
-    import quotes.reflect.TypeRepr
-
-    TypeRepr.of[F]
-      .appliedTo(List(TypeRepr.of[A], TypeRepr.of[B]))
-      .asType
-      .asInstanceOf[Type[F[A, B]]]
   }
 }
