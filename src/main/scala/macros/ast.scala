@@ -8,6 +8,7 @@ import scala.quoted.{Expr, Quotes, Type}
 object ast {
   sealed trait Regex[A <: HList] {
     def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[A], Boolean)], Int)
+
     def getType(using Quotes): Type[A]
   }
 
@@ -39,6 +40,7 @@ object ast {
       }
       (sanitised, j)
     }
+
     override def getType(using Quotes): Type[HCons[String, A]] = {
       given Type[A] = inner.getType
       Type.of[HCons[String, A]]
@@ -47,6 +49,7 @@ object ast {
 
   case class NonCapture[A <: HList](inner: Regex[A]) extends Regex[A] {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[A], Boolean)], Int) = inner.sanitiseCode(groups, i)
+
     override def getType(using Quotes): Type[A] = inner.getType
   }
 
