@@ -1,7 +1,7 @@
 package experiments.macros
 
 import experiments.macros.ast.{Dot, Regex}
-import experiments.macros.bridges.{Alt, Capture, Cat, Lit, NonCapture, Opt}
+import experiments.macros.bridges.{Alt, Capture, Cat, Lit, Many, NonCapture, Opt}
 import parsley.expr.chain
 import parsley.Parsley
 import parsley.quick.{atomic, eof, noneOf, many}
@@ -24,5 +24,5 @@ object parser {
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 
-  private lazy val postfixOps: Parsley[Regex[?] => Regex[?]] = Opt from '?'
+  private lazy val postfixOps: Parsley[Regex[?] => Regex[?]] = (Opt from '?') <|> (Many from '*')
 }

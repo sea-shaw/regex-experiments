@@ -79,7 +79,7 @@ object ast {
     }
   }
 
-  case class Opt[A <: HList](inner: Regex[A]) extends Regex[HCons[Option[A], HNil]] {
+  sealed trait Optional[A <: HList](inner: Regex[A]) extends Regex[HCons[Option[A], HNil]] {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HCons[Option[A], HNil]], Boolean)], Int) = {
       given Type[A] = inner.getType
 
@@ -97,6 +97,9 @@ object ast {
       Type.of[HCons[Option[A], HNil]]
     }
   }
+
+  case class Opt[A <: HList](inner: Regex[A]) extends Optional[A](inner)
+  case class Many[A <: HList](inner: Regex[A]) extends Optional[A](inner)
 
   case class Cat[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[Concat[A, B]] {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[Concat[A, B]], Boolean)], Int) = {

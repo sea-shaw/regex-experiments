@@ -33,4 +33,8 @@ object bridges {
   object Opt extends PureParserBridge1[Regex[?], ast.Opt[?]] {
     override def apply(inner: Regex[?]): ast.Opt[?] = ast.Opt(inner)
   }
+
+  object Many extends PureParserBridge1[Regex[?], ast.Many[?]] {
+    override def apply(inner: Regex[?]): ast.Many[?] = ast.Many(inner)
+  }
 }

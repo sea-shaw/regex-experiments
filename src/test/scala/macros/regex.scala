@@ -42,11 +42,11 @@ class RegexMacroUnitTests extends AnyFlatSpec {
     "ab" should matchPattern { case r(HCons(Some(HCons("ab", HCons(Some(HCons("b", HNil)), HNil))), HNil)) => }
   }
 
-  // it should "match star capture groups" in {
-  //   val r = Regex("(a)*")
-  //   "aaaa" should matchPattern { case r(HCons(Some(HCons("a", HNil)), HNil)) => }
-  //   "" should matchPattern { case r(HCons(None, HNil)) => }
-  // }
+  it should "match star capture groups" in {
+    val r = Regex("(a)*")
+    "aaaa" should matchPattern { case r(HCons(Some(HCons("a", HNil)), HNil)) => }
+    "" should matchPattern { case r(HCons(None, HNil)) => }
+  }
 
   it should "match alternative capture groups" in {
     val r = Regex("(a)|(b)")
@@ -101,4 +101,3 @@ class RegexMacroUnitTests extends AnyFlatSpec {
     "d" should matchPattern { case r(HCons(Right(HCons(Right(HCons("d", HNil)), HNil)), HNil)) => }
   }
 }
-
