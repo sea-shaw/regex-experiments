@@ -1,9 +1,9 @@
 package experiments.macros
 
-import cats.collections.Diet
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
 import experiments.macros.hlist.{Concat, HCons, HList, HNil, ++}
 import scala.quoted.{Expr, Quotes, Type}
+import parsley.templates.PureParserBridge0
 
 object ast {
   sealed trait Regex[A <: HList] {
@@ -20,9 +20,9 @@ object ast {
     override def getType(using Quotes): Type[HNil] = Type.of[HNil]
   }
 
-  case object Dot extends Match
-  case class Lit(c: Int) extends Match
-  case class Range(cs: Diet[Int]) extends Match
+  type Dot = Dot.type
+  case object Dot extends Match with PureParserBridge0[Dot]
+  case class Lit(c: Char) extends Match
 
   case class Capture[A <: HList](inner: Regex[A]) extends Regex[HCons[String, A]] {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HCons[String, A]], Boolean)], Int) = {

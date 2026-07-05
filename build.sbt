@@ -9,6 +9,8 @@ lazy val root = project
     scalaVersion := scala3Version,
 
     libraryDependencies ++= Seq(
+      "com.github.j-mie6" %% "parsley" % "5.0.0-M19",
+      // "com.github.j-mie6" %% "parsley-cats" % "1.5.0",
       "org.scalactic" %% "scalactic" % "3.2.20",
       "org.scalatest" %% "scalatest" % "3.2.20" % "test",
       "org.typelevel" %% "cats-core" % "2.13.0",
