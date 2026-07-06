@@ -1,7 +1,7 @@
 package experiments.macros
 
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
-import experiments.macros.hlist.{Concat, HCons, HList, HNil, ++}
+import experiments.macros.hlist.{Concat, HCons, HList, HNil, Tidy, ++, tidy}
 import scala.quoted.{Expr, Quotes, Type}
 import parsley.templates.PureParserBridge0
 
@@ -53,8 +53,8 @@ object ast {
     override def getType(using Quotes): Type[A] = inner.getType
   }
 
-  case class Alt[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[HCons[Either[A, B], HNil]] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HCons[Either[A, B], HNil]], Boolean)], Int) = {
+  case class Alt[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[HCons[Either[Tidy[A], Tidy[B]], HNil]] {
+    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HCons[Either[Tidy[A], Tidy[B]], HNil]], Boolean)], Int) = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
@@ -63,38 +63,38 @@ object ast {
       val sanitised = '{
         val (leftCaps, anyLeft) = $sanitisedLeft
         val (rightCaps, anyRight) = $sanitisedRight
-        val left = leftCaps.map(Left(_))
-        val right = rightCaps.map(Right(_))
+        val left = leftCaps.map(cap => Left(cap.tidy))
+        val right = rightCaps.map(cap => Right(cap.tidy))
         val caps = if anyLeft then left.orElse(right) else right.orElse(left)
         (caps.map(HCons(_, HNil)), anyLeft || anyRight)
       }
       (sanitised, k)
     }
 
-    override def getType(using Quotes): Type[HCons[Either[A, B], HNil]] = {
+    override def getType(using Quotes): Type[HCons[Either[Tidy[A], Tidy[B]], HNil]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
-      Type.of[HCons[Either[A, B], HNil]]
+      Type.of[HCons[Either[Tidy[A], Tidy[B]], HNil]]
     }
   }
 
-  sealed trait Optional[A <: HList](inner: Regex[A]) extends Regex[HCons[Option[A], HNil]] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HCons[Option[A], HNil]], Boolean)], Int) = {
+  sealed trait Optional[A <: HList](inner: Regex[A]) extends Regex[HCons[Option[Tidy[A]], HNil]] {
+    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HCons[Option[Tidy[A]], HNil]], Boolean)], Int) = {
       given Type[A] = inner.getType
 
       val (sanitisedValue, j) = inner.sanitiseCode(groups, i)
       val sanitised = '{
         val (caps, any) = $sanitisedValue
-        (Some(HCons(caps, HNil)), any)
+        (Some(HCons(caps.map(_.tidy), HNil)), any)
       }
       (sanitised, j)
     }
 
-    override def getType(using Quotes): Type[HCons[Option[A], HNil]] = {
+    override def getType(using Quotes): Type[HCons[Option[Tidy[A]], HNil]] = {
       given Type[A] = inner.getType
 
-      Type.of[HCons[Option[A], HNil]]
+      Type.of[HCons[Option[Tidy[A]], HNil]]
     }
   }
 

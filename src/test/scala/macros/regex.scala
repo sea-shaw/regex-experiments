@@ -1,7 +1,6 @@
 package experiments.macros
 
 import experiments.macros.regex.Regex
-import experiments.macros.hlist.{HCons, HNil}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 
@@ -11,93 +10,93 @@ class RegexMacroUnitTests extends AnyFlatSpec {
 
   it should "match zero capture groups" in {
     val r = Regex("a")
-    "a" should matchPattern { case r(HNil) => } // TODO: Make this look nicer
+    "a" should matchPattern { case r(()) => } // TODO: Make this look nicer
   }
 
   it should "match one capture group" in {
     val r = Regex("(a)")
-    "a" should matchPattern { case r(HCons("a", HNil)) => }
+    "a" should matchPattern { case r("a") => }
   }
 
   it should "match multiple capture groups" in {
     val r = Regex("(a)(b)(c)")
-    "abc" should matchPattern { case r(HCons("a", HCons("b", HCons("c", HNil)))) => }
+    "abc" should matchPattern { case r("a", "b", "c") => }
   }
 
   it should "match nested capture groups" in {
     val r = Regex("(a(b(c)d)e)")
-    "abcde" should matchPattern { case r(HCons("abcde", HCons("bcd", HCons("c", HNil)))) => }
+    "abcde" should matchPattern { case r("abcde", "bcd", "c") => }
   }
 
   it should "match optional capture groups" in {
     val r = Regex("(a)?")
-    "a" should matchPattern { case r(HCons(Some(HCons("a", HNil)), HNil)) => }
-    "" should matchPattern { case r(HCons(None, HNil)) => }
+    "a" should matchPattern { case r(Some("a")) => }
+    "" should matchPattern { case r(None) => }
   }
 
   it should "match nested optional capture groups" in {
     val r = Regex("(a(b)?)?")
-    "" should matchPattern { case r(HCons(None, HNil)) => }
-    "a" should matchPattern { case r(HCons(Some(HCons("a", HCons(None, HNil))), HNil)) => }
-    "ab" should matchPattern { case r(HCons(Some(HCons("ab", HCons(Some(HCons("b", HNil)), HNil))), HNil)) => }
+    "" should matchPattern { case r(None) => }
+    "a" should matchPattern { case r(Some("a", None)) => }
+    "ab" should matchPattern { case r(Some("ab", Some("b"))) => }
   }
 
   it should "match star capture groups" in {
     val r = Regex("(a)*")
-    "aaaa" should matchPattern { case r(HCons(Some(HCons("a", HNil)), HNil)) => }
-    "" should matchPattern { case r(HCons(None, HNil)) => }
+    "aaaa" should matchPattern { case r(Some("a")) => }
+    "" should matchPattern { case r(None) => }
   }
 
   it should "match alternative capture groups" in {
     val r = Regex("(a)|(b)")
-    "a" should matchPattern { case r(HCons(Left(HCons("a", HNil)), HNil)) => }
-    "b" should matchPattern { case r(HCons(Right(HCons("b", HNil)), HNil)) => }
+    "a" should matchPattern { case r(Left("a")) => }
+    "b" should matchPattern { case r(Right("b")) => }
   }
 
   it should "match alternatives with multiple capture groups on either side" in {
     val r = Regex("(a)(b)|(c)(d)")
-    "ab" should matchPattern { case r(HCons(Left(HCons("a", HCons("b", HNil))), HNil)) => }
-    "cd" should matchPattern { case r(HCons(Right(HCons("c", HCons("d", HNil))), HNil)) => }
+    "ab" should matchPattern { case r(Left("a", "b")) => }
+    "cd" should matchPattern { case r(Right("c", "d")) => }
   }
 
   it should "match many chained alternative capture groups" in {
     val r = Regex("(a)|(b)|(c)|(d)")
-    "a" should matchPattern { case r(HCons(Left(HCons("a", HNil)), HNil)) => }
-    "b" should matchPattern { case r(HCons(Right(HCons(Left(HCons("b", HNil)), HNil)), HNil)) => }
-    "c" should matchPattern { case r(HCons(Right(HCons(Right(HCons(Left(HCons("c", HNil)), HNil)), HNil)), HNil)) => }
-    "d" should matchPattern { case r(HCons(Right(HCons(Right(HCons(Right(HCons("d", HNil)), HNil)), HNil)), HNil)) => }
+    "a" should matchPattern { case r(Left("a")) => }
+    "b" should matchPattern { case r(Right(Left("b"))) => }
+    "c" should matchPattern { case r(Right(Right(Left("c")))) => }
+    "d" should matchPattern { case r(Right(Right(Right("d")))) => }
   }
 
   it should "allow non-capturing groups" in {
     val r = Regex("(?:a)")
-    "a" should matchPattern { case r(HNil) => }
+    "a" should matchPattern { case r(()) => }
   }
 
   it should "match capture groups with shared optionality" in {
     val r = Regex("(?:(a)(b))?")
-    "ab" should matchPattern { case r(HCons(Some(HCons("a", HCons("b", HNil))), HNil)) => }
-    "" should matchPattern { case r(HCons(None, HNil)) => }
+    "ab" should matchPattern { case r(Some("a", "b")) => }
+    "" should matchPattern { case r(None) => }
   }
 
   it should "match optional capture groups inside alternative" in {
     val r = Regex("(a)?|(b)?")
-    "a" should matchPattern { case r(HCons(Left(HCons(Some(HCons("a", HNil)), HNil)), HNil)) => }
-    "b" should matchPattern { case r(HCons(Right(HCons(Some(HCons("b", HNil)), HNil)), HNil)) => }
-    "" should matchPattern { case r(HCons(Left(HCons(None, HNil)), HNil)) | r(HCons(Right(HCons(None, HNil)), HNil)) => }
+    "a" should matchPattern { case r(Left(Some("a"))) => }
+    "b" should matchPattern { case r(Right(Some("b"))) => }
+    "" should matchPattern { case r(Left(None)) | r(Right(None)) => }
   }
 
   it should "match alternative capture groups inside optional" in {
     val r = Regex("(?:(a)|(b))?")
-    "a" should matchPattern { case r(HCons(Some(HCons(Left(HCons("a", HNil)), HNil)), HNil)) => }
-    "b" should matchPattern { case r(HCons(Some(HCons(Right(HCons("b", HNil)), HNil)), HNil)) => }
-    "" should matchPattern { case r(HCons(None, HNil)) => }
+    "a" should matchPattern { case r(Some(Left("a"))) => }
+    "b" should matchPattern { case r(Some(Right("b"))) => }
+    "" should matchPattern { case r(None) => }
   }
 
   it should "match nested alternative capture groups" in {
     val r = Regex("(?:(a)|(b))|(?:(c)|(d))")
-    "a" should matchPattern { case r(HCons(Left(HCons(Left(HCons("a", HNil)), HNil)), HNil)) => }
-    "b" should matchPattern { case r(HCons(Left(HCons(Right(HCons("b", HNil)), HNil)), HNil)) => }
-    "c" should matchPattern { case r(HCons(Right(HCons(Left(HCons("c", HNil)), HNil)), HNil)) => }
-    "d" should matchPattern { case r(HCons(Right(HCons(Right(HCons("d", HNil)), HNil)), HNil)) => }
+    "a" should matchPattern { case r(Left(Left("a"))) => }
+    "b" should matchPattern { case r(Left(Right("b"))) => }
+    "c" should matchPattern { case r(Right(Left("c"))) => }
+    "d" should matchPattern { case r(Right(Right("d"))) => }
   }
 }
