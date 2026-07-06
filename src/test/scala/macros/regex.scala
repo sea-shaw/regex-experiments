@@ -28,6 +28,12 @@ class RegexMacroUnitTests extends AnyFlatSpec {
     "abcde" should matchPattern { case r("abcde", "bcd", "c") => }
   }
 
+  it should "match optional patterns" in {
+    val r = Regex("a?") // TODO: Make type `Unit` instead of `Option[Unit]`
+    "a" should matchPattern { case r(()) => }
+    "" should matchPattern { case r(()) => }
+  }
+
   it should "match optional capture groups" in {
     val r = Regex("(a)?")
     "a" should matchPattern { case r(Some("a")) => }
@@ -47,10 +53,22 @@ class RegexMacroUnitTests extends AnyFlatSpec {
     "" should matchPattern { case r(None) => }
   }
 
+  it should "match alternative patterns" in {
+    val r = Regex("a|b") // TODO: Make type `Unit` instead of `Either[Unit, Unit]`
+     "a" should matchPattern { case r(()) => }
+     "b" should matchPattern { case r(()) => }
+  }
+
   it should "match alternative capture groups" in {
     val r = Regex("(a)|(b)")
     "a" should matchPattern { case r(Left("a")) => }
     "b" should matchPattern { case r(Right("b")) => }
+  }
+
+  it should "match alternative patterns with capture groups on one side" in {
+    val r = Regex("(a)|b")
+    "a" should matchPattern { case r(Left("a")) => }
+    "b" should matchPattern { case r(Right(())) => }
   }
 
   it should "match alternatives with multiple capture groups on either side" in {
