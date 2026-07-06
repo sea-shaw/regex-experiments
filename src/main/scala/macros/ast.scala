@@ -101,7 +101,7 @@ object ast {
   }
 
   sealed trait Optional[A <: HList](inner: Regex[A]) extends Regex[OptionalCapture[A]] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[OptionalCapture[A]], Boolean)], Int) = {
+    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[OptionalCapture[A]], Boolean)], Int) = {      
       given Type[A] = inner.getType
 
       // TODO: Can this be done without `asExprOf`?
@@ -137,14 +137,27 @@ object ast {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
-      val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
-      val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-      val sanitised = '{
-        val (leftCaps, anyLeft) = $sanitisedLeft
-        val (rightCaps, anyRight) = $sanitisedRight
-        ((leftCaps, rightCaps).mapN(_ ++ _), anyLeft || anyRight)
+      // TODO: Can this be done without `asExprOf`
+      val (sanitised, j) = (Type.of[A], Type.of[B]) match {
+        case ('[HNil], '[HNil]) => {
+          val expr = '{ (Some(HNil), false) }
+          (expr, i)
+        }
+        case (_, '[HNil])       => left.sanitiseCode(groups, i)
+        case ('[HNil], _)       => right.sanitiseCode(groups, i)
+        case _                  => {
+          val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
+          val (sanitisedRight, k) = right.sanitiseCode(groups, j)
+          val expr = '{
+            val (leftCaps, anyLeft) = $sanitisedLeft
+            val (rightCaps, anyRight) = $sanitisedRight
+            ((leftCaps, rightCaps).mapN(_ ++ _), anyLeft || anyRight)
+          }
+          (expr, k)
+        }
       }
-      (sanitised, k)
+
+      (sanitised.asExprOf[(Option[Concat[A, B]], Boolean)], j)
     }
 
     override def getType(using Quotes): Type[Concat[A, B]] = {
