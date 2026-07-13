@@ -1,29 +1,39 @@
 package experiments.macros
 
-import scala.quoted.{Expr, Quotes, Type}
+import scala.quoted.{Expr, Quotes, Type, quotes}
 
 object macroextractor {
 
   object Alt {
-    inline def unapply[A, B](inline alt: Either[A, B]): Tuple1[A] = ${ unapplyCode('alt) }
+    inline def unapply[A, B](inline alt: Either[A, B]): (Int, A) = ${ unapplyCode('alt) }
   }
 
-  private def unapplyCode[A: Type, B: Type](expr: Expr[Either[A, B]])(using Quotes): Expr[Tuple1[A]] = {
-    val extracted = extractCode(expr)
-    '{ Tuple1($extracted) }
+  private def unapplyCode[A: Type, B: Type](expr: Expr[Either[A, B]])(using Quotes): Expr[(Int, A)] = {
+    import quotes.reflect.{Position, report}
+
+    val extracted = extractCode(0, expr)
+    report.info(extracted.show, Position.ofMacroExpansion)
+    extracted
   }
 
-  private def extractCode[A: Type, B: Type](expr: Expr[Either[A, B]])(using Quotes): Expr[A] = Type.of[B] match {
-    case '[A] => '{
-      $expr match {
-        case Left(a) => a
-        case Right(b) => b
-      }
-    }.asExprOf[A]
-    case '[Either[A, b]] => '{ 
-      $expr match {
-        case Left(a) => a
-        case Right(b) => ${ extractCode[A, b]('b.asExprOf[Either[A, b]]) }
+  private def extractCode[A: Type, B: Type](idx: Int, expr: Expr[Either[A, B]])(using Quotes): Expr[(Int, A)] = Type.of[B] match {
+    case '[A] => {
+      val i = Expr(idx)
+      val j = Expr(idx + 1)
+      '{
+        $expr match {
+          case Left(a) => ($i, a)
+          case Right(b) => ($j, b)
+        }
+      }.asExprOf[(Int, A)]
+    }
+    case '[Either[A, b]] => {
+      val i = Expr(idx)
+      '{ 
+        $expr match {
+          case Left(a) => ($i, a)
+          case Right(b) => ${ extractCode[A, b](idx + 1, 'b.asExprOf[Either[A, b]]) }
+        }
       }
     }
   }

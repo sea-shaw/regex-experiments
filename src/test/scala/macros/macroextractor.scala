@@ -18,31 +18,31 @@ class MacroExtractorUnitTests extends AnyFlatSpec {
 
   it should "extract from alternatives of single capture groups" in {
     val r = Regex("(a)|(b)|(c)|(d)|(e)|(f)|(g)|(h)")
-    "a" shouldMatchPattern { case r(Alt("a")) => }
-    "b" shouldMatchPattern { case r(Alt("b")) => }
-    "c" shouldMatchPattern { case r(Alt("c")) => }
-    "d" shouldMatchPattern { case r(Alt("d")) => }
-    "e" shouldMatchPattern { case r(Alt("e")) => }
-    "f" shouldMatchPattern { case r(Alt("f")) => }
-    "g" shouldMatchPattern { case r(Alt("g")) => }
-    "h" shouldMatchPattern { case r(Alt("h")) => }
+    "a" shouldMatchPattern { case r(Alt(0, "a")) => }
+    "b" shouldMatchPattern { case r(Alt(1, "b")) => }
+    "c" shouldMatchPattern { case r(Alt(2, "c")) => }
+    "d" shouldMatchPattern { case r(Alt(3, "d")) => }
+    "e" shouldMatchPattern { case r(Alt(4, "e")) => }
+    "f" shouldMatchPattern { case r(Alt(5, "f")) => }
+    "g" shouldMatchPattern { case r(Alt(6, "g")) => }
+    "h" shouldMatchPattern { case r(Alt(7, "h")) => }
   }
 
   it should "extract from alternatives of multiple capture groups" in {
     val r = Regex("(a)(b)?|(c)(d)?|(e)(f)?")
-    "a" shouldMatchPattern { case r(Alt("a", None)) => }
-    "ab" shouldMatchPattern { case r(Alt("a", Some("b"))) => }
-    "c" shouldMatchPattern { case r(Alt("c", None)) => }
-    "cd" shouldMatchPattern { case r(Alt("c", Some("d"))) => }
-    "e" shouldMatchPattern { case r(Alt("e", None)) => }
-    "ef" shouldMatchPattern { case r(Alt("e", Some("f"))) => }
+    "a" shouldMatchPattern { case r(Alt(0, ("a", None))) => }
+    "ab" shouldMatchPattern { case r(Alt(0, ("a", Some("b")))) => }
+    "c" shouldMatchPattern { case r(Alt(1, ("c", None))) => }
+    "cd" shouldMatchPattern { case r(Alt(1, ("c", Some("d")))) => }
+    "e" shouldMatchPattern { case r(Alt(2, ("e", None))) => }
+    "ef" shouldMatchPattern { case r(Alt(2, ("e", Some("f")))) => }
   }
 
   it should "extract from alternatives of alternatives of different types" in {
     val r = Regex("(?:(a)|(b)(c))|(?:(d)|(e)(f))")
-    "a" shouldMatchPattern { case r(Alt(Left("a"))) => }
-    "bc" shouldMatchPattern { case r(Alt(Right("b", "c"))) => }
-    "d" shouldMatchPattern { case r(Alt(Left("d"))) => }
-    "ef" shouldMatchPattern { case r(Alt(Right("e", "f"))) => }
+    "a" shouldMatchPattern { case r(Alt(0, Left("a"))) => }
+    "bc" shouldMatchPattern { case r(Alt(0, Right("b", "c"))) => }
+    "d" shouldMatchPattern { case r(Alt(1, Left("d"))) => }
+    "ef" shouldMatchPattern { case r(Alt(1, Right("e", "f"))) => }
   }
 }
