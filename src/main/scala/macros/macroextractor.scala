@@ -9,11 +9,7 @@ object macroextractor {
   }
 
   private def unapplyCode[A: Type, B: Type](expr: Expr[Either[A, B]])(using Quotes): Expr[(Int, A)] = {
-    import quotes.reflect.{Position, report}
-
-    val extracted = extractCode(0, expr)
-    report.info(extracted.show, Position.ofMacroExpansion)
-    extracted
+    extractCode(0, expr)
   }
 
   private def extractCode[A: Type, B: Type](idx: Int, expr: Expr[Either[A, B]])(using Quotes): Expr[(Int, A)] = {
