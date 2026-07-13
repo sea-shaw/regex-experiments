@@ -13,8 +13,8 @@ object parser {
 
   lazy val regex = expr <~ eof
   private lazy val expr: Parsley[Regex[?]] = chain.right1(term)(Alt from '|')
-  private lazy val term = Cat(postfix, many(postfix)) // TODO: use NonEmptyList from parsley cats, currently incompatible
-  private lazy val postfix = chain.postfix(atom)(postfixOps)
+  private lazy val term = Cat(atomWithPostfix, many(atomWithPostfix)) // TODO: use NonEmptyList from parsley cats, currently incompatible
+  private lazy val atomWithPostfix = chain.postfix(atom)(postfixOps)
   private lazy val atom = nonCapture | capture | lit | dot
 
   private lazy val nonCapture = NonCapture(atomic("(?:") ~> expr <~ ')')
