@@ -26,7 +26,7 @@ object extractor {
   }
 
   object Extractor extends LowPriorityExtractor {
-    given [I <: Int, J <: Int, A, B, C](using aExtractor: Extractor[I, A, C], bExtractor: Extractor[J, B, C]): Extractor[I + J, Either[A, B], C] = new {
+    given [I <: Int, J <: Int, A, B, C] => (aExtractor: Extractor[I, A, C], bExtractor: Extractor[J, B, C]) => Extractor[I + J, Either[A, B], C] = new {
       override val i: I + J = plus(aExtractor.i, bExtractor.i)
       override def unapply(x: Either[A, B]): (Fin[I + J], C) = x match {
         case Left(a)  => {
