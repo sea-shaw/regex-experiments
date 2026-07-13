@@ -1,6 +1,6 @@
 package experiments.macros
 
-import scala.quoted.{Expr, Quotes, Type, quotes}
+import scala.quoted.{Expr, Quotes, Type}
 
 object macroextractor {
 
@@ -9,15 +9,22 @@ object macroextractor {
   }
 
   private def unapplyCode[A: Type, B: Type](expr: Expr[Either[A, B]])(using Quotes): Expr[Tuple1[A]] = {
-    import quotes.reflect.{Position, report}
-
     val extracted = extractCode(expr)
-    report.info(extracted.show, Position.ofMacroExpansion)
-    extracted
+    '{ Tuple1($extracted) }
   }
 
-  private def extractCode[A: Type, B: Type](expr: Expr[Either[A, B]])(using Quotes): Expr[Tuple1[A]] = Type.of[B] match {
-    case '[A] => '{ $expr.fold(Tuple1(_), Tuple1(_)) }.asExprOf[Tuple1[A]] 
-    case '[Either[A, b]] => '{ $expr.fold(Tuple1(_), b => ${ extractCode('b.asExprOf[Either[A, b]]) }) }
+  private def extractCode[A: Type, B: Type](expr: Expr[Either[A, B]])(using Quotes): Expr[A] = Type.of[B] match {
+    case '[A] => '{
+      $expr match {
+        case Left(a) => a
+        case Right(b) => b
+      }
+    }.asExprOf[A]
+    case '[Either[A, b]] => '{ 
+      $expr match {
+        case Left(a) => a
+        case Right(b) => ${ extractCode[A, b]('b.asExprOf[Either[A, b]]) }
+      }
+    }
   }
 }
