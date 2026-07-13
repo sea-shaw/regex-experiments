@@ -24,10 +24,7 @@ object ast {
   }
 
   sealed trait Match extends Regex[HNil] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HNil], Boolean)], Int) = {
-      val sanitised = '{ (Some(HNil), false) }
-      (sanitised, i)
-    }
+    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HNil], Boolean)], Int) = empty(i)
     override def getType(using Quotes): Type[HNil] = Type.of[HNil]
   }
 
@@ -71,10 +68,7 @@ object ast {
 
       // TODO: Can this be done without `asExprOF`
       val (sanitised, j) = (Type.of[A], Type.of[B]) match {
-        case ('[HNil], '[HNil]) => {
-          val expr = '{ (Some(HNil), false) }
-          (expr, i)
-        }
+        case ('[HNil], '[HNil]) => empty(i)
         case _                  => {
           val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
           val (sanitisedRight, k) = right.sanitiseCode(groups, j)
@@ -106,10 +100,7 @@ object ast {
 
       // TODO: Can this be done without `asExprOf`?
       val (sanitised, j) = Type.of[A] match {
-        case '[HNil] => {
-          val expr = '{ (Some(HNil), false) }
-          (expr, i)
-        }
+        case '[HNil] => empty(i)
         case _       => {
           val (sanitisedValue, j) = inner.sanitiseCode(groups, i)
           val expr = '{
@@ -139,10 +130,7 @@ object ast {
 
       // TODO: Can this be done without `asExprOf`
       val (sanitised, j) = (Type.of[A], Type.of[B]) match {
-        case ('[HNil], '[HNil]) => {
-          val expr = '{ (Some(HNil), false) }
-          (expr, i)
-        }
+        case ('[HNil], '[HNil]) => empty(i)
         case (_, '[HNil])       => left.sanitiseCode(groups, i)
         case ('[HNil], _)       => right.sanitiseCode(groups, i)
         case _                  => {
@@ -166,5 +154,10 @@ object ast {
 
       Type.of[Concat[A, B]]
     }
+  }
+
+  private def empty(i: Int)(using Quotes) = {
+    val expr = '{ (Some(HNil), false) }
+    (expr, i)
   }
 }
