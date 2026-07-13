@@ -3,9 +3,8 @@ package experiments.macros
 import scala.compiletime.ops.int.{S, +}
 
 object extractor {
-
-  object extract {
-    def unapply[I <: Int, A, B](x: A)(using extractor: Extractor[I, A, B]): (Fin[I], B) = extractor.unapply(x)
+  object Alt {
+    def unapply[I <: Int, A, B](alt: A)(using extractor: Extractor[I, A, B]): (Fin[I], B) = extractor.extract(alt)
   }
 
   type Fin[I <: Int] <: Int = I match {
@@ -13,33 +12,36 @@ object extractor {
     case S[i] => Fin[i] | i
   }
 
-  sealed trait Extractor[I <: Int, -A, +B] {
-    val i: I
-    def unapply(x: A): (Fin[I], B)
+  sealed trait Extractor[I <: Int, A, B] {
+    val count: I
+    def extract(alt: A): (Fin[I], B)
   }
 
   sealed trait LowPriorityExtractor {
     given [A] => Extractor[1, A, A] {
-      override val i: 1 = 1
-      override def unapply(x: A): (0, A) = (0, x)
+      override val count: 1 = 1
+      override def extract(alt: A): (0, A) = (0, alt)
     }
   }
 
   object Extractor extends LowPriorityExtractor {
-    given [I <: Int, J <: Int, A, B, C] => (aExtractor: Extractor[I, A, C], bExtractor: Extractor[J, B, C]) => Extractor[I + J, Either[A, B], C] = new {
-      override val i: I + J = plus(aExtractor.i, bExtractor.i)
-      override def unapply(x: Either[A, B]): (Fin[I + J], C) = x match {
+    given [I <: Int, J <: Int, A, B, C] => (left: Extractor[I, A, C], right: Extractor[J, B, C]) => Extractor[I + J, Either[A, B], C] = new {
+      override val count: I + J = plus(left.count, right.count)
+      override def extract(alt: Either[A, B]): (Fin[I + J], C) = alt match {
         case Left(a)  => {
-          val (i, c) = aExtractor.unapply(a)
-          (i.asInstanceOf[Fin[I + J]], c)
+          val (i, c) = left.extract(a)
+          (widenFin[I, J](i), c)
         }
         case Right(b) => {
-          val (i, c) = bExtractor.unapply(b)
-          val j = plus(aExtractor.i, i).asInstanceOf[Fin[I + J]]
+          val (i, c) = right.extract(b)
+          val j = plusFin(left.count, i)
           (j, c)
         }
       }
     }
   }
+
   private def plus[I <: Int, J <: Int](i: I, j: J): I + J = (i + j).asInstanceOf[I + J]
+  private def plusFin[I <: Int, J <: Int](i: I, fin: Fin[J]): Fin[I + J] = (i + fin).asInstanceOf[Fin[I + J]]
+  private def widenFin[I <: Int, J <: Int](fin: Fin[I]): Fin[I + J] = fin.asInstanceOf[Fin[I + J]]
 }
