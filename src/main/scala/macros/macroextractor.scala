@@ -17,8 +17,12 @@ object macroextractor {
   }
 
   private def extractCode[A: Type, B: Type](idx: Int, expr: Expr[Either[A, B]])(using Quotes): Expr[(Int, A)] = {
-    import quotes.reflect.{Position, TypeRepr, report}
-    
+    import quotes.reflect.{Position, report}
+
+    // TODO: Can we do this without both `case '[A]` and `Expr.summon[B <:< A]`.
+    // I still think this is better than `asExprOf`.
+    // Need `case '[Either[A, b]]` to deconstruct types and get access to `b`.
+    // Need `Expr.summon` to avoid `asExprOf` 
     val extracted = Type.of[B] match {
       case '[A] => Expr.summon[B <:< A].map { ev =>
         val i = Expr(idx)
@@ -45,6 +49,6 @@ object macroextractor {
       case _ => None
     }
 
-    extracted.getOrElse(report.errorAndAbort(s"Invalid type: ${TypeRepr.of[Either[A, B]].show}", Position.ofMacroExpansion))
+    extracted.getOrElse(report.errorAndAbort(s"Invalid type", Position.ofMacroExpansion))
   }
 }
