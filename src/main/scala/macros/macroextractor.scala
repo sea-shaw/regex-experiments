@@ -16,25 +16,35 @@ object macroextractor {
     extracted
   }
 
-  private def extractCode[A: Type, B: Type](idx: Int, expr: Expr[Either[A, B]])(using Quotes): Expr[(Int, A)] = Type.of[B] match {
-    case '[A] => {
-      val i = Expr(idx)
-      val j = Expr(idx + 1)
-      '{
-        $expr match {
-          case Left(a) => ($i, a)
-          case Right(b) => ($j, b)
-        }
-      }.asExprOf[(Int, A)]
-    }
-    case '[Either[A, b]] => {
-      val i = Expr(idx)
-      '{ 
-        $expr match {
-          case Left(a) => ($i, a)
-          case Right(b) => ${ extractCode[A, b](idx + 1, 'b.asExprOf[Either[A, b]]) }
+  private def extractCode[A: Type, B: Type](idx: Int, expr: Expr[Either[A, B]])(using Quotes): Expr[(Int, A)] = {
+    import quotes.reflect.{Position, TypeRepr, report}
+    
+    val extracted = Type.of[B] match {
+      case '[A] => Expr.summon[B <:< A].map { ev =>
+        val i = Expr(idx)
+        val j = Expr(idx + 1)
+        '{
+          $expr match {
+            case Left(a) => ($i, a)
+            case Right(b) => ($j, $ev(b))
+          }
         }
       }
+      case '[Either[A, b]] => Expr.summon[B <:< Either[A, b]].map { ev =>
+        val i = Expr(idx)
+        '{
+          $expr match {
+            case Left(a) => ($i, a)
+            case Right(b) => {
+              val right = $ev(b)
+              ${ extractCode[A, b](idx + 1, 'right) }
+            }
+          }
+        }
+      }
+      case _ => None
     }
+
+    extracted.getOrElse(report.errorAndAbort(s"Invalid type: ${TypeRepr.of[Either[A, B]].show}", Position.ofMacroExpansion))
   }
 }
