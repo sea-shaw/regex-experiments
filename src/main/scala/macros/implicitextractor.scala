@@ -2,7 +2,7 @@ package experiments.macros
 
 import scala.compiletime.ops.int.{S, +}
 
-object extractor {
+object implicitextractor {
   object Alt {
     def unapply[I <: Int, A, B](alt: A)(using extractor: Extractor[I, A, B]): (Fin[I], B) = extractor.extract(alt)
   }

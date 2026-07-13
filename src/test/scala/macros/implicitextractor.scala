@@ -1,12 +1,12 @@
 package experiments.macros
 
-import experiments.macros.extractor.Alt
+import experiments.macros.implicitextractor.Alt
 import experiments.macros.regex.Regex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 
-class ExtractorUnitTests extends AnyFlatSpec {
-  behavior of "Extractor"
+class ImplicitExtractorUnitTests extends AnyFlatSpec {
+  behavior of "Implicit extractor"
 
   it should "extract from alternatives of single capture groups" in {
     val r = Regex("(a)|(b)|(c)|(d)|(e)|(f)|(g)|(h)")
