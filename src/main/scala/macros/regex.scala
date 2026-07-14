@@ -27,10 +27,12 @@ object regex {
     }
 
     private def regexCode[A <: HList](regexStr: String, ast: RegexAST[A])(using Quotes): Expr[Regex[Tidy[A]]] = {
+      import quotes.reflect.{Position, report}
+      
       given Type[A] = ast.getType
 
       val regexStrExpr = Expr(regexStr)
-      '{
+      val expr = '{
         new Regex[Tidy[A]] {
           private val pattern: Pattern = Pattern.compile($regexStrExpr)
 
@@ -46,6 +48,8 @@ object regex {
           }
         }
       }
+      report.info(expr.show, Position.ofMacroExpansion)
+      expr
     }
   }
 }

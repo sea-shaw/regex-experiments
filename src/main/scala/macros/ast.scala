@@ -66,25 +66,26 @@ object ast {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
-      val sanitised = Expr.summon[HNil =:= AltCapture[A, B]].map { ev =>
-        val expr = '{ (Some($ev(HNil)), false) }
-        (expr, i)
-      } orElse Expr.summon[HCons[Either[Tidy[A], Tidy[B]], HNil] =:= AltCapture[A, B]].map { ev =>
-        val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-        val expr = '{
-          val (leftCaps, anyLeft) = $sanitisedLeft
-          val (rightCaps, anyRight) = $sanitisedRight
-          val left = leftCaps.map(cap => Left(cap.tidy))
-          val right = rightCaps.map(cap => Right(cap.tidy))
-          val caps = if anyLeft then left.orElse(right) else right.orElse(left)
-          (caps.map(cap => $ev(HCons(cap, HNil))), anyLeft || anyRight)
+      val (expr, j) = (Type.of[A], Type.of[B]) match {
+        case ('[HNil], '[HNil]) => {
+          val expr = '{ (Some(HNil), false) }
+          (expr, i)
         }
-        (expr, k)
+        case _                  => {
+          val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
+          val (sanitisedRight, k) = right.sanitiseCode(groups, j)
+          val expr = '{
+            val (leftCaps, anyLeft) = $sanitisedLeft
+            val (rightCaps, anyRight) = $sanitisedRight
+            val left = leftCaps.map(cap => Left(cap.tidy))
+            val right = rightCaps.map(cap => Right(cap.tidy))
+            val caps = if anyLeft then left.orElse(right) else right.orElse(left)
+            (caps.map(HCons(_, HNil)), anyLeft || anyRight)
+          }
+          (expr, k)
+        }
       }
-
-      // TODO: Any way to avoid `.get`
-      sanitised.get
+      (expr.asExprOf[(Option[AltCapture[A, B]], Boolean)], j)
     }
 
     override def getType(using Quotes): Type[AltCapture[A, B]] = {
@@ -99,20 +100,22 @@ object ast {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[OptionalCapture[A]], Boolean)], Int) = {      
       given Type[A] = inner.getType
 
-      val sanitised = Expr.summon[HNil =:= OptionalCapture[A]].map { ev =>
-        val expr = '{ (Some($ev(HNil)), false) }
-        (expr, i)
-      } orElse Expr.summon[HCons[Option[Tidy[A]], HNil] =:= OptionalCapture[A]].map { ev =>
-        val (sanitisedValue, j) = inner.sanitiseCode(groups, i)
-        val expr = '{
-          val (caps, any) = $sanitisedValue
-          (Some($ev(HCons(caps.map(_.tidy), HNil))), any)
+      val (expr, j) = Type.of[A] match {
+        case '[HNil] => {
+          val expr = '{ (Some(HNil), false) }
+          (expr, i)
         }
-        (expr, j)
+        case _       => {
+          val (sanitisedInner, j) = inner.sanitiseCode(groups, i)
+          val expr = '{
+            val (caps, any) = $sanitisedInner
+            (Some(HCons(caps.map(_.tidy), HNil)), any)
+          }
+          (expr, j)
+        }
       }
 
-      // TODO: Any way to avoid `.get`
-      sanitised.get
+      (expr.asExprOf[(Option[OptionalCapture[A]], Boolean)], j)
     }
 
     override def getType(using Quotes): Type[OptionalCapture[A]] = {
@@ -130,28 +133,23 @@ object ast {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
-      // TODO: Duplication
-      Expr.summon[HNil =:= Concat[A, B]].map { ev =>
-        val expr = '{ (Some($ev(HNil)), false) }
-        (expr, i)
-      } orElse Expr.summon[A =:= Concat[A, B]].map { ev =>
-        val (expr, j) = left.sanitiseCode(groups, i)
-        val lifted = '{ $ev.liftCo[[X] =>> (Option[X], Boolean)]($expr) }
-        (lifted, j)
-      } orElse Expr.summon[B =:= Concat[A, B]].map { ev =>
-        val (expr, j) = right.sanitiseCode(groups, i)
-        val lifted = '{ $ev.liftCo[[X] =>> (Option[X], Boolean)]($expr) }
-        (lifted, j)
-      } getOrElse {
-        val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-        val expr = '{
-          val (leftCaps, anyLeft) = $sanitisedLeft
-          val (rightCaps, anyRight) = $sanitisedRight
-          ((leftCaps, rightCaps).mapN(_ ++ _), anyLeft || anyRight)
+      val (expr, j) = (Type.of[A], Type.of[B]) match {
+        case (_, '[HNil]) => left.sanitiseCode(groups, i)
+        case ('[HNil], _) => right.sanitiseCode(groups, i)
+        case _            => {
+          val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
+          val (sanitisedRight, k) = right.sanitiseCode(groups, j)
+          val expr = '{
+            val (leftCaps, anyLeft) = $sanitisedLeft
+            val (rightCaps, anyRight) = $sanitisedRight
+            ((leftCaps, rightCaps).mapN(_ ++ _), anyLeft || anyRight)
+          }
+          (expr, k)
         }
-        (expr, k)
       }
+
+      // TODO: Get rid of `asExprOf`.
+      (expr.asExprOf[(Option[Concat[A, B]], Boolean)], j)
     }
 
     override def getType(using Quotes): Type[Concat[A, B]] = {
