@@ -1,7 +1,7 @@
 package experiments.macros
 
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
-import experiments.macros.hlist.{Concat, HCons, HList, HNil, Tidy, ++, tidy}
+import experiments.macros.hlist.{Concat, HCons, HList, HNil, Tidy, tidy}
 import experiments.macros.hchain.HChain
 import scala.quoted.{Expr, Quotes, Type}
 import parsley.templates.PureParserBridge0
