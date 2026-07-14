@@ -1,5 +1,6 @@
 package experiments.macros
 
+import cats.collections.Diet
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
 import experiments.macros.hlist.{Concat, HCons, HList, HNil, Tidy, tidy}
 import experiments.macros.hchain.HChain
@@ -31,7 +32,8 @@ object ast {
 
   type Dot = Dot.type
   case object Dot extends Match with PureParserBridge0[Dot]
-  case class Lit(c: Char) extends Match
+  case class Lit(c: Int) extends Match
+  case class Class(cs: Diet[Int]) extends Match
 
   case class Capture[A <: HList](inner: Regex[A]) extends Regex[HCons[String, A]] {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HChain[HCons[String, A]]], Boolean)], Int) = {
@@ -56,11 +58,14 @@ object ast {
     }
   }
 
-  case class NonCapture[A <: HList](inner: Regex[A]) extends Regex[A] {
+  sealed trait CaptureInner[A <: HList](inner: Regex[A]) extends Regex[A] {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HChain[A]], Boolean)], Int) = inner.sanitiseCode(groups, i)
 
     override def getType(using Quotes): Type[A] = inner.getType
   }
+
+  case class NonCapture[A <: HList](inner: Regex[A]) extends CaptureInner[A](inner)
+  case class Rep1[A <: HList](inner: Regex[A]) extends CaptureInner[A](inner)
 
   case class Alt[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[AltCapture[A, B]] {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HChain[AltCapture[A, B]]], Boolean)], Int) = {
@@ -121,7 +126,7 @@ object ast {
   }
 
   case class Opt[A <: HList](inner: Regex[A]) extends Optional[A](inner)
-  case class Many[A <: HList](inner: Regex[A]) extends Optional[A](inner)
+  case class Rep0[A <: HList](inner: Regex[A]) extends Optional[A](inner)
 
   case class Cat[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[Concat[A, B]] {
     override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): (Expr[(Option[HChain[Concat[A, B]]], Boolean)], Int) = {

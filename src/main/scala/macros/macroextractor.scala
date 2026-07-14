@@ -1,6 +1,6 @@
 package experiments.macros
 
-import scala.quoted.{Expr, Quotes, Type, quotes}
+import scala.quoted.{Expr, Quotes, Type}
 
 object macroextractor {
 
