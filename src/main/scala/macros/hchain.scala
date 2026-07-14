@@ -33,10 +33,6 @@ object hchain {
     }
   }
 
-  private case class HWrap[A, B <: HList](x: A, xs: B) extends NonEmptyHChain[HCons[A, B]] {
-    override private [hchain] def build[C <: HList](acc: C): Concat[HCons[A, B], C] = (HCons(x, xs)) ++ acc
-  }
-
   object HChain {
     def one[A](a: A): HChain[HCons[A, HNil]] = HSingleton(a)
     val nil: HChain[HNil] = HEmpty
