@@ -11,7 +11,7 @@ object parser {
 
   def parse(s: String) = regex.parse(s).toEither
 
-  lazy val regex = expr <~ eof
+  private lazy val regex = expr <~ eof
   private lazy val expr: Parsley[Regex[?]] = chain.right1(term)(Alt from '|')
   private lazy val term = Cat(atomWithPostfix, many(atomWithPostfix)) // TODO: use NonEmptyList from parsley cats, currently incompatible
   private lazy val atomWithPostfix = chain.postfix(atom)(postfixOps)
