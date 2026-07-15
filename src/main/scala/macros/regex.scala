@@ -27,8 +27,8 @@ object regex {
     }
 
     private def regexCode[A <: HList](regexStr: String, ast: RegexAST[A])(using Quotes): Expr[Regex[Tidy[A]]] = {
-      import quotes.reflect.{Position, report}
-
+      // import quotes.reflect.{Position, report}
+      
       given Type[A] = ast.getType
 
       val regexStrExpr = Expr(regexStr)
@@ -41,15 +41,14 @@ object regex {
             if (m.matches()) {
               val groups = Array.tabulate(m.groupCount)(i => Option(m.group(i + 1)))
               val (sanitised, _) = ${ ast.sanitiseCode('groups, 0)._1 }
-              sanitised.map(_.tidy)
+              sanitised.map(_.toHList.tidy)
             } else {
               None
             }
           }
         }
       }
-
-      report.info(expr.show, Position.ofMacroExpansion)
+      // report.info(expr.show, Position.ofMacroExpansion)
       expr
     }
   }

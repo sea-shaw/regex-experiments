@@ -30,7 +30,7 @@ object implicitsearch {
       }
     }
 
-    given [A, T <: Tuple](using head: Sanitiser[A], tail: Sanitiser[T]): Sanitiser[A *: T] = new {
+    given [A, T <: Tuple] => (head: Sanitiser[A], tail: Sanitiser[T]) => Sanitiser[A *: T] = new {
       override def sanitise(groups: Array[String | Null], i: Int): (Option[A *: T], Int, Boolean) = {
         val (headCaps, j, anyHead) = head.sanitise(groups, i)
         val (tailCaps, k, anyTail) = tail.sanitise(groups, j)
@@ -38,14 +38,14 @@ object implicitsearch {
       }
     }
 
-    given [A](using sanitiser: Sanitiser[A]): Sanitiser[Option[A]] = new {
+    given [A] => (sanitiser: Sanitiser[A]) => Sanitiser[Option[A]] = new {
       override def sanitise(groups: Array[String | Null], i: Int): (Some[Option[A]], Int, Boolean) = {
         val (caps, j, any) = sanitiser.sanitise(groups, i)
         (Some(caps), j, any)
       }
     }
 
-    given [A, B](using leftSanitiser: Sanitiser[A], rightSanitiser: Sanitiser[B]): Sanitiser[Either[A, B]] = new {
+    given [A, B] => (leftSanitiser: Sanitiser[A], rightSanitiser: Sanitiser[B]) => Sanitiser[Either[A, B]] = new {
       override def sanitise(groups: Array[String | Null], i: Int): (Option[Either[A, B]], Int, Boolean) = {
         val (leftCaps, j, anyLeft) = leftSanitiser.sanitise(groups, i)
         val (rightCaps, k, anyRight) = rightSanitiser.sanitise(groups, j)

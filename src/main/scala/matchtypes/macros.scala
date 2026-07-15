@@ -3,7 +3,7 @@ package experiments.matchtypes
 import cats.syntax.all.catsSyntaxTuple2Semigroupal
 import experiments.matchtypes.types.Captures
 import java.util.regex.Pattern
-import scala.quoted.{Expr, quotes, Quotes, Type}
+import scala.quoted.{Expr, Quotes, Type}
 
 object macros {
 
@@ -16,7 +16,6 @@ object macros {
   }
 
   private def regexCode[A: Type](regex: Expr[String])(using Quotes): Expr[Regex[A]] = {
-    import quotes.reflect.{Position, report}
     val expr = '{
       new Regex[A] {
         private val pattern: Pattern = Pattern.compile($regex)
@@ -32,7 +31,6 @@ object macros {
         }
       }
     }
-    report.info(expr.show, Position.ofMacroExpansion)
     expr
   }
 

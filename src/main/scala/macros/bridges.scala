@@ -1,5 +1,6 @@
 package experiments.macros
 
+import cats.collections.Diet
 import experiments.macros.ast
 import experiments.macros.ast.Regex
 import parsley.templates.{PureParserBridge1, PureParserBridge2}
@@ -22,8 +23,12 @@ object bridges {
     }
   }
 
-  object Lit extends PureParserBridge1[Char, ast.Lit] {
-    override def apply(c: Char): ast.Lit = ast.Lit(c)
+  object Lit extends PureParserBridge1[Int, ast.Lit] {
+    override def apply(c: Int): ast.Lit = ast.Lit(c)
+  }
+
+  object Class extends PureParserBridge1[Diet[Int], ast.Class] {
+    override def apply(cs: Diet[Int]): ast.Class = ast.Class(cs)
   }
 
   object NonCapture extends PureParserBridge1[Regex[?], ast.NonCapture[?]] {
@@ -34,7 +39,11 @@ object bridges {
     override def apply(inner: Regex[?]): ast.Opt[?] = ast.Opt(inner)
   }
 
-  object Many extends PureParserBridge1[Regex[?], ast.Many[?]] {
-    override def apply(inner: Regex[?]): ast.Many[?] = ast.Many(inner)
+  object Rep0 extends PureParserBridge1[Regex[?], ast.Rep0[?]] {
+    override def apply(inner: Regex[?]): ast.Rep0[?] = ast.Rep0(inner)
+  }
+
+  object Rep1 extends PureParserBridge1[Regex[?], ast.Rep1[?]] {
+    override def apply(inner: Regex[?]): ast.Rep1[?] = ast.Rep1(inner)
   }
 }
