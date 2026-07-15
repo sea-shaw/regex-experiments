@@ -17,9 +17,8 @@ object bridges {
 
   object Cat extends PureParserBridge2[Regex[?], List[Regex[?]], Regex[?]] {
     // TODO: This must be a fold, I can't figure out which
-    override def apply(head: Regex[?], tail: List[Regex[?]]): Regex[?] = tail match {
-      case Nil => head
-      case r :: rs => ast.Cat(head, Cat(r, rs))
+    override def apply(head: Regex[?], tail: List[Regex[?]]): Regex[?] = {
+      tail.foldLeft(head)(ast.Cat(_, _))
     }
   }
 
