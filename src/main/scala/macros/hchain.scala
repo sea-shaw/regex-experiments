@@ -1,13 +1,14 @@
 package experiments.macros
 
 import experiments.macros.hlist.{Concat, HCons, HList, HNil}
+import scala.language.implicitConversions
 
 object hchain {
 
   sealed trait HChain[A <: HList] {
     def ++[B <: HList](bs: HChain[B]): HChain[Concat[A, B]]
     def +:[B](b: B): HChain[HCons[B, A]] = HChain.one(b) ++ this
-    def toHList: A = build(HNil).asInstanceOf[A]
+    def toHList: A = build(HNil)
     private [hchain] def build[B <: HList](acc: B): Concat[A, B]
   }
 
@@ -24,12 +25,12 @@ object hchain {
   }
 
   private case class HSingleton[A](a: A) extends NonEmptyHChain[HCons[A, HNil]] {
-    override private [hchain] def build[B <: HList](acc: B): HCons[A, B] = HCons(a, acc)
+    override private [hchain] def build[B <: HList](acc: B): HCons[A, B] = a +: acc
   }
 
   private case class HAppend[A <: HList, B <: HList](as: NonEmptyHChain[A], bs: NonEmptyHChain[B]) extends NonEmptyHChain[Concat[A, B]] {
     override private [hchain] def build[C <: HList](acc: C): Concat[Concat[A, B], C] = {
-      as.build(bs.build(acc)).asInstanceOf[Concat[Concat[A, B], C]]
+      as.build(bs.build(acc))
     }
   }
 

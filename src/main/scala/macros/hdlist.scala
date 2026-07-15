@@ -21,6 +21,6 @@ object hdlist {
   object HDList {
     def fromHList[A <: HList](xs: A): HDList[A] = new HDList([B <: HList] => (ys: B) => xs ++ ys)
     val empty: HDList[HNil] = new HDList([A <: HList] => (xs: A) => xs)
-    def single[A](x: A): HDList[HCons[A, HNil]] = new HDList([B <: HList] => (ys: B) => HCons(x, ys))
+    def single[A](x: A): HDList[HCons[A, HNil]] = new HDList([B <: HList] => (ys: B) => x +: ys)
   }
 }
