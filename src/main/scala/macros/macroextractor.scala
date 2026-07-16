@@ -13,9 +13,7 @@ object macroextractor {
   }
 
   private def extractCode[A: Type, B: Type](idx: Int, altExpr: Expr[Either[A, B]])(using Quotes): Expr[(Int, A)] = {
-    // import quotes.reflect.{Position, report}
-
-    val extract = Type.of[B] match {
+    Type.of[B] match {
       case '[A] => {
         val i = Expr(idx)
         val j = Expr(idx + 1)
@@ -37,7 +35,5 @@ object macroextractor {
         }
       }
     }
-    // report.info(extract.show, Position.ofMacroExpansion)
-    extract
   }
 }

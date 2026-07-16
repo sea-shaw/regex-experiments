@@ -8,27 +8,34 @@ import parsley.templates.PureParserBridge0
 
 object ast {
 
+  type Groups = Array[Option[(String, Int)]]
+
   type OptionalCapture[A <: HList] <: HList = A match {
     case HNil => HNil
-    case _    => HCons[Option[Tidy[A]], HNil]
+    case _    => SingleOption[A]
   }
+
+  type SingleOption[A <: HList] = HCons[Option[Tidy[A]], HNil]
 
   type AltCapture[A <: HList, B <: HList] <: HList = (A, B) match {
     case (HNil, HNil) => HNil
-    case _            => HCons[Either[Tidy[A], Tidy[B]], HNil]
+    case _            => SingleEither[A, B]
   }
 
-  // TODO: Remove posibility of `(None, Some[Int])`
-  type SanitiseCode[A <: HList] = (Expr[Option[(HChain[A], Option[Int])]], Int)
+  type SingleEither[A <: HList, B <: HList] = HCons[Either[Tidy[A], Tidy[B]], HNil]
+
+  type Sanitise[A <: HList] = Option[(HChain[A], Option[Int])]
+  type SanitiseExpr[A <: HList] = Expr[Sanitise[A]]
+  type SanitiseCode[A <: HList] = (SanitiseExpr[A], Int)
 
   sealed trait Regex[A <: HList] {
-    def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[A]
+    def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[A]
 
     def getType(using Quotes): Type[A]
   }
 
   sealed trait Match extends Regex[HNil] {
-    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[HNil] = empty(i)
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HNil] = empty(i)
     override def getType(using Quotes): Type[HNil] = Type.of[HNil]
   }
 
@@ -38,7 +45,7 @@ object ast {
   case class Class(cs: Diet[Int]) extends Match
 
   case class Capture[A <: HList](inner: Regex[A]) extends Regex[HCons[String, A]] {
-    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[HCons[String, A]] = {
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HCons[String, A]] = {
       given Type[A] = inner.getType
 
       val idx = Expr(i)
@@ -61,7 +68,7 @@ object ast {
   }
 
   sealed trait CaptureInner[A <: HList](inner: Regex[A]) extends Regex[A] {
-    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[A] = inner.sanitiseCode(groups, i)
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[A] = inner.sanitiseCode(groups, i)
 
     override def getType(using Quotes): Type[A] = inner.getType
   }
@@ -70,7 +77,7 @@ object ast {
   case class Rep1[A <: HList](inner: Regex[A]) extends CaptureInner[A](inner)
 
   case class Alt[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[AltCapture[A, B]] {
-    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[AltCapture[A, B]] = {
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[AltCapture[A, B]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
@@ -79,7 +86,7 @@ object ast {
         case _                  => {
           val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
           val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-          val expr = '{
+          val expr: SanitiseExpr[SingleEither[A, B]] = '{
             ($sanitisedLeft, $sanitisedRight) match {
               case (Some(leftCaps, anyLeft), Some(rightCaps, anyRight)) => {
                 val left = Left(leftCaps.toHList.tidy)
@@ -101,7 +108,7 @@ object ast {
           (expr, k)
         }
       }
-      (expr.asExprOf[Option[(HChain[AltCapture[A, B]], Option[Int])]], j)
+      (expr.asExprOf[Sanitise[AltCapture[A, B]]], j)
     }
 
     override def getType(using Quotes): Type[AltCapture[A, B]] = {
@@ -113,14 +120,14 @@ object ast {
   }
 
   sealed trait Optional[A <: HList](inner: Regex[A]) extends Regex[OptionalCapture[A]] {
-    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[OptionalCapture[A]] = {      
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[OptionalCapture[A]] = {      
       given Type[A] = inner.getType
 
       val (expr, j) = Type.of[A] match {
         case '[HNil] => empty(i)
         case _       => {
           val (sanitisedInner, j) = inner.sanitiseCode(groups, i)
-          val expr: Expr[Some[(HChain[HCons[Option[Tidy[A]], HNil]], Option[Int])]] = '{
+          val expr: SanitiseExpr[SingleOption[A]] = '{
             val innerCaps = $sanitisedInner
             val innerAny = innerCaps.map(_._2).getOrElse(None)
             Some(HChain.one(innerCaps.map(_._1.toHList.tidy)), innerAny)
@@ -129,7 +136,7 @@ object ast {
         }
       }
 
-      (expr.asExprOf[Option[(HChain[OptionalCapture[A]], Option[Int])]], j)
+      (expr.asExprOf[Sanitise[OptionalCapture[A]]], j)
     }
 
     override def getType(using Quotes): Type[OptionalCapture[A]] = {
@@ -143,7 +150,7 @@ object ast {
   case class Rep0[A <: HList](inner: Regex[A]) extends Optional[A](inner)
 
   case class Cat[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[Concat[A, B]] {
-    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[Concat[A, B]] = {
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Concat[A, B]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
@@ -153,7 +160,7 @@ object ast {
         case _            => {
           val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
           val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-          val expr = '{
+          val expr: SanitiseExpr[Concat[A, B]] = '{
             for {
               (leftCaps, anyLeft) <- $sanitisedLeft
               (rightCaps, anyRight) <- $sanitisedRight
@@ -167,8 +174,7 @@ object ast {
         }
       }
 
-      // TODO: Get rid of `asExprOf`.
-      (expr.asExprOf[Option[(HChain[Concat[A, B]], Option[Int])]], j)
+      (expr.asExprOf[Sanitise[Concat[A, B]]], j)
     }
 
     override def getType(using Quotes): Type[Concat[A, B]] = {
