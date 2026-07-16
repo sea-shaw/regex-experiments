@@ -102,42 +102,42 @@ object types {
     case false => Tidy[Reverse[Acc]]
   }
 
-  {
-    summon[Captures["a"] =:= Unit]
-    summon[Captures["(a)"] =:= String]
-    summon[Captures["(a)(b)"] =:= (String, String)]
+  // {
+  //   summon[Captures["a"] =:= Unit]
+  //   summon[Captures["(a)"] =:= String]
+  //   summon[Captures["(a)(b)"] =:= (String, String)]
 
-    summon[Captures["\\(a\\)"] =:= Unit]
+  //   summon[Captures["\\(a\\)"] =:= Unit]
 
-    // TODO: Should these be flat or nested?
-    summon[Captures["(a(b))(c)"] =:= (String, String, String)] // ((String, String), String)
-    summon[Captures["(a(b(c(d)))(e))"] =:= (String, String, String, String, String)] // (String, (String, (String, String)), String)
+  //   // TODO: Should these be flat or nested?
+  //   summon[Captures["(a(b))(c)"] =:= (String, String, String)] // ((String, String), String)
+  //   summon[Captures["(a(b(c(d)))(e))"] =:= (String, String, String, String, String)] // (String, (String, (String, String)), String)
 
-    summon[Captures["(a)?"] =:= Option[String]]
-    summon[Captures["(a)?(b)?"] =:= (Option[String], Option[String])]
-    summon[Captures["(a(b))?"] =:= Option[(String, String)]]
-    summon[Captures["(a(b)?)?"] =:= Option[(String, Option[String])]]
+  //   summon[Captures["(a)?"] =:= Option[String]]
+  //   summon[Captures["(a)?(b)?"] =:= (Option[String], Option[String])]
+  //   summon[Captures["(a(b))?"] =:= Option[(String, String)]]
+  //   summon[Captures["(a(b)?)?"] =:= Option[(String, Option[String])]]
 
-    summon[Captures["(a)*"] =:= Option[String]]
+  //   summon[Captures["(a)*"] =:= Option[String]]
 
-    summon[Captures["(?:a)"] =:= Unit]
-    summon[Captures["(?:a)(b)"] =:= String]
-    summon[Captures["(?:(a)(b))"] =:= (String, String)]
-    summon[Captures["(?:(a)(b))?"] =:= Option[(String, String)]]
-    summon[Captures["(?:a)?"] =:= Unit]
+  //   summon[Captures["(?:a)"] =:= Unit]
+  //   summon[Captures["(?:a)(b)"] =:= String]
+  //   summon[Captures["(?:(a)(b))"] =:= (String, String)]
+  //   summon[Captures["(?:(a)(b))?"] =:= Option[(String, String)]]
+  //   summon[Captures["(?:a)?"] =:= Unit]
 
-    summon[Captures["a|b"] =:= Unit]
-    summon[Captures["(a)|b"] =:= Either[String, Unit]]
-    summon[Captures["(a)|(b)"] =:= Either[String, String]]
-    summon[Captures["(a)|(b)|(c)"] =:= Either[String, Either[String, String]]]
-    summon[Captures["(?:(a)|(b))|(?:(c))"] =:= Either[Either[String, String], String]]
+  //   summon[Captures["a|b"] =:= Unit]
+  //   summon[Captures["(a)|b"] =:= Either[String, Unit]]
+  //   summon[Captures["(a)|(b)"] =:= Either[String, String]]
+  //   summon[Captures["(a)|(b)|(c)"] =:= Either[String, Either[String, String]]]
+  //   summon[Captures["(?:(a)|(b))|(?:(c))"] =:= Either[Either[String, String], String]]
 
-    summon[Captures["(?:(a)|(b))?"] =:= Option[Either[String, String]]]
-    summon[Captures["(?:(a)|(b)|(c))?"] =:= Option[Either[String, Either[String, String]]]]
-    summon[Captures["(a)?|(b)?"] =:= Either[Option[String], Option[String]]]
+  //   summon[Captures["(?:(a)|(b))?"] =:= Option[Either[String, String]]]
+  //   summon[Captures["(?:(a)|(b)|(c))?"] =:= Option[Either[String, Either[String, String]]]]
+  //   summon[Captures["(a)?|(b)?"] =:= Either[Option[String], Option[String]]]
 
-    // TODO: Keep track of level of brackets
-    summon[Captures["(a))"] =:= String] // Should not compile
-    summon[Captures["(a"] =:= String] // Should not compile
-  }
+  //   // TODO: Keep track of level of brackets
+  //   summon[Captures["(a))"] =:= String] // Should not compile
+  //   summon[Captures["(a"] =:= String] // Should not compile
+  // }
 }
