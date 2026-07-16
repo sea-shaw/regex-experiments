@@ -117,4 +117,19 @@ class RegexMacroUnitTests extends AnyFlatSpec {
     "c" should matchPattern { case r(Right(Left("c"))) => }
     "d" should matchPattern { case r(Right(Right("d"))) => }
   }
+
+  // TODO: Is this the behaviour we want?
+  it should "match the most recent capture in repeated alternative captures" in {
+    val r = Regex("((a)|(b))+")
+    "aba" should matchPattern { case r("a", Left("a")) => }
+    "bab" should matchPattern { case r("b", Right("b")) => }
+  }
+
+  // Why is the first capture group empty?
+  it should "match the most recent capture in repeated alternative captures with one optional" in {
+    val r = Regex("((a)?|(b))+")
+    "aba" should matchPattern { case r("", Left(Some("a"))) => }
+    "bab" should matchPattern { case r("", Right("b")) => }
+    "" should matchPattern { case r("", Left(None)) => }
+  }
 }

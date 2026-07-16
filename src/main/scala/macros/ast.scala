@@ -19,16 +19,16 @@ object ast {
     case _            => HCons[Either[Tidy[A], Tidy[B]], HNil]
   }
 
-  type SanitiseCode[A <: HList] = (Expr[(Option[HChain[A]], Boolean)], Int)
+  type SanitiseCode[A <: HList] = (Expr[(Option[HChain[A]], Option[Int])], Int)
 
   sealed trait Regex[A <: HList] {
-    def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): SanitiseCode[A]
+    def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[A]
 
     def getType(using Quotes): Type[A]
   }
 
   sealed trait Match extends Regex[HNil] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): SanitiseCode[HNil] = empty(i)
+    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[HNil] = empty(i)
     override def getType(using Quotes): Type[HNil] = Type.of[HNil]
   }
 
@@ -38,18 +38,20 @@ object ast {
   case class Class(cs: Diet[Int]) extends Match
 
   case class Capture[A <: HList](inner: Regex[A]) extends Regex[HCons[String, A]] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): SanitiseCode[HCons[String, A]] = {
+    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[HCons[String, A]] = {
       given Type[A] = inner.getType
 
       val idx = Expr(i)
       val (sanitisedInner, j) = inner.sanitiseCode(groups, i + 1)
       val sanitised = '{
-        val outerCap = $groups($idx)
+        val outerCapAndEnd = $groups($idx)
+        val outerCap = outerCapAndEnd.map(_._1)
+        val outerEnd = outerCapAndEnd.map(_._2)
         val cap = outerCap.flatMap { s =>
           val (innerCap, _) = $sanitisedInner
           innerCap.map(s +: _)
         }
-        (cap, outerCap.isDefined)
+        (cap, outerEnd)
       }
       (sanitised, j)
     }
@@ -61,7 +63,7 @@ object ast {
   }
 
   sealed trait CaptureInner[A <: HList](inner: Regex[A]) extends Regex[A] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): SanitiseCode[A] = inner.sanitiseCode(groups, i)
+    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[A] = inner.sanitiseCode(groups, i)
 
     override def getType(using Quotes): Type[A] = inner.getType
   }
@@ -70,7 +72,7 @@ object ast {
   case class Rep1[A <: HList](inner: Regex[A]) extends CaptureInner[A](inner)
 
   case class Alt[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[AltCapture[A, B]] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): SanitiseCode[AltCapture[A, B]] = {
+    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[AltCapture[A, B]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
@@ -84,13 +86,13 @@ object ast {
             val (rightCaps, anyRight) = $sanitisedRight
             val left = leftCaps.map(cap => Left(cap.toHList.tidy))
             val right = rightCaps.map(cap => Right(cap.toHList.tidy))
-            val caps = if anyLeft then left.orElse(right) else right.orElse(left)
-            (caps.map(HChain.one), anyLeft || anyRight)
+            val caps = if Ordering[Option[Int]].gt(anyLeft, anyRight) then left else right.orElse(left)
+            (caps.map(HChain.one), Ordering[Option[Int]].max(anyLeft, anyRight))
           }
           (expr, k)
         }
       }
-      (expr.asExprOf[(Option[HChain[AltCapture[A, B]]], Boolean)], j)
+      (expr.asExprOf[(Option[HChain[AltCapture[A, B]]], Option[Int])], j)
     }
 
     override def getType(using Quotes): Type[AltCapture[A, B]] = {
@@ -102,7 +104,7 @@ object ast {
   }
 
   sealed trait Optional[A <: HList](inner: Regex[A]) extends Regex[OptionalCapture[A]] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): SanitiseCode[OptionalCapture[A]] = {      
+    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[OptionalCapture[A]] = {      
       given Type[A] = inner.getType
 
       val (expr, j) = Type.of[A] match {
@@ -117,7 +119,7 @@ object ast {
         }
       }
 
-      (expr.asExprOf[(Option[HChain[OptionalCapture[A]]], Boolean)], j)
+      (expr.asExprOf[(Option[HChain[OptionalCapture[A]]], Option[Int])], j)
     }
 
     override def getType(using Quotes): Type[OptionalCapture[A]] = {
@@ -131,7 +133,7 @@ object ast {
   case class Rep0[A <: HList](inner: Regex[A]) extends Optional[A](inner)
 
   case class Cat[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[Concat[A, B]] {
-    override def sanitiseCode(groups: Expr[Array[Option[String]]], i: Int)(using Quotes): SanitiseCode[Concat[A, B]] = {
+    override def sanitiseCode(groups: Expr[Array[Option[(String, Int)]]], i: Int)(using Quotes): SanitiseCode[Concat[A, B]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
@@ -144,14 +146,16 @@ object ast {
           val expr = '{
             val (leftCaps, anyLeft) = $sanitisedLeft
             val (rightCaps, anyRight) = $sanitisedRight
-            ((leftCaps, rightCaps).mapN(_ ++ _), anyLeft || anyRight)
+            val caps = (leftCaps, rightCaps).mapN(_ ++ _)
+            val any = Ordering[Option[Int]].max(anyLeft, anyRight)
+            (caps, any)
           }
           (expr, k)
         }
       }
 
       // TODO: Get rid of `asExprOf`.
-      (expr.asExprOf[(Option[HChain[Concat[A, B]]], Boolean)], j)
+      (expr.asExprOf[(Option[HChain[Concat[A, B]]], Option[Int])], j)
     }
 
     override def getType(using Quotes): Type[Concat[A, B]] = {
@@ -162,8 +166,8 @@ object ast {
     }
   }
 
-  private def empty(i: Int)(using Quotes) = {
-    val expr = '{ (Some(HChain.nil), false) }
+  private def empty(i: Int)(using Quotes): SanitiseCode[HNil] = {
+    val expr = '{ (Some(HChain.nil), None) }
     (expr, i)
   }
 }
