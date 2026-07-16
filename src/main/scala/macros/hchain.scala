@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.hlist.{Concat, HCons, HList, HNil}
+import experiments.macros.hlist.{Concat, HCons, HList, HNil, Tidy}
 import scala.language.implicitConversions
 
 object hchain {
@@ -9,6 +9,7 @@ object hchain {
     def ++[B <: HList](bs: HChain[B]): HChain[Concat[A, B]]
     def +:[B](b: B): HChain[HCons[B, A]] = HChain.one(b) ++ this
     def toHList: A = build(HNil)
+    def tidy: Tidy[A] = toHList.tidy
     private [hchain] def build[B <: HList](acc: B): Concat[A, B]
   }
 
