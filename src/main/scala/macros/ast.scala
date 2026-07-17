@@ -37,8 +37,6 @@ object ast {
   sealed trait Regex[A <: HChain] {
     def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[A]
 
-    // TODO: Make this a `val` somehow to avoid traversing all children at each
-    // node. Move `Quotes` into constructor?
     def getType(using Quotes): Type[A]
   }
 
