@@ -1,5 +1,7 @@
 package experiments.macros
 
+import scala.annotation.tailrec
+
 object hchain {
 
   type HConcat[A <: HChain, B <: HChain] = A match {
@@ -15,12 +17,17 @@ object hchain {
     case HNonEmpty => HAppend[HSingleton[A], B & HNonEmpty]
   }
 
-  type Tidy[A <: HChain] = Build[A, EmptyTuple] match {
+  type Tidy[A <: HChain] = TidyTuple[ToTuple[A]]
+
+  type TidyTuple[T <: Tuple] = T match {
     case EmptyTuple => Unit
     case Tuple1[a]  => a
-    case a *: as    => a *: as
+    case _          => T
   }
 
+  type ToTuple[A <: HChain] = Build[A, EmptyTuple]
+
+  // TODO: Remove recusrive match type.
   type Build[A <: HChain, Acc <: Tuple] <: Tuple = A match {
     case HEmpty => Acc
     case HSingleton[a] => a *: Acc
@@ -54,7 +61,26 @@ object hchain {
       }
     }
 
-    def tidy: Tidy[A] = ???
+    // TODO: `ArrayBuilder`? Don't want to use `*:` because it's O(n^2)
+    def tidy: Tidy[A] = {
+      @tailrec
+      def toList(xs: HChain, acc: List[Any], rest: List[HNonEmpty]): List[Any] = xs match {
+        case Empty => rest match {
+          case Nil => acc
+          case head :: tail => toList(head, acc, tail)
+        }
+        case Singleton(x) => toList(Empty, x :: acc, rest)
+        case Append(left, right) => toList(right, acc, left :: rest)
+      }
+
+      val tup = Tuple.fromArray(toList(xs, Nil, Nil).toArray).asInstanceOf[ToTuple[A]]
+
+      tup match {
+        case _: EmptyTuple  => ()
+        case tup: Tuple1[_] => tup._1
+        case _: Any         => tup
+      }
+    }
   }
 
   object HChain {
