@@ -8,13 +8,13 @@ object hchain {
     case HEmpty    => B
     case HNonEmpty => B match {
       case HEmpty    => A
-      case HNonEmpty => HAppend[A & HNonEmpty, B & HNonEmpty]
+      case HNonEmpty => HAppend[A, B]
     }
   }
 
   type HPrepended[A, B <: HChain] = B match {
     case HEmpty    => HSingleton[A]
-    case HNonEmpty => HAppend[HSingleton[A], B & HNonEmpty]
+    case HNonEmpty => HAppend[HSingleton[A], B]
   }
 
   type Tidy[A <: HChain] = TidyTuple[ToTuple[A]]
@@ -31,7 +31,7 @@ object hchain {
   type Build[A <: HChain, Acc <: Tuple] <: Tuple = A match {
     case HEmpty => Acc
     case HSingleton[a] => a *: Acc
-    case HAppend[a, b] => Build[a & HNonEmpty, Build[b & HNonEmpty, Acc]]
+    case HAppend[a, b] => Build[a, Build[b, Acc]]
   }
 
   sealed trait HChain {
@@ -61,7 +61,7 @@ object hchain {
       }
     }
 
-    // TODO: `ArrayBuilder`? Don't want to use `*:` because it's O(n^2)
+    // TODO: `ArrayBuilder`? Don't want to use `*:` because it's O(n^2) overall
     def tidy: Tidy[A] = {
       @tailrec
       def toList(xs: HChain, acc: List[Any], rest: List[HNonEmpty]): List[Any] = xs match {

@@ -15,22 +15,24 @@ object regex {
   object Regex {
     transparent inline def apply(inline s: String): Regex[?] = ${ isInlineable('s) }
 
-    private def isInlineable(s: Expr[String])(using Quotes): Expr[Regex[?]] = {
+    private def isInlineable(strExpr: Expr[String])(using Quotes): Expr[Regex[?]] = {
       import quotes.reflect.report
-      s match {
+      strExpr match {
         case Expr(s) => parse(s) match {
           case Right(ast) => regexCode(s, ast)
-          case Left(err)  => report.errorAndAbort(err)
+          case Left(err)  => report.errorAndAbort(err, strExpr)
         }
-        case _       => report.errorAndAbort("Regex string must be compile-time constant.")
+        case _       => report.errorAndAbort("Regex string must be compile-time constant.", strExpr)
       }
     }
 
     private def regexCode[A <: HChain](regexStr: String, ast: RegexAST[A])(using Quotes): Expr[Regex[Tidy[A]]] = {
+      import quotes.reflect.{report, Position}
+      
       given Type[A] = ast.getType
 
       val regexStrExpr = Expr(regexStr)
-      '{
+      val expr = '{
         new Regex[Tidy[A]] {
           private val pattern: Pattern = Pattern.compile($regexStrExpr)
 
@@ -48,6 +50,10 @@ object regex {
           }
         }
       }
+
+      report.info(expr.show, Position.ofMacroExpansion)
+
+      expr
     }
   }
 }

@@ -25,7 +25,7 @@ object ast {
 
   type SingleEither[A <: HChain, B <: HChain] = HSingleton[Either[Tidy[A], Tidy[B]]]
 
-  case class Sanitised[A <: HChain](captures: A, any: Option[Int])
+  case class Sanitised[+A <: HChain](captures: A, any: Option[Int])
   object Sanitised {
     given [A <: HChain] => Order[Sanitised[A]] = Order.by(_.any)
   }
@@ -36,6 +36,8 @@ object ast {
   sealed trait Regex[A <: HChain] {
     def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[A]
 
+    // TODO: Make this a `val` somehow to avoid traversing all children at each
+    // node. Move `Quotes` into constructor?
     def getType(using Quotes): Type[A]
   }
 
@@ -86,24 +88,26 @@ object ast {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
-      val (expr, j) = (Type.of[A], Type.of[B]) match {
-        case ('[HEmpty], '[HEmpty]) => empty(i)
-        case _                  => {
-          val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
-          val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-          val expr: SanitiseExpr[SingleEither[A, B]] = '{
-            val left = $sanitisedLeft.map { case Sanitised(leftCaps, anyLeft) =>
-              Sanitised(HChain.one(leftCaps.tidy.asLeft[Tidy[B]]), anyLeft)
-            }
-            val right = $sanitisedRight.map { case Sanitised(rightCaps, anyRight) =>
-              Sanitised(HChain.one(rightCaps.tidy.asRight[Tidy[A]]), anyRight)
-            }
-            left max right
+      val sanitised = Expr.summon[HEmpty =:= AltCapture[A, B]].map { ev =>
+        val sanitised = '{ Some(Sanitised($ev(HChain.nil), None)) }
+        (sanitised, i)
+      } orElse Expr.summon[SingleEither[A, B] =:= AltCapture[A, B]].map { ev =>
+        val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val (sanitisedRight, k) = right.sanitiseCode(groups, j)
+        val expr = '{
+          val left = $sanitisedLeft.map { case Sanitised(leftCaps, anyLeft) =>
+            Sanitised($ev(HChain.one(leftCaps.tidy.asLeft[Tidy[B]])), anyLeft)
           }
-          (expr, k)
+          val right = $sanitisedRight.map { case Sanitised(rightCaps, anyRight) =>
+            Sanitised($ev(HChain.one(rightCaps.tidy.asRight[Tidy[A]])), anyRight)
+          }
+          left max right
         }
+        (expr, k)
       }
-      (expr.asExprOf[Option[Sanitised[AltCapture[A, B]]]], j)
+
+      // TODO: Any way to avoid `.get`
+      sanitised.get
     }
 
     override def getType(using Quotes): Type[AltCapture[A, B]] = {
@@ -118,20 +122,21 @@ object ast {
     override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[OptionalCapture[A]] = {      
       given Type[A] = inner.getType
 
-      val (expr, j) = Type.of[A] match {
-        case '[HEmpty] => empty(i)
-        case _       => {
-          val (sanitisedInner, j) = inner.sanitiseCode(groups, i)
-          val expr: SanitiseExpr[SingleOption[A]] = '{
-            val innerCaps = $sanitisedInner
-            val innerAny = innerCaps.fold(None)(_.any)
-            Some(Sanitised(HChain.one(innerCaps.map(_.captures.tidy)), innerAny))
-          }
-          (expr, j)
+      val sanitised = Expr.summon[HEmpty =:= OptionalCapture[A]].map { ev =>
+        val sanitised = '{ Some(Sanitised($ev(HChain.nil), None)) }
+        (sanitised, i)
+      } orElse Expr.summon[SingleOption[A] =:= OptionalCapture[A]].map { ev =>
+        val (sanitisedInner, j) = inner.sanitiseCode(groups, i)
+        val sanitised = '{
+          val innerCaps = $sanitisedInner
+          val innerAny = innerCaps.fold(None)(_.any)
+          Some(Sanitised($ev(HChain.one(innerCaps.map(_.captures.tidy))), innerAny))
         }
+        (sanitised, j)
       }
 
-      (expr.asExprOf[Option[Sanitised[OptionalCapture[A]]]], j)
+      // TODO: Any way to avoid `.get`
+      sanitised.get
     }
 
     override def getType(using Quotes): Type[OptionalCapture[A]] = {
@@ -149,23 +154,33 @@ object ast {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
-      val (expr, j) = (Type.of[A], Type.of[B]) match {
-        case (_, '[HEmpty]) => left.sanitiseCode(groups, i)
-        case ('[HEmpty], _) => right.sanitiseCode(groups, i)
-        case _            => {
-          val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
-          val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-          val expr: SanitiseExpr[HConcat[A, B]] = '{
-            for {
-              Sanitised(leftCaps, anyLeft) <- $sanitisedLeft
-              Sanitised(rightCaps, anyRight) <- $sanitisedRight
-            } yield Sanitised(leftCaps ++ rightCaps, anyLeft max anyRight)
+      Expr.summon[A =:= HConcat[A, B]].map { ev =>
+        val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val sanitised = '{
+          $sanitisedLeft.map { case Sanitised(captures, any) =>
+            Sanitised($ev(captures), any)
           }
-          (expr, k)
         }
+        (sanitised, j)
+      } orElse Expr.summon[B =:= HConcat[A, B]].map { ev =>
+        val (sanitisedRight, j) = right.sanitiseCode(groups, i)
+        val sanitised = '{
+          $sanitisedRight.map { case Sanitised(captures, any) => 
+            Sanitised($ev(captures), any)
+          }
+        }
+        (sanitised, j)
+      } getOrElse {
+        val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val (sanitisedRight, k) = right.sanitiseCode(groups, j)
+        val expr: SanitiseExpr[HConcat[A, B]] = '{
+          for {
+            Sanitised(leftCaps, anyLeft) <- $sanitisedLeft
+            Sanitised(rightCaps, anyRight) <- $sanitisedRight
+          } yield Sanitised(leftCaps ++ rightCaps, anyLeft max anyRight)
+        }
+        (expr, k)
       }
-
-      (expr.asExprOf[Option[Sanitised[HConcat[A, B]]]], j)
     }
 
     override def getType(using Quotes): Type[HConcat[A, B]] = {
