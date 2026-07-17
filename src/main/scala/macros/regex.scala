@@ -26,13 +26,11 @@ object regex {
       }
     }
 
-    private def regexCode[A <: HChain](regexStr: String, ast: RegexAST[A])(using Quotes): Expr[Regex[Tidy[A]]] = {
-      import quotes.reflect.{report, Position}
-      
+    private def regexCode[A <: HChain](regexStr: String, ast: RegexAST[A])(using Quotes): Expr[Regex[Tidy[A]]] = {      
       given Type[A] = ast.getType
 
       val regexStrExpr = Expr(regexStr)
-      val expr = '{
+      '{
         new Regex[Tidy[A]] {
           private val pattern: Pattern = Pattern.compile($regexStrExpr)
 
@@ -43,17 +41,13 @@ object regex {
                 Option(m.group(i + 1)).map((_, m.end(i + 1)))
               }
               val sanitised = ${ ast.sanitiseCode('groups, 0)._1 }
-              sanitised.map(_._1.tidy)
+              sanitised.map(_.captures.tidy)
             } else {
               None
             }
           }
         }
       }
-
-      report.info(expr.show, Position.ofMacroExpansion)
-
-      expr
     }
   }
 }

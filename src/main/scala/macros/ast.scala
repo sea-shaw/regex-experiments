@@ -3,6 +3,7 @@ package experiments.macros
 import cats.collections.Diet
 import cats.kernel.Order
 import cats.syntax.all.*
+import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hchain.{HChain, HConcat, HEmpty, HPrepended, HSingleton, Tidy}
 import parsley.templates.PureParserBridge0
 import scala.quoted.{Expr, Quotes, Type}
@@ -42,7 +43,7 @@ object ast {
   }
 
   sealed trait Match extends Regex[HEmpty] {
-    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HEmpty] = empty(i)
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HEmpty] = (empty, i)
     override def getType(using Quotes): Type[HEmpty] = Type.of[HEmpty]
   }
 
@@ -89,19 +90,21 @@ object ast {
       given Type[B] = right.getType
 
       val sanitised = Expr.summon[HEmpty =:= AltCapture[A, B]].map { ev =>
-        val sanitised = '{ Some(Sanitised($ev(HChain.nil), None)) }
+        val sanitised = liftSanitised(ev)(empty)
         (sanitised, i)
       } orElse Expr.summon[SingleEither[A, B] =:= AltCapture[A, B]].map { ev =>
         val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
         val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-        val expr = '{
-          val left = $sanitisedLeft.map { case Sanitised(leftCaps, anyLeft) =>
-            Sanitised($ev(HChain.one(leftCaps.tidy.asLeft[Tidy[B]])), anyLeft)
+        val expr = liftSanitised(ev) {
+          '{
+            val left = $sanitisedLeft.map { case Sanitised(leftCaps, anyLeft) =>
+              Sanitised(HChain.one(leftCaps.tidy.asLeft[Tidy[B]]), anyLeft)
+            }
+            val right = $sanitisedRight.map { case Sanitised(rightCaps, anyRight) =>
+              Sanitised(HChain.one(rightCaps.tidy.asRight[Tidy[A]]), anyRight)
+            }
+            left max right
           }
-          val right = $sanitisedRight.map { case Sanitised(rightCaps, anyRight) =>
-            Sanitised($ev(HChain.one(rightCaps.tidy.asRight[Tidy[A]])), anyRight)
-          }
-          left max right
         }
         (expr, k)
       }
@@ -123,14 +126,16 @@ object ast {
       given Type[A] = inner.getType
 
       val sanitised = Expr.summon[HEmpty =:= OptionalCapture[A]].map { ev =>
-        val sanitised = '{ Some(Sanitised($ev(HChain.nil), None)) }
+        val sanitised = liftSanitised(ev)(empty)
         (sanitised, i)
       } orElse Expr.summon[SingleOption[A] =:= OptionalCapture[A]].map { ev =>
         val (sanitisedInner, j) = inner.sanitiseCode(groups, i)
-        val sanitised = '{
-          val innerCaps = $sanitisedInner
-          val innerAny = innerCaps.fold(None)(_.any)
-          Some(Sanitised($ev(HChain.one(innerCaps.map(_.captures.tidy))), innerAny))
+        val sanitised = liftSanitised(ev) {
+          '{
+            val innerCaps = $sanitisedInner
+            val innerAny = innerCaps.fold(None)(_.any)
+            Some(Sanitised(HChain.one(innerCaps.map(_.captures.tidy)), innerAny))
+          }
         }
         (sanitised, j)
       }
@@ -156,24 +161,16 @@ object ast {
 
       Expr.summon[A =:= HConcat[A, B]].map { ev =>
         val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val sanitised = '{
-          $sanitisedLeft.map { case Sanitised(captures, any) =>
-            Sanitised($ev(captures), any)
-          }
-        }
+        val sanitised = liftSanitised(ev)(sanitisedLeft)
         (sanitised, j)
       } orElse Expr.summon[B =:= HConcat[A, B]].map { ev =>
         val (sanitisedRight, j) = right.sanitiseCode(groups, i)
-        val sanitised = '{
-          $sanitisedRight.map { case Sanitised(captures, any) => 
-            Sanitised($ev(captures), any)
-          }
-        }
+        val sanitised = liftSanitised(ev)(sanitisedRight)
         (sanitised, j)
       } getOrElse {
         val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
         val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-        val expr: SanitiseExpr[HConcat[A, B]] = '{
+        val expr = '{
           for {
             Sanitised(leftCaps, anyLeft) <- $sanitisedLeft
             Sanitised(rightCaps, anyRight) <- $sanitisedRight
@@ -191,8 +188,11 @@ object ast {
     }
   }
 
-  private def empty(i: Int)(using Quotes): SanitiseCode[HEmpty] = {
-    val expr = '{ (Some(Sanitised(HChain.nil, None))) }
-    (expr, i)
+  private def empty(using Quotes): SanitiseExpr[HEmpty] = {
+    '{ (Some(Sanitised(HChain.nil, None))) }
+  }
+
+  private def liftSanitised[A <: HChain: Type, B <: HChain: Type](ev: Expr[A =:= B])(using Quotes): Expr[Option[Sanitised[A]] =:= Option[Sanitised[B]]] = {
+    ev.liftCo[HChain, [X <: HChain] =>> Option[Sanitised[X]]]
   }
 }
