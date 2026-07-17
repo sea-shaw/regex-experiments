@@ -2,9 +2,10 @@ package experiments.macros
 
 import experiments.macros.ast.{Dot, Regex}
 import experiments.macros.bridges.{Alt, Capture, Cat, Lit, NonCapture, Opt, Rep0, Rep1}
+import parsley.cats.combinator.some
 import parsley.expr.chain
 import parsley.Parsley
-import parsley.quick.{atomic, eof, noneOf, many}
+import parsley.quick.{atomic, eof, noneOf}
 import parsley.syntax.character.{charLift, stringLift}
 
 object parser {
@@ -13,7 +14,7 @@ object parser {
 
   private lazy val regex = expr <~ eof
   private lazy val expr: Parsley[Regex[?]] = chain.right1(term)(Alt from '|')
-  private lazy val term = Cat(atomWithPostfix, many(atomWithPostfix)) // TODO: use NonEmptyList from parsley cats, currently incompatible
+  private lazy val term = Cat(some(atomWithPostfix))
   private lazy val atomWithPostfix = chain.postfix(atom)(postfixOps)
   private lazy val atom = nonCapture | capture | lit | dot
 

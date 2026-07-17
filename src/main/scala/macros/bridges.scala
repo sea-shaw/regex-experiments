@@ -1,6 +1,7 @@
 package experiments.macros
 
 import cats.collections.Diet
+import cats.data.NonEmptyList
 import experiments.macros.ast
 import experiments.macros.ast.Regex
 import parsley.templates.{PureParserBridge1, PureParserBridge2}
@@ -15,9 +16,9 @@ object bridges {
     override def apply(inner: Regex[?]): ast.Capture[?] = ast.Capture(inner)
   }
 
-  object Cat extends PureParserBridge2[Regex[?], List[Regex[?]], Regex[?]] {
-    override def apply(head: Regex[?], tail: List[Regex[?]]): Regex[?] = {
-      tail.foldLeft(head)(ast.Cat(_, _))
+  object Cat extends PureParserBridge1[NonEmptyList[Regex[?]], Regex[?]] {
+    override def apply(regexes: NonEmptyList[Regex[?]]): Regex[?] = regexes match {
+      case NonEmptyList(head, tail) => tail.foldLeft(head)(ast.Cat(_, _))
     }
   }
 
