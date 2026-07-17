@@ -1,42 +1,64 @@
 package experiments.macros
 
-import experiments.macros.hlist.{Concat, HCons, HList, HNil, Tidy}
-import scala.language.implicitConversions
-
 object hchain {
 
-  sealed trait HChain[A <: HList] {
-    def ++[B <: HList](bs: HChain[B]): HChain[Concat[A, B]]
-    def +:[B](b: B): HChain[HCons[B, A]] = HChain.one(b) ++ this
-    def toHList: A = build(HNil)
-    def tidy: Tidy[A] = toHList.tidy
-    private [hchain] def build[B <: HList](acc: B): Concat[A, B]
-  }
-
-  private case object HEmpty extends HChain[HNil] {
-    override def ++[B <: HList](bs: HChain[B]): HChain[B] = bs
-    override private [hchain] def build[B <: HList](acc: B): B = acc
-  }
-
-  private sealed trait NonEmptyHChain[A <: HList] extends HChain[A] {
-    override def ++[B <: HList](bs: HChain[B]): HChain[Concat[A, B]] = bs match {
-      case nonEmptyBs: NonEmptyHChain[B] => HAppend(this, nonEmptyBs)
-      case HEmpty                        => this.asInstanceOf[HChain[Concat[A, B]]]
+  type HConcat[A <: HChain, B <: HChain] = A match {
+    case HEmpty    => B
+    case HNonEmpty => B match {
+      case HEmpty    => A
+      case HNonEmpty => HAppend[A & HNonEmpty, B & HNonEmpty]
     }
   }
 
-  private case class HSingleton[A](a: A) extends NonEmptyHChain[HCons[A, HNil]] {
-    override private [hchain] def build[B <: HList](acc: B): HCons[A, B] = a +: acc
+  type HPrepended[A, B <: HChain] = B match {
+    case HEmpty    => HSingleton[A]
+    case HNonEmpty => HAppend[HSingleton[A], B & HNonEmpty]
   }
 
-  private case class HAppend[A <: HList, B <: HList](as: NonEmptyHChain[A], bs: NonEmptyHChain[B]) extends NonEmptyHChain[Concat[A, B]] {
-    override private [hchain] def build[C <: HList](acc: C): Concat[Concat[A, B], C] = {
-      as.build(bs.build(acc))
+  type Tidy[A <: HChain] = Build[A, EmptyTuple] match {
+    case EmptyTuple => Unit
+    case Tuple1[a]  => a
+    case a *: as    => a *: as
+  }
+
+  type Build[A <: HChain, Acc <: Tuple] <: Tuple = A match {
+    case HEmpty => Acc
+    case HSingleton[a] => a *: Acc
+    case HAppend[a, b] => Build[a & HNonEmpty, Build[b & HNonEmpty, Acc]]
+  }
+
+  sealed trait HChain {
+    def +:[A, B >: this.type <: HChain](x: A): HPrepended[A, B] = (this: B) match {
+      case _: HEmpty             => Singleton(x)
+      case nonEmptyXs: HNonEmpty => Append(Singleton(x), nonEmptyXs)
     }
+  }
+
+  sealed trait HEmpty extends HChain
+  private case object Empty extends HEmpty
+
+  sealed trait HNonEmpty extends HChain
+
+  sealed trait HSingleton[+A] extends HNonEmpty
+  private case class Singleton[+A](x: A) extends HSingleton[A]
+
+  sealed trait HAppend[+A, +B] extends HNonEmpty
+  private case class Append[+A <: HNonEmpty, +B <: HNonEmpty](left: A, right: B) extends HAppend[A, B]
+
+  extension [A <: HChain] (xs: A) {
+    def ++[B <: HChain](ys: B): HConcat[A, B] = xs match {
+      case _: HEmpty             => ys
+      case nonEmptyXs: HNonEmpty => ys match {
+        case _: HEmpty             => nonEmptyXs
+        case nonEmptyYs: HNonEmpty => Append(nonEmptyXs, nonEmptyYs)
+      }
+    }
+
+    def tidy: Tidy[A] = ???
   }
 
   object HChain {
-    def one[A](a: A): HChain[HCons[A, HNil]] = HSingleton(a)
-    val nil: HChain[HNil] = HEmpty
+    val nil: HEmpty = Empty
+    def one[A](x: A): HSingleton[A] = Singleton(x)
   }
 }

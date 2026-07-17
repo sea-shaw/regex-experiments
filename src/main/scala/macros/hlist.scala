@@ -37,14 +37,6 @@ object hlist {
 
   case class HCons[+H, +T <: HList] private [hlist] (head: H, tail: T) extends HList
 
-  given [A <: HList] => Conversion[Concat[A, HNil], A] {
-    override def apply(hlist: Concat[A, HNil]): A = hlist.asInstanceOf[A]
-  }
-
-  given [A <: HList, B <: HList, C <: HList] => Conversion[Concat[A, Concat[B, C]], Concat[Concat[A, B], C]] {
-    override def apply(hlist: Concat[A, Concat[B, C]]): Concat[Concat[A, B], C] = hlist.asInstanceOf[Concat[Concat[A, B], C]]
-  }
-
   extension [A <: HList] (xs: A) {
     def ++[B <: HList](ys: B): Concat[A, B] = xs match {
       case _: HNil            => ys

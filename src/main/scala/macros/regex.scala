@@ -1,7 +1,7 @@
 package experiments.macros
 
 import experiments.macros.ast.{Regex => RegexAST}
-import experiments.macros.hlist.{HList, Tidy, tidy}
+import experiments.macros.hchain.{HChain, Tidy}
 import experiments.macros.parser.parse
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
@@ -26,7 +26,7 @@ object regex {
       }
     }
 
-    private def regexCode[A <: HList](regexStr: String, ast: RegexAST[A])(using Quotes): Expr[Regex[Tidy[A]]] = {
+    private def regexCode[A <: HChain](regexStr: String, ast: RegexAST[A])(using Quotes): Expr[Regex[Tidy[A]]] = {
       given Type[A] = ast.getType
 
       val regexStrExpr = Expr(regexStr)
@@ -41,7 +41,7 @@ object regex {
                 Option(m.group(i + 1)).map((_, m.end(i + 1)))
               }
               val sanitised = ${ ast.sanitiseCode('groups, 0)._1 }
-              sanitised.map(_._1.toHList.tidy)
+              sanitised.map(_._1.tidy)
             } else {
               None
             }

@@ -3,8 +3,7 @@ package experiments.macros
 import cats.collections.Diet
 import cats.kernel.Order
 import cats.syntax.all.*
-import experiments.macros.hlist.{Concat, HCons, HList, HNil, Tidy}
-import experiments.macros.hchain.HChain
+import experiments.macros.hchain.{HChain, HConcat, HEmpty, HPrepended, HSingleton, Tidy}
 import parsley.templates.PureParserBridge0
 import scala.quoted.{Expr, Quotes, Type}
 
@@ -12,37 +11,37 @@ object ast {
 
   type Groups = Array[Option[(String, Int)]]
 
-  type OptionalCapture[A <: HList] <: HList = A match {
-    case HNil => HNil
-    case _    => SingleOption[A]
+  type OptionalCapture[A <: HChain] <: HChain = A match {
+    case HEmpty => HEmpty
+    case _      => SingleOption[A]
   }
 
-  type SingleOption[A <: HList] = HCons[Option[Tidy[A]], HNil]
+  type SingleOption[A <: HChain] = HSingleton[Option[Tidy[A]]]
 
-  type AltCapture[A <: HList, B <: HList] <: HList = (A, B) match {
-    case (HNil, HNil) => HNil
-    case _            => SingleEither[A, B]
+  type AltCapture[A <: HChain, B <: HChain] <: HChain = (A, B) match {
+    case (HEmpty, HEmpty) => HEmpty
+    case _                => SingleEither[A, B]
   }
 
-  type SingleEither[A <: HList, B <: HList] = HCons[Either[Tidy[A], Tidy[B]], HNil]
+  type SingleEither[A <: HChain, B <: HChain] = HSingleton[Either[Tidy[A], Tidy[B]]]
 
-  case class Sanitised[A <: HList](captures: HChain[A], any: Option[Int])
+  case class Sanitised[A <: HChain](captures: A, any: Option[Int])
   object Sanitised {
-    given [A <: HList] => Order[Sanitised[A]] = Order.by(_.any)
+    given [A <: HChain] => Order[Sanitised[A]] = Order.by(_.any)
   }
 
-  type SanitiseExpr[A <: HList] = Expr[Option[Sanitised[A]]]
-  type SanitiseCode[A <: HList] = (SanitiseExpr[A], Int)
+  type SanitiseExpr[A <: HChain] = Expr[Option[Sanitised[A]]]
+  type SanitiseCode[A <: HChain] = (SanitiseExpr[A], Int)
 
-  sealed trait Regex[A <: HList] {
+  sealed trait Regex[A <: HChain] {
     def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[A]
 
     def getType(using Quotes): Type[A]
   }
 
-  sealed trait Match extends Regex[HNil] {
-    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HNil] = empty(i)
-    override def getType(using Quotes): Type[HNil] = Type.of[HNil]
+  sealed trait Match extends Regex[HEmpty] {
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HEmpty] = empty(i)
+    override def getType(using Quotes): Type[HEmpty] = Type.of[HEmpty]
   }
 
   type Dot = Dot.type
@@ -50,8 +49,8 @@ object ast {
   case class Lit(c: Int) extends Match
   case class Class(cs: Diet[Int]) extends Match
 
-  case class Capture[A <: HList](inner: Regex[A]) extends Regex[HCons[String, A]] {
-    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HCons[String, A]] = {
+  case class Capture[A <: HChain](inner: Regex[A]) extends Regex[HPrepended[String, A]] {
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HPrepended[String, A]] = {
       given Type[A] = inner.getType
 
       val idx = Expr(i)
@@ -67,28 +66,28 @@ object ast {
       (sanitised, j)
     }
 
-    override def getType(using Quotes): Type[HCons[String, A]] = {
+    override def getType(using Quotes): Type[HPrepended[String, A]] = {
       given Type[A] = inner.getType
-      Type.of[HCons[String, A]]
+      Type.of[HPrepended[String, A]]
     }
   }
 
-  sealed trait CaptureInner[A <: HList](inner: Regex[A]) extends Regex[A] {
+  sealed trait CaptureInner[A <: HChain](inner: Regex[A]) extends Regex[A] {
     override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[A] = inner.sanitiseCode(groups, i)
 
     override def getType(using Quotes): Type[A] = inner.getType
   }
 
-  case class NonCapture[A <: HList](inner: Regex[A]) extends CaptureInner[A](inner)
-  case class Rep1[A <: HList](inner: Regex[A]) extends CaptureInner[A](inner)
+  case class NonCapture[A <: HChain](inner: Regex[A]) extends CaptureInner[A](inner)
+  case class Rep1[A <: HChain](inner: Regex[A]) extends CaptureInner[A](inner)
 
-  case class Alt[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[AltCapture[A, B]] {
+  case class Alt[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B]) extends Regex[AltCapture[A, B]] {
     override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[AltCapture[A, B]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
       val (expr, j) = (Type.of[A], Type.of[B]) match {
-        case ('[HNil], '[HNil]) => empty(i)
+        case ('[HEmpty], '[HEmpty]) => empty(i)
         case _                  => {
           val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
           val (sanitisedRight, k) = right.sanitiseCode(groups, j)
@@ -115,12 +114,12 @@ object ast {
     }
   }
 
-  sealed trait Optional[A <: HList](inner: Regex[A]) extends Regex[OptionalCapture[A]] {
+  sealed trait Optional[A <: HChain](inner: Regex[A]) extends Regex[OptionalCapture[A]] {
     override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[OptionalCapture[A]] = {      
       given Type[A] = inner.getType
 
       val (expr, j) = Type.of[A] match {
-        case '[HNil] => empty(i)
+        case '[HEmpty] => empty(i)
         case _       => {
           val (sanitisedInner, j) = inner.sanitiseCode(groups, i)
           val expr: SanitiseExpr[SingleOption[A]] = '{
@@ -142,21 +141,21 @@ object ast {
     }
   }
 
-  case class Opt[A <: HList](inner: Regex[A]) extends Optional[A](inner)
-  case class Rep0[A <: HList](inner: Regex[A]) extends Optional[A](inner)
+  case class Opt[A <: HChain](inner: Regex[A]) extends Optional[A](inner)
+  case class Rep0[A <: HChain](inner: Regex[A]) extends Optional[A](inner)
 
-  case class Cat[A <: HList, B <: HList](left: Regex[A], right: Regex[B]) extends Regex[Concat[A, B]] {
-    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Concat[A, B]] = {
+  case class Cat[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B]) extends Regex[HConcat[A, B]] {
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HConcat[A, B]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
       val (expr, j) = (Type.of[A], Type.of[B]) match {
-        case (_, '[HNil]) => left.sanitiseCode(groups, i)
-        case ('[HNil], _) => right.sanitiseCode(groups, i)
+        case (_, '[HEmpty]) => left.sanitiseCode(groups, i)
+        case ('[HEmpty], _) => right.sanitiseCode(groups, i)
         case _            => {
           val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
           val (sanitisedRight, k) = right.sanitiseCode(groups, j)
-          val expr: SanitiseExpr[Concat[A, B]] = '{
+          val expr: SanitiseExpr[HConcat[A, B]] = '{
             for {
               Sanitised(leftCaps, anyLeft) <- $sanitisedLeft
               Sanitised(rightCaps, anyRight) <- $sanitisedRight
@@ -166,18 +165,18 @@ object ast {
         }
       }
 
-      (expr.asExprOf[Option[Sanitised[Concat[A, B]]]], j)
+      (expr.asExprOf[Option[Sanitised[HConcat[A, B]]]], j)
     }
 
-    override def getType(using Quotes): Type[Concat[A, B]] = {
+    override def getType(using Quotes): Type[HConcat[A, B]] = {
       given Type[A] = left.getType
       given Type[B] = right.getType
 
-      Type.of[Concat[A, B]]
+      Type.of[HConcat[A, B]]
     }
   }
 
-  private def empty(i: Int)(using Quotes): SanitiseCode[HNil] = {
+  private def empty(i: Int)(using Quotes): SanitiseCode[HEmpty] = {
     val expr = '{ (Some(Sanitised(HChain.nil, None))) }
     (expr, i)
   }
