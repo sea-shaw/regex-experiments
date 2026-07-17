@@ -32,7 +32,7 @@ object ast {
   }
 
   type SanitiseExpr[A <: HChain] = Expr[Option[Sanitised[A]]]
-  type SanitiseCode[A <: HChain] = (SanitiseExpr[A], Int)
+  case class SanitiseCode[A <: HChain](sanitised: SanitiseExpr[A], nextGroup: Int)
 
   sealed trait Regex[A <: HChain] {
     def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[A]
@@ -43,7 +43,7 @@ object ast {
   }
 
   sealed trait Match extends Regex[HEmpty] {
-    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HEmpty] = (empty, i)
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HEmpty] = SanitiseCode(empty, i)
     override def getType(using Quotes): Type[HEmpty] = Type.of[HEmpty]
   }
 
@@ -57,7 +57,7 @@ object ast {
       given Type[A] = inner.getType
 
       val idx = Expr(i)
-      val (sanitisedInner, j) = inner.sanitiseCode(groups, i + 1)
+      val SanitiseCode(sanitisedInner, j) = inner.sanitiseCode(groups, i + 1)
       val sanitised = '{
         $groups($idx).flatMap { (s, end) =>
           val innerCap = $sanitisedInner
@@ -66,7 +66,7 @@ object ast {
           }
         }
       }
-      (sanitised, j)
+      SanitiseCode(sanitised, j)
     }
 
     override def getType(using Quotes): Type[HPrepended[String, A]] = {
@@ -91,10 +91,10 @@ object ast {
 
       val sanitised = Expr.summon[HEmpty =:= AltCapture[A, B]].map { ev =>
         val sanitised = liftSanitised(ev)(empty)
-        (sanitised, i)
+        SanitiseCode(sanitised, i)
       } orElse Expr.summon[SingleEither[A, B] =:= AltCapture[A, B]].map { ev =>
-        val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val (sanitisedRight, k) = right.sanitiseCode(groups, j)
+        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           '{
             val left = $sanitisedLeft.map { case Sanitised(leftCaps, anyLeft) =>
@@ -106,7 +106,7 @@ object ast {
             left max right
           }
         }
-        (expr, k)
+        SanitiseCode(expr, k)
       }
 
       // TODO: Any way to avoid `.get`
@@ -127,9 +127,9 @@ object ast {
 
       val sanitised = Expr.summon[HEmpty =:= OptionalCapture[A]].map { ev =>
         val sanitised = liftSanitised(ev)(empty)
-        (sanitised, i)
+        SanitiseCode(sanitised, i)
       } orElse Expr.summon[SingleOption[A] =:= OptionalCapture[A]].map { ev =>
-        val (sanitisedInner, j) = inner.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedInner, j) = inner.sanitiseCode(groups, i)
         val sanitised = liftSanitised(ev) {
           '{
             val innerCaps = $sanitisedInner
@@ -137,7 +137,7 @@ object ast {
             Some(Sanitised(HChain.one(innerCaps.map(_.captures.tidy)), innerAny))
           }
         }
-        (sanitised, j)
+        SanitiseCode(sanitised, j)
       }
 
       // TODO: Any way to avoid `.get`
@@ -160,23 +160,23 @@ object ast {
       given Type[B] = right.getType
 
       Expr.summon[A =:= HConcat[A, B]].map { ev =>
-        val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
         val sanitised = liftSanitised(ev)(sanitisedLeft)
-        (sanitised, j)
+        SanitiseCode(sanitised, j)
       } orElse Expr.summon[B =:= HConcat[A, B]].map { ev =>
-        val (sanitisedRight, j) = right.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedRight, j) = right.sanitiseCode(groups, i)
         val sanitised = liftSanitised(ev)(sanitisedRight)
-        (sanitised, j)
+        SanitiseCode(sanitised, j)
       } getOrElse {
-        val (sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val (sanitisedRight, k) = right.sanitiseCode(groups, j)
+        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = '{
           for {
             Sanitised(leftCaps, anyLeft) <- $sanitisedLeft
             Sanitised(rightCaps, anyRight) <- $sanitisedRight
           } yield Sanitised(leftCaps ++ rightCaps, anyLeft max anyRight)
         }
-        (expr, k)
+        SanitiseCode(expr, k)
       }
     }
 
