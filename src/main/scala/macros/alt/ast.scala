@@ -1,5 +1,6 @@
 package experiments.macros.alt
 
+import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
 import cats.collections.Diet
 import cats.data.Ior
@@ -13,7 +14,7 @@ object ast {
 
   type Const[A] = [_] =>> A
 
-  type Groups = Array[Option[(String, Int)]]
+  type Groups = Array[Option[String]]
 
   case class Sanitised[+A <: HChain](captures: A, any: Boolean)
   object Sanitised {
@@ -44,7 +45,22 @@ object ast {
 
   type CaptureType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HCons[String, F[R]]
   case class Capture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[CaptureType[F]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HCons[String, F[R]]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HCons[String, F[R]]] = {
+      given Type[F] = inner.getType
+
+      val idx = Expr(i)
+      val SanitiseCode(sanitisedInner, j) = inner.sanitiseCode(groups, i + 1)
+      val sanitised = '{
+        $groups($idx).flatMap { s =>
+          val innerCap = $sanitisedInner
+          innerCap.map { case Sanitised(caps, _) =>
+            Sanitised(s +: caps, true)
+          }
+        }
+      }
+      SanitiseCode(sanitised, j)
+    }
+
     override def getType(using Quotes): Type[CaptureType[F]] = {
       given Type[F] = inner.getType
       Type.of[CaptureType[F]]
@@ -67,7 +83,26 @@ object ast {
   }
 
   case class Opt[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[OptType[F]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[OptType[F][R]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[OptType[F][R]] = {
+      given Type[F] = inner.getType
+
+      val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
+        val sanitised = liftSanitised(ev)(empty)
+        SanitiseCode(sanitised, i)
+      } orElse Expr.summon[HSingleton[Option[Tidy[F[R]]]] =:= OptType[F][R]].map { ev =>
+        val SanitiseCode(sanitisedInner, j) = inner.sanitiseCode(groups, i)
+        val sanitised = liftSanitised(ev) {
+          '{
+            val innerCaps = $sanitisedInner
+            val innerAny = innerCaps.fold(false)(_.any)
+            Some(Sanitised(HChain.one(innerCaps.map(_.captures.tidy)), innerAny))
+          }
+        }
+        SanitiseCode(sanitised, j)
+      }
+
+      sanitised.get
+    }
     override def getType(using Quotes): Type[OptType[F]] = {
       given Type[F] = inner.getType
       
@@ -142,5 +177,9 @@ object ast {
 
   private def empty(using Quotes): SanitiseExpr[HEmpty] = {
     '{ (Some(Sanitised(HChain.nil, false))) }
+  }
+
+  private def liftSanitised[A <: HChain: Type, B <: HChain: Type](ev: Expr[A =:= B])(using Quotes): Expr[Option[Sanitised[A]] =:= Option[Sanitised[B]]] = {
+    ev.liftCo[HChain, [X <: HChain] =>> Option[Sanitised[X]]]
   }
 }
