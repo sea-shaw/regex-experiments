@@ -105,14 +105,38 @@ object ast {
     }
     override def getType(using Quotes): Type[OptType[F]] = {
       given Type[F] = inner.getType
-      
+
       Type.of[OptType[F]]
     }
   }
 
   type CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> HConcat[F[R], G[R]]
   case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[CatType[F, G]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[CatType[F, G][R]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[CatType[F, G][R]] = {
+      given Type[F] = left.getType
+      given Type[G] = right.getType
+
+      Expr.summon[F[R] =:= CatType[F, G][R]].map { ev =>
+        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val sanitised = liftSanitised(ev)(sanitisedLeft)
+        SanitiseCode(sanitised, j)
+      } orElse Expr.summon[G[R] =:= CatType[F, G][R]].map { ev =>
+        val SanitiseCode(sanitisedRight, j) = right.sanitiseCode(groups, i)
+        val sanitised = liftSanitised(ev)(sanitisedRight)
+        SanitiseCode(sanitised, j)
+      } getOrElse {
+        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
+        val expr = '{
+          for {
+            Sanitised(leftCaps, anyLeft) <- $sanitisedLeft
+            Sanitised(rightCaps, anyRight) <- $sanitisedRight
+          } yield Sanitised(leftCaps ++ rightCaps, anyLeft || anyRight)
+        }
+        SanitiseCode(expr, k)
+      }
+    }
+
     override def getType(using Quotes): Type[CatType[F, G]] = {
       given Type[F] = left.getType
       given Type[G] = right.getType
