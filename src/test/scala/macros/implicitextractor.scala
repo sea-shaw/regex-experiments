@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.implicitextractor.Alt
+import experiments.macros.extractors.implicitextractor.Alt
 import experiments.macros.regex.Regex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}

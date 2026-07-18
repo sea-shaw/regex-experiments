@@ -1,7 +1,7 @@
 package experiments.macros
 
 import experiments.macros.ast.{Regex => RegexAST}
-import experiments.macros.hchain.{HChain, Tidy}
+import experiments.macros.hcollections.hchain.{HChain, Tidy}
 import experiments.macros.parser.parse
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type

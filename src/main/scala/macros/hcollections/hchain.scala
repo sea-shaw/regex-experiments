@@ -1,4 +1,4 @@
-package experiments.macros
+package experiments.macros.hcollections
 
 import scala.annotation.tailrec
 
@@ -12,7 +12,7 @@ object hchain {
     }
   }
 
-  type HPrepended[A, B <: HChain] = B match {
+  type HCons[A, B <: HChain] = B match {
     case HEmpty    => HSingleton[A]
     case HNonEmpty => HAppend[HSingleton[A], B]
   }
@@ -35,7 +35,7 @@ object hchain {
   }
 
   sealed trait HChain {
-    def +:[A, B >: this.type <: HChain](x: A): HPrepended[A, B] = (this: B) match {
+    def +:[A, B >: this.type <: HChain](x: A): HCons[A, B] = (this: B) match {
       case _: HEmpty             => Singleton(x)
       case nonEmptyXs: HNonEmpty => Append(Singleton(x), nonEmptyXs)
     }

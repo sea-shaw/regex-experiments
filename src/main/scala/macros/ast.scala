@@ -4,7 +4,7 @@ import cats.collections.Diet
 import cats.kernel.Order
 import cats.syntax.all.*
 import experiments.macros.evidence.{apply, liftCo}
-import experiments.macros.hchain.{HChain, HConcat, HEmpty, HPrepended, HSingleton, Tidy}
+import experiments.macros.hcollections.hchain.{HChain, HConcat, HEmpty, HCons, HSingleton, Tidy}
 import parsley.templates.PureParserBridge0
 import scala.quoted.{Expr, Quotes, Type}
 
@@ -50,8 +50,8 @@ object ast {
   case class Lit(c: Int) extends Match
   case class Class(cs: Diet[Int]) extends Match
 
-  case class Capture[A <: HChain](inner: Regex[A]) extends Regex[HPrepended[String, A]] {
-    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HPrepended[String, A]] = {
+  case class Capture[A <: HChain](inner: Regex[A]) extends Regex[HCons[String, A]] {
+    override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HCons[String, A]] = {
       given Type[A] = inner.getType
 
       val idx = Expr(i)
@@ -67,9 +67,9 @@ object ast {
       SanitiseCode(sanitised, j)
     }
 
-    override def getType(using Quotes): Type[HPrepended[String, A]] = {
+    override def getType(using Quotes): Type[HCons[String, A]] = {
       given Type[A] = inner.getType
-      Type.of[HPrepended[String, A]]
+      Type.of[HCons[String, A]]
     }
   }
 

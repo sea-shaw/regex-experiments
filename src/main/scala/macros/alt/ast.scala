@@ -1,6 +1,6 @@
-package experiments.macros
+package experiments.macros.alt
 
-import experiments.macros.hchain.{HChain, HConcat, HEmpty, HPrepended, HSingleton, Tidy}
+import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
 import cats.collections.Diet
 import cats.data.Ior
 // import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
@@ -36,9 +36,9 @@ object altast {
   case class Lit(c: Int) extends Match
   case class Class(cs: Diet[Int]) extends Match
 
-  type CaptureType[F[_ <: Boolean] <: HChain] = [R <: Boolean] =>> HPrepended[String, F[R]]
+  type CaptureType[F[_ <: Boolean] <: HChain] = [R <: Boolean] =>> HCons[String, F[R]]
   case class Capture[F[_ <: Boolean] <: HChain](inner: Regex[F]) extends Regex[CaptureType[F]] {
-    override def sanitiseCode[R <: Boolean](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HPrepended[String, F[R]]] = ???
+    override def sanitiseCode[R <: Boolean](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HCons[String, F[R]]] = ???
     override def getType(using Quotes): Type[CaptureType[F]] = {
       given Type[F] = inner.getType
       Type.of[CaptureType[F]]
@@ -101,7 +101,9 @@ object altast {
 
   type Rep1Type[F[_ <: Boolean] <: HChain] = Const[F[true]]
   case class Rep1[F[_ <: Boolean] <: HChain](inner: Regex[F]) extends Regex[Rep1Type[F]] {
-    override def sanitiseCode[R <: Boolean](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Rep1Type[F][R]] = ???
+    override def sanitiseCode[R <: Boolean](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Rep1Type[F][R]] = {
+      inner.sanitiseCode[true](groups, i)
+    }
 
     override def getType(using Quotes): Type[Rep1Type[F]] = {
       given Type[F] = inner.getType

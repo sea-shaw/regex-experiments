@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.macroextractor.Alt
+import experiments.macros.extractors.macroextractor.Alt
 import experiments.macros.regex.Regex
 import org.scalatest.flatspec.AnyFlatSpec
 

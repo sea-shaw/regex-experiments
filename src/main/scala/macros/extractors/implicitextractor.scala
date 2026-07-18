@@ -1,4 +1,4 @@
-package experiments.macros
+package experiments.macros.extractors
 
 import scala.compiletime.ops.int.{S, +}
 
