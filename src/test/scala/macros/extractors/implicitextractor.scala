@@ -1,4 +1,4 @@
-package experiments.macros
+package experiments.macros.extractors
 
 import experiments.macros.extractors.implicitextractor.Alt
 import experiments.macros.regex.Regex
