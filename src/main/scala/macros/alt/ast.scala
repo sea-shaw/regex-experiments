@@ -6,6 +6,7 @@ import cats.collections.Diet
 import cats.data.Ior
 // import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
 import cats.kernel.Order
+import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
 
 object ast {
@@ -149,13 +150,49 @@ object ast {
   type AltCapture[A <: HChain, B <: HChain, R <: Rep] <: HChain = (A, B) match {
     case (HEmpty, HEmpty) => HEmpty
     case _                => R match {
-      case true  => HSingleton[Ior[Tidy[A], Tidy[B]]]
-      case false => HSingleton[Either[Tidy[A], Tidy[B]]]
+      case true  => SingletonIor[A, B]
+      case false => SingletonEither[A, B]
     }
   }
 
+  type SingletonIor[A <: HChain, B <: HChain] = SingletonWith[Ior, A, B]
+  type SingletonEither[A <: HChain, B <: HChain] = SingletonWith[Either, A, B]
+  type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[Tidy[A], Tidy[B]]]
+
   case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[AltType[F, G]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[AltType[F, G][R]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[AltType[F, G][R]] = {
+      given Type[F] = left.getType
+      given Type[G] = right.getType
+
+      val sanitised = Expr.summon[HEmpty =:= AltType[F, G][R]].map { ev =>
+        val sanitised = liftSanitised(ev)(empty)
+        SanitiseCode(sanitised, i)
+      } orElse Expr.summon[SingletonEither[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
+        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
+        val expr = liftSanitised(ev) {
+          '{
+            val left = $sanitisedLeft.map { case Sanitised(leftCaps, anyLeft) =>
+              Sanitised(HChain.one(leftCaps.tidy.asLeft[Tidy[G[R]]]), anyLeft)
+            }
+            val right = $sanitisedRight.map { case Sanitised(rightCaps, anyRight) =>
+              Sanitised(HChain.one(rightCaps.tidy.asRight[Tidy[F[R]]]), anyRight)
+            }
+            left max right
+          }
+        }
+        SanitiseCode(expr, k)
+      } orElse Expr.summon[SingletonIor[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
+        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
+        val expr = liftSanitised(ev) {
+          ???
+        }
+        SanitiseCode(expr, k)
+      }
+
+      sanitised.get
+    }
 
     override def getType(using Quotes): Type[AltType[F, G]] = {
       given Type[F] = left.getType
