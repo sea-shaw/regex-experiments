@@ -60,7 +60,12 @@ object ast {
     }
   }
 
-  type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HSingleton[Option[Tidy[F[R]]]] 
+  type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> OptCapture[F[R]] 
+  type OptCapture[A <: HChain] <: HChain = A match {
+    case HEmpty => HEmpty
+    case _      => HSingleton[Option[Tidy[A]]]
+  }
+
   case class Opt[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[OptType[F]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[OptType[F][R]] = ???
     override def getType(using Quotes): Type[OptType[F]] = {
@@ -81,12 +86,14 @@ object ast {
     }
   }
 
-  type AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> AltRep[F, G, R]
-  type AltRep[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, R <: Rep] <: HChain = R match {
-    case true  => CombineWith[Ior, F, G, R]
-    case false => CombineWith[Either, F, G, R]
+  type AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> AltCapture[F[R], G[R], R]
+  type AltCapture[A <: HChain, B <: HChain, R <: Rep] <: HChain = (A, B) match {
+    case (HEmpty, HEmpty) => HEmpty
+    case _                => R match {
+      case true  => HSingleton[Ior[Tidy[A], Tidy[B]]]
+      case false => HSingleton[Either[Tidy[A], Tidy[B]]]
+    }
   }
-  type CombineWith[Combine[_, _], F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, R <: Rep] = HSingleton[Combine[Tidy[F[R]], Tidy[G[R]]]]
 
   case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[AltType[F, G]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[AltType[F, G][R]] = ???
@@ -117,7 +124,7 @@ object ast {
       Type.of[Rep0Type[F]]
     }
   }
-  
+
   */
 
   type Rep1Type[F[_ <: Rep] <: HChain] = Const[F[true]]
