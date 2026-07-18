@@ -99,8 +99,14 @@ object ast {
     }
   }
 
+  object Rep0 {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F]) = Opt(Rep1(inner))
+  }
+
+  /*
+
   type Rep0Type[F[_ <: Rep] <: HChain] = OptType[Rep1Type[F]]
-  case class Rep0[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep0Type[F]] {
+  class Rep0[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep0Type[F]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Rep0Type[F][R]] = {
       Opt(Rep1(inner)).sanitiseCode(groups, i)
     }
@@ -111,6 +117,8 @@ object ast {
       Type.of[Rep0Type[F]]
     }
   }
+  
+  */
 
   type Rep1Type[F[_ <: Rep] <: HChain] = Const[F[true]]
   case class Rep1[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep1Type[F]] {
