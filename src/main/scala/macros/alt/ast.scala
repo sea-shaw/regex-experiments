@@ -7,7 +7,7 @@ import cats.data.Ior
 import cats.kernel.Order
 import scala.quoted.{Expr, Quotes, Type}
 
-object altast {
+object ast {
 
   type Rep = Boolean & Singleton
 
@@ -24,13 +24,13 @@ object altast {
   case class SanitiseCode[+A <: HChain](sanitised: SanitiseExpr[A], nextGroup: Int)
 
   sealed trait Regex[F[_ <: Rep] <: HChain] {
-    def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[F[R]]
+    def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[F[R]]
 
     def getType(using Quotes): Type[F]
   }
 
   sealed trait Match extends Regex[Const[HEmpty]] {
-    override def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[HEmpty] = {
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HEmpty] = {
       SanitiseCode(empty, i)
     }
     override def getType(using Quotes): Type[Const[HEmpty]] = {
@@ -44,7 +44,7 @@ object altast {
 
   type CaptureType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HCons[String, F[R]]
   case class Capture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[CaptureType[F]] {
-    override def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[HCons[String, F[R]]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HCons[String, F[R]]] = ???
     override def getType(using Quotes): Type[CaptureType[F]] = {
       given Type[F] = inner.getType
       Type.of[CaptureType[F]]
@@ -52,8 +52,8 @@ object altast {
   }
 
   case class NonCapture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[F] {
-    override def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[F[R]] = {
-      inner.sanitiseCode(groups, i, rep)
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[F[R]] = {
+      inner.sanitiseCode(groups, i)
     }
     override def getType(using Quotes): Type[F] = {
       inner.getType
@@ -62,7 +62,7 @@ object altast {
 
   type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HSingleton[Option[Tidy[F[R]]]] 
   case class Opt[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[OptType[F]] {
-    override def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[OptType[F][R]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[OptType[F][R]] = ???
     override def getType(using Quotes): Type[OptType[F]] = {
       given Type[F] = inner.getType
       
@@ -72,7 +72,7 @@ object altast {
 
   type CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> HConcat[F[R], G[R]]
   case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[CatType[F, G]] {
-    override def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[CatType[F, G][R]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[CatType[F, G][R]] = ???
     override def getType(using Quotes): Type[CatType[F, G]] = {
       given Type[F] = left.getType
       given Type[G] = right.getType
@@ -89,7 +89,7 @@ object altast {
   type CombineWith[Combine[_, _], F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, R <: Rep] = HSingleton[Combine[Tidy[F[R]], Tidy[G[R]]]]
 
   case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[AltType[F, G]] {
-    override def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[AltType[F, G][R]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[AltType[F, G][R]] = ???
 
     override def getType(using Quotes): Type[AltType[F, G]] = {
       given Type[F] = left.getType
@@ -99,9 +99,11 @@ object altast {
     }
   }
 
-  type Rep0Type[F[_ <: Rep] <: HChain] = Const[HSingleton[Option[Tidy[F[true]]]]]
+  type Rep0Type[F[_ <: Rep] <: HChain] = OptType[Rep1Type[F]]
   case class Rep0[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep0Type[F]] {
-    override def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[Rep0Type[F][R]] = ???
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Rep0Type[F][R]] = {
+      Opt(Rep1(inner)).sanitiseCode(groups, i)
+    }
 
     override def getType(using Quotes): Type[Rep0Type[F]] = {
       given Type[F] = inner.getType
@@ -112,8 +114,8 @@ object altast {
 
   type Rep1Type[F[_ <: Rep] <: HChain] = Const[F[true]]
   case class Rep1[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep1Type[F]] {
-    override def sanitiseCode[R <: Rep](groups: Expr[Groups], i: Int, rep: R)(using Quotes): SanitiseCode[Rep1Type[F][R]] = {
-      inner.sanitiseCode(groups, i, true)
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Rep1Type[F][R]] = {
+      inner.sanitiseCode(groups, i)
     }
 
     override def getType(using Quotes): Type[Rep1Type[F]] = {
