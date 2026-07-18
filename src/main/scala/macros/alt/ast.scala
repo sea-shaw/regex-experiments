@@ -2,6 +2,7 @@ package experiments.macros.alt
 
 import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
+import cats.{Applicative, Functor}
 import cats.collections.Diet
 import cats.data.Ior
 // import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
@@ -17,9 +18,23 @@ object ast {
 
   type Groups = Array[Option[String]]
 
-  case class Sanitised[+A <: HChain](captures: A, any: Boolean)
+  case class Sanitised[+A](captures: A, any: Boolean)
   object Sanitised {
-    given [A <: HChain] => Order[Sanitised[A]] = Order.by(_.any)
+    given [A] => Order[Sanitised[A]] = Order.by(_.any)
+    
+    given Functor[Sanitised] {
+      override def map[A, B](fa: Sanitised[A])(f: A => B): Sanitised[B] = {
+        Sanitised(f(fa.captures), fa.any)
+      }
+    }
+
+    given Applicative[Sanitised] {
+      override def pure[A](x: A): Sanitised[A] = Sanitised(x, false)
+
+      override def ap[A, B](ff: Sanitised[A => B])(fa: Sanitised[A]): Sanitised[B] = {
+        Sanitised(ff.captures(fa.captures), ff.any || fa.any)
+      }
+    }
   }
 
   type SanitiseExpr[+A <: HChain] = Expr[Option[Sanitised[A]]]
@@ -183,8 +198,8 @@ object ast {
         }
         SanitiseCode(expr, k)
       } orElse Expr.summon[SingletonIor[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
+        val SanitiseCode(_, j) = left.sanitiseCode(groups, i)
+        val SanitiseCode(_, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           ???
         }
@@ -237,7 +252,7 @@ object ast {
   }
 
   private def empty(using Quotes): SanitiseExpr[HEmpty] = {
-    '{ (Some(Sanitised(HChain.nil, false))) }
+    '{ (Some(Applicative[Sanitised].pure(HChain.nil))) }
   }
 
   private def liftSanitised[A <: HChain: Type, B <: HChain: Type](ev: Expr[A =:= B])(using Quotes): Expr[Option[Sanitised[A]] =:= Option[Sanitised[B]]] = {
