@@ -2,18 +2,18 @@ package experiments.macros
 
 import cats.collections.Diet
 import cats.data.NonEmptyList
-import experiments.macros.ast
-import experiments.macros.ast.Regex
+import experiments.macros.alt.ast
+import experiments.macros.alt.ast.Regex
 import parsley.templates.{PureParserBridge1, PureParserBridge2}
 
 object bridges {
 
-  object Alt extends PureParserBridge2[Regex[?], Regex[?], ast.Alt[?, ?]] {
+  object Alt extends PureParserBridge2[Regex[?], Regex[?], Regex[?]] {
     override def apply(left: Regex[?], right: Regex[?]) = ast.Alt(left, right)
   }
 
-  object Capture extends PureParserBridge1[Regex[?], ast.Capture[?]] {
-    override def apply(inner: Regex[?]): ast.Capture[?] = ast.Capture(inner)
+  object Capture extends PureParserBridge1[Regex[?], Regex[?]] {
+    override def apply(inner: Regex[?]): Regex[?] = ast.Capture(inner)
   }
 
   object Cat extends PureParserBridge1[NonEmptyList[Regex[?]], Regex[?]] {
@@ -22,27 +22,27 @@ object bridges {
     }
   }
 
-  object Lit extends PureParserBridge1[Int, ast.Lit] {
-    override def apply(c: Int): ast.Lit = ast.Lit(c)
+  object Lit extends PureParserBridge1[Int, Regex[?]] {
+    override def apply(c: Int): Regex[?] = ast.Lit(c)
   }
 
-  object Class extends PureParserBridge1[Diet[Int], ast.Class] {
-    override def apply(cs: Diet[Int]): ast.Class = ast.Class(cs)
+  object Class extends PureParserBridge1[Diet[Int], Regex[?]] {
+    override def apply(cs: Diet[Int]): Regex[?] = ast.Class(cs)
   }
 
-  object NonCapture extends PureParserBridge1[Regex[?], ast.NonCapture[?]] {
-    override def apply(inner: Regex[?]): ast.NonCapture[?] = ast.NonCapture(inner)
+  object NonCapture extends PureParserBridge1[Regex[?], Regex[?]] {
+    override def apply(inner: Regex[?]): Regex[?] = ast.NonCapture(inner)
   }
 
-  object Opt extends PureParserBridge1[Regex[?], ast.Opt[?]] {
-    override def apply(inner: Regex[?]): ast.Opt[?] = ast.Opt(inner)
+  object Opt extends PureParserBridge1[Regex[?], Regex[?]] {
+    override def apply(inner: Regex[?]): Regex[?] = ast.Opt(inner)
   }
 
-  object Rep0 extends PureParserBridge1[Regex[?], ast.Rep0[?]] {
-    override def apply(inner: Regex[?]): ast.Rep0[?] = ast.Rep0(inner)
+  object Rep0 extends PureParserBridge1[Regex[?], Regex[?]] {
+    override def apply(inner: Regex[?]): Regex[?] = ast.Rep0(inner)
   }
 
-  object Rep1 extends PureParserBridge1[Regex[?], ast.Rep1[?]] {
-    override def apply(inner: Regex[?]): ast.Rep1[?] = ast.Rep1(inner)
+  object Rep1 extends PureParserBridge1[Regex[?], Regex[?]] {
+    override def apply(inner: Regex[?]): Regex[?] = ast.Rep1(inner)
   }
 }

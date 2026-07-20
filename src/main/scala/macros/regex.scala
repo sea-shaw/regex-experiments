@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.ast.{Regex => RegexAST}
+import experiments.macros.alt.ast.{Regex => RegexAST, Rep}
 import experiments.macros.hcollections.hchain.{HChain, Tidy}
 import experiments.macros.parser.parse
 import scala.quoted.{Expr, Quotes, quotes}
@@ -26,21 +26,21 @@ object regex {
       }
     }
 
-    private def regexCode[A <: HChain](regexStr: String, ast: RegexAST[A])(using Quotes): Expr[Regex[Tidy[A]]] = {      
-      given Type[A] = ast.getType
+    private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: RegexAST[F])(using Quotes): Expr[Regex[Tidy[F[false]]]] = {      
+      given Type[F] = ast.getType
 
       val regexStrExpr = Expr(regexStr)
       '{
-        new Regex[Tidy[A]] {
+        new Regex[Tidy[F[false]]] {
           private val pattern: Pattern = Pattern.compile($regexStrExpr)
 
-          override def unapply(s: String): Option[Tidy[A]] = {
+          override def unapply(s: String): Option[Tidy[F[false]]] = {
             val m = pattern.matcher(s)
             if (m.matches()) {
               val groups = Array.tabulate(m.groupCount) {i =>
-                Option(m.group(i + 1)).map((_, m.end(i + 1)))
+                Option(m.group(i + 1))
               }
-              val sanitised = ${ ast.sanitiseCode('groups, 0).sanitised }
+              val sanitised = ${ ast.sanitiseCode[false]('groups, 0).sanitised }
               sanitised.map(_.captures.tidy)
             } else {
               None
