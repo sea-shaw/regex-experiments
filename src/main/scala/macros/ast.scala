@@ -24,7 +24,7 @@ object ast {
 
   object Sanitised {
     given [A] => Order[Sanitised[A]] = Order.by(_.any)
-    
+
     given Functor[Sanitised] {
       override def map[A, B](fa: Sanitised[A])(f: A => B): Sanitised[B] = {
         Sanitised(f(fa.captures), fa.any)
@@ -32,7 +32,9 @@ object ast {
     }
 
     given Applicative[Sanitised] {
-      override def pure[A](x: A): Sanitised[A] = Sanitised(x, false)
+      override def pure[A](x: A): Sanitised[A] = {
+        Sanitised(x, false)
+      }
 
       override def ap[A, B](ff: Sanitised[A => B])(fa: Sanitised[A]): Sanitised[B] = {
         Sanitised(ff.captures(fa.captures), ff.any || fa.any)
@@ -40,15 +42,23 @@ object ast {
     }
 
     given Traverse[Sanitised] {
-      override def foldLeft[A, B](fa: Sanitised[A], b: B)(f: (B, A) => B): B = f(b, fa.captures)
+      override def foldLeft[A, B](fa: Sanitised[A], b: B)(f: (B, A) => B): B = {
+        f(b, fa.captures)
+      }
 
-      override def foldRight[A, B](fa: Sanitised[A], lb: Eval[B])(f: (A, Eval[B]) => Eval[B]): Eval[B] = f(fa.captures, lb)
+      override def foldRight[A, B](fa: Sanitised[A], lb: Eval[B])(f: (A, Eval[B]) => Eval[B]): Eval[B] = {
+        f(fa.captures, lb)
+      }
 
-      override def traverse[G[_]: Applicative, A, B](fa: Sanitised[A])(f: A => G[B]): G[Sanitised[B]] = f(fa.captures).map(Sanitised(_, fa.any))
+      override def traverse[G[_]: Applicative, A, B](fa: Sanitised[A])(f: A => G[B]): G[Sanitised[B]] = {
+        f(fa.captures).map(Sanitised(_, fa.any))
+      }
     }
 
     given Monad[Sanitised] {
-      override def pure[A](x: A): Sanitised[A] = Sanitised(x, false)
+      override def pure[A](x: A): Sanitised[A] = {
+        Sanitised(x, false)
+      }
 
       override def flatMap[A, B](fa: Sanitised[A])(f: A => Sanitised[B]): Sanitised[B] = {
         val Sanitised(captures, any) = f(fa.captures)
@@ -67,44 +77,28 @@ object ast {
     }
   }
 
-  case class SanitisedT[F[_], A](value: F[Sanitised[A]]) {
-    def fold[B](f: A => B)(using F: Functor[F]): F[B] = {
-      F.map(value)(sanitised => f(sanitised.captures))
-    }
-
-    def map[B](f: A => B)(using F: Functor[F]): SanitisedT[F, B] = {
-      SanitisedT(F.map(value)(_.map(f)))
-    }
-
-    def flatMap[B](f: A => SanitisedT[F, B])(using Monad[F]): SanitisedT[F, B] = {
-      flatMapF(f(_).value)
-    }
-
-    def flatMapF[B](f: A => F[Sanitised[B]])(using F: Monad[F]): SanitisedT[F, B] = {
-      SanitisedT(F.flatMap(value)(s => f(s.captures).map(s *> _)))
-    }
-
-    def traverse[G[_], B](f: A => G[B])(using F: Traverse[F], G: Applicative[G]): G[SanitisedT[F, B]] = {
-      G.map(F.compose(using Traverse[Sanitised]).traverse(value)(f))(SanitisedT(_))
-    }
-  }
+  case class SanitisedT[F[_], A](value: F[Sanitised[A]])
 
   object SanitisedT {
     given [F[_]: Functor] => Functor[[A] =>> SanitisedT[F, A]] {
-      override def map[A, B](fa: SanitisedT[F, A])(f: A => B): SanitisedT[F, B] = fa.map(f)
+      override def map[A, B](fa: SanitisedT[F, A])(f: A => B): SanitisedT[F, B] = {
+        SanitisedT(fa.value.map(_.map(f)))
+      }
     }
 
     given [F[_]: Applicative] => Applicative[[A] =>> SanitisedT[F, A]] {
       override def pure[A](x: A): SanitisedT[F, A] = {
         SanitisedT(Applicative[F].pure(Applicative[Sanitised].pure(x)))
       }
-      
+
       override def ap[A, B](ff: SanitisedT[F, A => B])(fa: SanitisedT[F, A]): SanitisedT[F, B] = {
         SanitisedT(Applicative[F].map2(ff.value, fa.value)(_ ap _))
       }
     }
 
-    given [F[_], A] => Order[F[Sanitised[A]]] => Order[SanitisedT[F, A]] = Order.by(_.value)
+    given [F[_], A] => Order[F[Sanitised[A]]] => Order[SanitisedT[F, A]] = {
+      Order.by(_.value)
+    }
   }
 
   type SanitiseExpr[A] = Expr[SanitisedT[Option, A]]
@@ -267,10 +261,9 @@ object ast {
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           '{
-            val caps = for {
-              left <- $sanitisedLeft.value.traverse(_.map(_.tidy))
-              right <- $sanitisedRight.value.traverse(_.map(_.tidy))
-            } yield Ior.fromOptions(left, right)
+            val left = $sanitisedLeft.value.traverse(_.map(_.tidy))
+            val right = $sanitisedRight.value.traverse(_.map(_.tidy))
+            val caps = left.map2(right)(Ior.fromOptions)
             SanitisedT(caps.traverse(_.map(HChain.one)))
           }
         }
@@ -289,7 +282,9 @@ object ast {
   }
 
   object Rep0 {
-    def apply[F[_ <: Rep] <: HChain](inner: Regex[F]) = Opt(Rep1(inner))
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F]) = {
+      Opt(Rep1(inner))
+    }
   }
 
   /*
