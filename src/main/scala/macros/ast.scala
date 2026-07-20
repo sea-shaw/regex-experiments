@@ -4,8 +4,7 @@ import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
 import cats.{Applicative, Functor, Monad, Traverse}
 import cats.collections.Diet
-import cats.data.Ior
-// import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
+import cats.data.{Ior, Nested}
 import cats.kernel.Order
 import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
@@ -66,6 +65,8 @@ object ast {
       }
     }
   }
+
+  given [F[_], G[_], A] => Order[F[G[A]]] => Order[Nested[F, G, A]] = Order.by(_.value)
 
   type SanitiseExpr[+A <: HChain] = Expr[Option[Sanitised[A]]]
   case class SanitiseCode[+A <: HChain](sanitised: SanitiseExpr[A], nextGroup: Int)
@@ -174,13 +175,9 @@ object ast {
         val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = '{
-          for {
-            left <- $sanitisedLeft
-            right <- $sanitisedRight
-          } yield for {
-            leftCaps <- left
-            rightCaps <- right
-          } yield leftCaps ++ rightCaps
+          val nestedLeft = Nested($sanitisedLeft)
+          val nestedRight = Nested($sanitisedRight)
+          nestedLeft.map2(nestedRight)(_ ++ _).value
         }
         SanitiseCode(expr, k)
       }
@@ -220,9 +217,9 @@ object ast {
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           '{
-            val left = $sanitisedLeft.map(_.map(_.tidy.asLeft[Tidy[G[R]]]))
-            val right = $sanitisedRight.map(_.map(_.tidy.asRight[Tidy[F[R]]]))
-            (left max right).map(_.map(HChain.one))
+            val left = Nested($sanitisedLeft).map(_.tidy.asLeft[Tidy[G[R]]])
+            val right = Nested($sanitisedRight).map(_.tidy.asRight[Tidy[F[R]]])
+            (left max right).map(HChain.one).value
           }
         }
         SanitiseCode(expr, k)
@@ -231,9 +228,11 @@ object ast {
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           '{
-            val left = $sanitisedLeft.traverse(_.map(_.tidy))
-            val right = $sanitisedRight.traverse(_.map(_.tidy))
-            left.map2(right)(Ior.fromOptions).traverse(_.map(HChain.one))
+            val caps = for {
+              left <- $sanitisedLeft.traverse(_.map(_.tidy))
+              right <- $sanitisedRight.traverse(_.map(_.tidy))
+            } yield Ior.fromOptions(left, right)
+            caps.traverse(_.map(HChain.one))
           }
         }
         SanitiseCode(expr, k)
