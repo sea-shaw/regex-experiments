@@ -1,6 +1,5 @@
 package experiments.macros.hcollections
 
-import experiments.macros.hcollections.tpyeclasses.HMonoid
 import scala.annotation.tailrec
 
 object hchain {
@@ -87,15 +86,5 @@ object hchain {
   object HChain {
     val nil: HEmpty = Empty
     def one[A](x: A): HSingleton[A] = Singleton(x)
-
-    given HMonoid[HChain] {
-      type Empty = HEmpty
-
-      type Combine = HConcat
-
-      override def combine[A <: HChain, B <: HChain](x: A, y: B): Combine[A, B] = x ++ y
-
-      override def empty: Empty = nil
-    }
   }
 }
