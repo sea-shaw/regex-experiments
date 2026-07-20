@@ -328,6 +328,6 @@ object ast {
   }
 
   private def liftSanitised[A <: HChain: Type, B <: HChain: Type](ev: Expr[A =:= B])(using Quotes): Expr[SanitisedT[Option, A] =:= SanitisedT[Option, B]] = {
-    ev.liftCo[HChain, [X <: HChain] =>> SanitisedT[Option, X]]
+    ev.liftCo[[X <: HChain] =>> SanitisedT[Option, X]]
   }
 }
