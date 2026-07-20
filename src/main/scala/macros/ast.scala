@@ -4,7 +4,7 @@ import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
 import cats.{Applicative, Functor, Monad, Traverse}
 import cats.collections.Diet
-import cats.data.{Ior, Nested}
+import cats.data.Ior
 import cats.kernel.Order
 import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
@@ -83,18 +83,32 @@ object ast {
     def flatMapF[B](f: A => F[Sanitised[B]])(using F: Monad[F]): SanitisedT[F, B] = {
       SanitisedT(F.flatMap(value)(s => f(s.captures).map(s *> _)))
     }
+
+    def traverse[G[_], B](f: A => G[B])(using F: Traverse[F], G: Applicative[G]): G[SanitisedT[F, B]] = {
+      G.map(F.compose(using Traverse[Sanitised]).traverse(value)(f))(SanitisedT(_))
+    }
   }
 
   object SanitisedT {
     given [F[_]: Functor] => Functor[[A] =>> SanitisedT[F, A]] {
       override def map[A, B](fa: SanitisedT[F, A])(f: A => B): SanitisedT[F, B] = fa.map(f)
     }
+
+    given [F[_]: Applicative] => Applicative[[A] =>> SanitisedT[F, A]] {
+      override def pure[A](x: A): SanitisedT[F, A] = {
+        SanitisedT(Applicative[F].pure(Applicative[Sanitised].pure(x)))
+      }
+      
+      override def ap[A, B](ff: SanitisedT[F, A => B])(fa: SanitisedT[F, A]): SanitisedT[F, B] = {
+        SanitisedT(Applicative[F].map2(ff.value, fa.value)(_ ap _))
+      }
+    }
+
+    given [F[_], A] => Order[F[Sanitised[A]]] => Order[SanitisedT[F, A]] = Order.by(_.value)
   }
 
-  given [F[_], G[_], A] => Order[F[G[A]]] => Order[Nested[F, G, A]] = Order.by(_.value)
-
-  type SanitiseExpr[+A <: HChain] = Expr[Option[Sanitised[A]]]
-  case class SanitiseCode[+A <: HChain](sanitised: SanitiseExpr[A], nextGroup: Int)
+  type SanitiseExpr[A] = Expr[SanitisedT[Option, A]]
+  case class SanitiseCode[A](sanitised: SanitiseExpr[A], nextGroup: Int)
 
   sealed trait Regex[F[_ <: Rep] <: HChain] {
     def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[F[R]]
@@ -124,12 +138,12 @@ object ast {
       val idx = Expr(i)
       val SanitiseCode(sanitisedInner, j) = inner.sanitiseCode(groups, i + 1)
       val sanitised = '{
-        $groups($idx).flatMap { s =>
-          val innerCap = $sanitisedInner
-          innerCap.map { case Sanitised(caps, _) =>
+        val sanitised = $groups($idx).flatMap { s =>
+          $sanitisedInner.value.map { case Sanitised(caps, _) =>
             Sanitised(s +: caps, true)
           }
         }
+        SanitisedT(sanitised)
       }
       SanitiseCode(sanitised, j)
     }
@@ -167,7 +181,7 @@ object ast {
         val sanitised = liftSanitised(ev) {
           '{
             val innerCaps = $sanitisedInner
-            Some(innerCaps.traverse(_.map(_.tidy)).map(HChain.one))
+            SanitisedT(Some(innerCaps.value.traverse(_.map(_.tidy)).map(HChain.one)))
           }
         }
         SanitiseCode(sanitised, j)
@@ -200,9 +214,9 @@ object ast {
         val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = '{
-          val nestedLeft = Nested($sanitisedLeft)
-          val nestedRight = Nested($sanitisedRight)
-          nestedLeft.map2(nestedRight)(_ ++ _).value
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          left.map2(right)(_ ++ _)
         }
         SanitiseCode(expr, k)
       }
@@ -242,9 +256,9 @@ object ast {
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           '{
-            val left = Nested($sanitisedLeft).map(_.tidy.asLeft[Tidy[G[R]]])
-            val right = Nested($sanitisedRight).map(_.tidy.asRight[Tidy[F[R]]])
-            (left max right).map(HChain.one).value
+            val left = $sanitisedLeft.map(_.tidy.asLeft[Tidy[G[R]]])
+            val right = $sanitisedRight.map(_.tidy.asRight[Tidy[F[R]]])
+            (left max right).map(HChain.one)
           }
         }
         SanitiseCode(expr, k)
@@ -254,10 +268,10 @@ object ast {
         val expr = liftSanitised(ev) {
           '{
             val caps = for {
-              left <- $sanitisedLeft.traverse(_.map(_.tidy))
-              right <- $sanitisedRight.traverse(_.map(_.tidy))
+              left <- $sanitisedLeft.value.traverse(_.map(_.tidy))
+              right <- $sanitisedRight.value.traverse(_.map(_.tidy))
             } yield Ior.fromOptions(left, right)
-            caps.traverse(_.map(HChain.one))
+            SanitisedT(caps.traverse(_.map(HChain.one)))
           }
         }
         SanitiseCode(expr, k)
@@ -309,10 +323,10 @@ object ast {
   }
 
   private def empty(using Quotes): SanitiseExpr[HEmpty] = {
-    '{ (Some(Applicative[Sanitised].pure(HChain.nil))) }
+    '{ Applicative[[A] =>> SanitisedT[Option, A]].pure(HChain.nil) }
   }
 
-  private def liftSanitised[A <: HChain: Type, B <: HChain: Type](ev: Expr[A =:= B])(using Quotes): Expr[Option[Sanitised[A]] =:= Option[Sanitised[B]]] = {
-    ev.liftCo[HChain, [X <: HChain] =>> Option[Sanitised[X]]]
+  private def liftSanitised[A <: HChain: Type, B <: HChain: Type](ev: Expr[A =:= B])(using Quotes): Expr[SanitisedT[Option, A] =:= SanitisedT[Option, B]] = {
+    ev.liftCo[HChain, [X <: HChain] =>> SanitisedT[Option, X]]
   }
 }

@@ -41,7 +41,7 @@ object regex {
                 Option(m.group(i + 1))
               }
               val sanitised = ${ ast.sanitiseCode[false]('groups, 0).sanitised }
-              sanitised.map(_.captures.tidy)
+              sanitised.value.map(_.captures.tidy)
             } else {
               None
             }
