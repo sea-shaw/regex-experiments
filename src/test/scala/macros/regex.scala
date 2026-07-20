@@ -11,7 +11,7 @@ class RegexMacroUnitTests extends AnyFlatSpec {
 
   it should "match zero capture groups" in {
     val r = Regex("a")
-    "a" should matchPattern { case r(()) => } // TODO: Make this look nicer
+    "a" should matchPattern { case r() => }
   }
 
   it should "match one capture group" in {
@@ -30,9 +30,9 @@ class RegexMacroUnitTests extends AnyFlatSpec {
   }
 
   it should "match optional patterns" in {
-    val r = Regex("a?") // TODO: Make type `Unit` instead of `Option[Unit]`
-    "a" should matchPattern { case r(()) => }
-    "" should matchPattern { case r(()) => }
+    val r = Regex("a?")
+    "a" should matchPattern { case r() => }
+    "" should matchPattern { case r() => }
   }
 
   it should "match optional capture groups" in {
@@ -55,9 +55,9 @@ class RegexMacroUnitTests extends AnyFlatSpec {
   }
 
   it should "match alternative patterns" in {
-    val r = Regex("a|b") // TODO: Make type `Unit` instead of `Either[Unit, Unit]`
-     "a" should matchPattern { case r(()) => }
-     "b" should matchPattern { case r(()) => }
+    val r = Regex("a|b")
+     "a" should matchPattern { case r() => }
+     "b" should matchPattern { case r() => }
   }
 
   it should "match alternative capture groups" in {
@@ -88,7 +88,7 @@ class RegexMacroUnitTests extends AnyFlatSpec {
 
   it should "allow non-capturing groups" in {
     val r = Regex("(?:a)")
-    "a" should matchPattern { case r(()) => }
+    "a" should matchPattern { case r() => }
   }
 
   it should "match capture groups with shared optionality" in {
