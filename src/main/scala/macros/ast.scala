@@ -141,8 +141,7 @@ object ast {
         val sanitised = liftSanitised(ev) {
           '{
             val innerCaps = $sanitisedInner
-            val innerAny = innerCaps.fold(false)(_.any)
-            Some(Sanitised(HChain.one(innerCaps.map(_.captures.tidy)), innerAny))
+            Some(innerCaps.traverse(_.map(_.tidy)).map(HChain.one))
           }
         }
         SanitiseCode(sanitised, j)
@@ -176,9 +175,12 @@ object ast {
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = '{
           for {
-            Sanitised(leftCaps, anyLeft) <- $sanitisedLeft
-            Sanitised(rightCaps, anyRight) <- $sanitisedRight
-          } yield Sanitised(leftCaps ++ rightCaps, anyLeft || anyRight)
+            left <- $sanitisedLeft
+            right <- $sanitisedRight
+          } yield for {
+            leftCaps <- left
+            rightCaps <- right
+          } yield leftCaps ++ rightCaps
         }
         SanitiseCode(expr, k)
       }
