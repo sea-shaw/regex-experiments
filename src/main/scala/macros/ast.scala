@@ -126,18 +126,24 @@ object ast {
 
   type CaptureType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HCons[String, F[R]]
   case class Capture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[CaptureType[F]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HCons[String, F[R]]] = {
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[CaptureType[F][R]] = {
       given Type[F] = inner.getType
 
       val idx = Expr(i)
       val SanitiseCode(sanitisedInner, j) = inner.sanitiseCode(groups, i + 1)
-      val sanitised = '{
-        val sanitised = $groups($idx).flatMap { s =>
-          $sanitisedInner.value.map { case Sanitised(caps, _) =>
-            Sanitised(s +: caps, true)
-          }
+      val sanitised = Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
+        liftSanitised(ev) {
+          '{  SanitisedT($groups($idx).map(cap => Sanitised(HChain.one(cap), true))) }
         }
-        SanitisedT(sanitised)
+      } getOrElse {
+        '{
+          val sanitised = $groups($idx).flatMap { s =>
+            $sanitisedInner.value.map { case Sanitised(caps, _) =>
+              Sanitised(s +: caps, true)
+            }
+          }
+          SanitisedT(sanitised)
+        }
       }
       SanitiseCode(sanitised, j)
     }
