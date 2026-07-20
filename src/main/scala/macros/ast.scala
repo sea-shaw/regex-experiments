@@ -21,6 +21,7 @@ object ast {
   type Groups = Array[Option[String]]
 
   case class Sanitised[+A](captures: A, any: Boolean)
+
   object Sanitised {
     given [A] => Order[Sanitised[A]] = Order.by(_.any)
     
@@ -63,6 +64,30 @@ object ast {
 
         go(a, false)
       }
+    }
+  }
+
+  case class SanitisedT[F[_], A](value: F[Sanitised[A]]) {
+    def fold[B](f: A => B)(using F: Functor[F]): F[B] = {
+      F.map(value)(sanitised => f(sanitised.captures))
+    }
+
+    def map[B](f: A => B)(using F: Functor[F]): SanitisedT[F, B] = {
+      SanitisedT(F.map(value)(_.map(f)))
+    }
+
+    def flatMap[B](f: A => SanitisedT[F, B])(using Monad[F]): SanitisedT[F, B] = {
+      flatMapF(f(_).value)
+    }
+
+    def flatMapF[B](f: A => F[Sanitised[B]])(using F: Monad[F]): SanitisedT[F, B] = {
+      SanitisedT(F.flatMap(value)(s => f(s.captures).map(s *> _)))
+    }
+  }
+
+  object SanitisedT {
+    given [F[_]: Functor] => Functor[[A] =>> SanitisedT[F, A]] {
+      override def map[A, B](fa: SanitisedT[F, A])(f: A => B): SanitisedT[F, B] = fa.map(f)
     }
   }
 
