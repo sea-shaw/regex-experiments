@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.alt.ast.{Dot, Regex}
+import experiments.macros.ast.{Dot, Regex}
 import experiments.macros.bridges.{Alt, Capture, Cat, Lit, NonCapture, Opt, Rep0, Rep1}
 import parsley.cats.combinator.some
 import parsley.expr.chain

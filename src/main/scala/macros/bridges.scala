@@ -2,8 +2,8 @@ package experiments.macros
 
 import cats.collections.Diet
 import cats.data.NonEmptyList
-import experiments.macros.alt.ast
-import experiments.macros.alt.ast.Regex
+import experiments.macros.ast
+import experiments.macros.ast.Regex
 import parsley.templates.{PureParserBridge1, PureParserBridge2}
 
 object bridges {

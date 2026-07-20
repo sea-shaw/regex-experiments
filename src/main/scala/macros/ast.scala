@@ -1,4 +1,4 @@
-package experiments.macros.alt
+package experiments.macros
 
 import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}

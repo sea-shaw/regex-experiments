@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.alt.ast.{Regex => RegexAST, Rep}
+import experiments.macros.ast.{Regex => RegexAST, Rep}
 import experiments.macros.hcollections.hchain.{HChain, Tidy}
 import experiments.macros.parser.parse
 import scala.quoted.{Expr, Quotes, quotes}
