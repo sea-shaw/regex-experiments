@@ -1,5 +1,6 @@
 package experiments.macros
 
+import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
 import experiments.macros.regex.Regex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
@@ -118,18 +119,19 @@ class RegexMacroUnitTests extends AnyFlatSpec {
     "d" should matchPattern { case r(Right(Right("d"))) => }
   }
 
-  // TODO: Is this the behaviour we want?
-  it should "match the most recent capture in repeated alternative captures" in {
+  it should "match the left capture group in repeated alternatives" in {
     val r = Regex("((a)|(b))+")
-    "aba" should matchPattern { case r("a", Left("a")) => }
-    "bab" should matchPattern { case r("b", Right("b")) => }
+    "aaa" should matchPattern { case r("a", ILeft("a")) => }
   }
 
-  // Why is the first capture group empty?
-  it should "match the most recent capture in repeated alternative captures with one optional" in {
-    val r = Regex("((a)?|(b))+")
-    "aba" should matchPattern { case r("", Left(Some("a"))) => }
-    "bab" should matchPattern { case r("", Right("b")) => }
-    "" should matchPattern { case r("", Left(None)) => }
+  it should "match the right capture group in repeated alternatives" in {
+    val r = Regex("((a)|(b))+")
+    "bbb" should matchPattern { case r("b", IRight("b")) => }
+  }
+
+  it should "match both capture groups in repeated alternatives" in {
+    val r = Regex("((a)|(b))+")
+    "aba" should matchPattern { case r("a", IBoth("a", "b")) => }
+    "bab" should matchPattern { case r("b", IBoth("a", "b")) => }
   }
 }

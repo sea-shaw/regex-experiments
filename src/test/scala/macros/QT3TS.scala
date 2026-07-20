@@ -1,6 +1,7 @@
 package experiments.macros
 
 import experiments.macros.regex.Regex
+import cats.data.Ior.Both
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 
@@ -32,7 +33,7 @@ class QT3TSTests extends AnyFlatSpec {
 
     // TODO: What is the type of this regex?
     val r13 = Regex("((foo)|(bar))*")
-    "foobar" should matchPattern { case r13(Some("bar", Right("bar"))) => }
+    "foobar" should matchPattern { case r13(Some("bar", Both("foo", "bar"))) => }
     // "foobar" should matchPattern { case r13(Some(g0), Some(g1), Some(g2)) => assert((g0, g1, g2) == ("bar", "foo", "bar")) }
 
     val r14 = Regex("(.*)c(.*)")
@@ -40,7 +41,7 @@ class QT3TSTests extends AnyFlatSpec {
 
     // TODO: What is the type of this regex?
     val r15 = Regex("(?:(f)(o)(o)|(b)(a)(r))*")
-    "foobar" should matchPattern { case r15(Some(Right("b", "a", "r"))) => }
+    "foobar" should matchPattern { case r15(Some(Both(("f", "o", "o"), ("b", "a", "r")))) => }
     // "foobar" should matchPattern { case r15(Some(g0), Some(g1), Some(g2), Some(g3), Some(g4), Some(g5)) => assert((g0, g1, g2, g3, g4, g5) == ("f", "o", "o", "b", "a", "r")) }
 
     // val r16 = Regex("([[:digit:]-[:alpha:]]+)") // "-" should matchPattern { case r16(g0) => assert((g0) == ("-")) }
