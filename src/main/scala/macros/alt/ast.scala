@@ -2,13 +2,15 @@ package experiments.macros.alt
 
 import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
-import cats.{Applicative, Functor}
+import cats.{Applicative, Functor, Monad, Traverse}
 import cats.collections.Diet
 import cats.data.Ior
 // import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
 import cats.kernel.Order
 import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
+import cats.Eval
+import scala.annotation.tailrec
 
 object ast {
 
@@ -33,6 +35,33 @@ object ast {
 
       override def ap[A, B](ff: Sanitised[A => B])(fa: Sanitised[A]): Sanitised[B] = {
         Sanitised(ff.captures(fa.captures), ff.any || fa.any)
+      }
+    }
+
+    given Traverse[Sanitised] {
+      override def foldLeft[A, B](fa: Sanitised[A], b: B)(f: (B, A) => B): B = f(b, fa.captures)
+
+      override def foldRight[A, B](fa: Sanitised[A], lb: Eval[B])(f: (A, Eval[B]) => Eval[B]): Eval[B] = f(fa.captures, lb)
+
+      override def traverse[G[_]: Applicative, A, B](fa: Sanitised[A])(f: A => G[B]): G[Sanitised[B]] = f(fa.captures).map(Sanitised(_, fa.any))
+    }
+
+    given Monad[Sanitised] {
+      override def pure[A](x: A): Sanitised[A] = Sanitised(x, false)
+
+      override def flatMap[A, B](fa: Sanitised[A])(f: A => Sanitised[B]): Sanitised[B] = {
+        val Sanitised(captures, any) = f(fa.captures)
+        Sanitised(captures, any || fa.any)
+      }
+
+      override def tailRecM[A, B](a: A)(f: A => Sanitised[Either[A, B]]): Sanitised[B] = {
+        @tailrec
+        def go(x: A, any: Boolean): Sanitised[B] = f(x) match {
+          case Sanitised(Left(left), anyLeft) => go(left, any || anyLeft)
+          case Sanitised(Right(right), anyRight) => Sanitised(right, any || anyRight)
+        }
+
+        go(a, false)
       }
     }
   }
@@ -187,12 +216,8 @@ object ast {
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           '{
-            val left = $sanitisedLeft.map { case Sanitised(leftCaps, anyLeft) =>
-              Sanitised(HChain.one(leftCaps.tidy.asLeft[Tidy[G[R]]]), anyLeft)
-            }
-            val right = $sanitisedRight.map { case Sanitised(rightCaps, anyRight) =>
-              Sanitised(HChain.one(rightCaps.tidy.asRight[Tidy[F[R]]]), anyRight)
-            }
+            val left = $sanitisedLeft.map(_.map(caps => HChain.one(caps.tidy.asLeft[Tidy[G[R]]])))
+            val right = $sanitisedRight.map(_.map(caps => HChain.one(caps.tidy.asRight[Tidy[F[R]]])))
             left max right
           }
         }
@@ -201,7 +226,9 @@ object ast {
         val SanitiseCode(_, j) = left.sanitiseCode(groups, i)
         val SanitiseCode(_, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
-          ???
+          '{
+            ???
+          }
         }
         SanitiseCode(expr, k)
       }
