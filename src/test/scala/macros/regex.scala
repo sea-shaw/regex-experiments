@@ -119,19 +119,38 @@ class RegexMacroUnitTests extends AnyFlatSpec {
     "d" should matchPattern { case r(Right(Right("d"))) => }
   }
 
-  it should "match the left capture group in repeated alternatives" in {
+  it should "match the left capture group in one or more alternatives" in {
     val r = Regex("((a)|(b))+")
-    "aaa" should matchPattern { case r("a", ILeft("a")) => }
+    "a" should matchPattern { case r("a", ILeft("a")) => }
   }
 
-  it should "match the right capture group in repeated alternatives" in {
+  it should "match the right capture group in one or more alternatives" in {
     val r = Regex("((a)|(b))+")
-    "bbb" should matchPattern { case r("b", IRight("b")) => }
+    "b" should matchPattern { case r("b", IRight("b")) => }
   }
 
-  it should "match both capture groups in repeated alternatives" in {
+  it should "match both capture groups in one or more alternatives" in {
     val r = Regex("((a)|(b))+")
-    "aba" should matchPattern { case r("a", IBoth("a", "b")) => }
-    "bab" should matchPattern { case r("b", IBoth("a", "b")) => }
+    "ba" should matchPattern { case r("a", IBoth("a", "b")) => }
+    "ab" should matchPattern { case r("b", IBoth("a", "b")) => }
+  }
+
+  it should "match the left capture group in zero or more alternatives" in {
+    val r = Regex("((a)|(b))*")
+    "a" should matchPattern { case r(Some("a", ILeft("a"))) => }
+    "" should matchPattern { case r(None) => }
+  }
+
+  it should "match the right capture group in zero or more alternatives" in {
+    val r = Regex("((a)|(b))*")
+    "b" should matchPattern { case r(Some("b", IRight("b"))) => }
+    "" should matchPattern { case r(None) => }
+  }
+
+  it should "match both capture groups in zero or more alternatives" in {
+    val r = Regex("((a)|(b))*")
+    "ba" should matchPattern { case r(Some("a", IBoth("a", "b"))) => }
+    "ab" should matchPattern { case r(Some("b", IBoth("a", "b"))) => }
+    "" should matchPattern { case r(None) => }
   }
 }
