@@ -1,0 +1,53 @@
+package experiments.macros.alt
+
+import experiments.macros.alt.ast.{Regex => RegexAST, Rep}
+import experiments.macros.hcollections.hchain.{HChain, Tidy}
+import experiments.macros.alt.parser.parse
+import scala.quoted.{Expr, Quotes, quotes}
+import scala.quoted.Type
+import java.util.regex.Pattern
+
+object regex {
+  sealed trait Regex[A] {
+    def unapply(s: String): Option[A]
+  }
+
+  object Regex {
+    transparent inline def apply(inline s: String): Regex[?] = ${ isInlineable('s) }
+
+    private def isInlineable(strExpr: Expr[String])(using Quotes): Expr[Regex[?]] = {
+      import quotes.reflect.report
+      strExpr match {
+        case Expr(s) => parse(s) match {
+          case Right(ast) => regexCode(s, ast)
+          case Left(err)  => report.errorAndAbort(err, strExpr)
+        }
+        case _       => report.errorAndAbort("Regex string must be compile-time constant.", strExpr)
+      }
+    }
+
+    private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: RegexAST[F])(using Quotes): Expr[Regex[Tidy[F[false]]]] = {      
+      given Type[F] = ast.getType
+
+      val regexStrExpr = Expr(regexStr)
+      '{
+        new Regex[Tidy[F[false]]] {
+          private val pattern: Pattern = Pattern.compile($regexStrExpr)
+
+          override def unapply(s: String): Option[Tidy[F[false]]] = {
+            val m = pattern.matcher(s)
+            if (m.matches()) {
+              val groups = Array.tabulate(m.groupCount) {i =>
+                Option(m.group(i + 1))
+              }
+              val sanitised = ${ ast.sanitiseCode[false]('groups, 0).sanitised }
+              sanitised.map(_.captures.tidy)
+            } else {
+              None
+            }
+          }
+        }
+      }
+    }
+  }
+}
