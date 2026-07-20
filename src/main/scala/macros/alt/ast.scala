@@ -11,6 +11,7 @@ import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
 import cats.Eval
 import scala.annotation.tailrec
+import parsley.templates.PureParserBridge0
 
 object ast {
 
@@ -84,7 +85,8 @@ object ast {
     }
   }
 
-  case object Dot extends Match
+  type Dot = Dot.type
+  case object Dot extends Match with PureParserBridge0[Dot]
   case class Lit(c: Int) extends Match
   case class Class(cs: Diet[Int]) extends Match
 
@@ -216,18 +218,20 @@ object ast {
         val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           '{
-            val left = $sanitisedLeft.map(_.map(caps => HChain.one(caps.tidy.asLeft[Tidy[G[R]]])))
-            val right = $sanitisedRight.map(_.map(caps => HChain.one(caps.tidy.asRight[Tidy[F[R]]])))
-            left max right
+            val left = $sanitisedLeft.map(_.map(_.tidy.asLeft[Tidy[G[R]]]))
+            val right = $sanitisedRight.map(_.map(_.tidy.asRight[Tidy[F[R]]]))
+            (left max right).map(_.map(HChain.one))
           }
         }
         SanitiseCode(expr, k)
       } orElse Expr.summon[SingletonIor[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        val SanitiseCode(_, j) = left.sanitiseCode(groups, i)
-        val SanitiseCode(_, k) = right.sanitiseCode(groups, j)
+        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
+        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
         val expr = liftSanitised(ev) {
           '{
-            ???
+            val left = $sanitisedLeft.traverse(_.map(_.tidy))
+            val right = $sanitisedRight.traverse(_.map(_.tidy))
+            left.map2(right)(Ior.fromOptions).traverse(_.map(HChain.one))
           }
         }
         SanitiseCode(expr, k)
