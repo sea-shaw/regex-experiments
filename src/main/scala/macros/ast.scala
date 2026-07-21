@@ -225,31 +225,52 @@ object ast {
       given Type[F] = left.getType
       given Type[G] = right.getType
 
+      def combineWith[H[_ <: HChain, _ <: HChain] <: HChain: Type, P: Type, Q: Type](
+        ev: Expr[H[F[R], G[R]] =:= AltType[F, G][R]],
+        tidyLeft: Expr[SanitisedT[Option, F[R]] => P],
+        tidyRight: Expr[SanitisedT[Option, G[R]] => Q],
+        combine: Expr[(P, Q) => SanitisedT[Option, H[F[R], G[R]]]]
+      ): State[Int, SanitiseExpr[AltType[F, G][R]]] = {
+        for {
+          sanitisedLeft <- left.sanitiseCode(groups)
+          sanitisedRight <- right.sanitiseCode(groups)
+        } yield liftSanitised(ev) {
+          '{
+            val left = $tidyLeft($sanitisedLeft)
+            val right = $tidyRight($sanitisedRight)
+            $combine(left, right)
+          }
+        }
+      }
+
       val sanitised = Expr.summon[HEmpty =:= AltType[F, G][R]].map { ev =>
         State.pure(liftSanitised(ev)(empty))
       } orElse Expr.summon[SingletonEither[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        for {
-          sanitisedLeft <- left.sanitiseCode(groups)
-          sanitisedRight <- right.sanitiseCode(groups)
-        } yield liftSanitised(ev) {
-          '{
-            val left = $sanitisedLeft.map(_.tidy.asLeft[Tidy[G[R]]])
-            val right = $sanitisedRight.map(_.tidy.asRight[Tidy[F[R]]])
+        combineWith(
+          ev = ev,
+          tidyLeft = '{ (left: SanitisedT[Option, F[R]]) =>
+            left.map(_.tidy.asLeft[Tidy[G[R]]])
+          },
+          tidyRight = '{ (right: SanitisedT[Option, G[R]]) =>
+            right.map(_.tidy.asRight[Tidy[F[R]]])
+          },
+          combine = '{ (left, right) =>
             (left max right).map(HChain.one)
           }
-        }
+        )
       } orElse Expr.summon[SingletonIor[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        for {
-          sanitisedLeft <- left.sanitiseCode(groups)
-          sanitisedRight <- right.sanitiseCode(groups)
-        } yield liftSanitised(ev) {
-          '{
-            val left = $sanitisedLeft.value.traverse(_.map(_.tidy))
-            val right = $sanitisedRight.value.traverse(_.map(_.tidy))
-            val caps = (left, right).mapN(Ior.fromOptions)
-            SanitisedT(caps.traverse(_.map(HChain.one)))
+        combineWith(
+          ev = ev,
+          tidyLeft = '{ (left: SanitisedT[Option, F[R]]) =>
+            left.value.traverse(_.map(_.tidy))
+          },
+          tidyRight = '{ (right: SanitisedT[Option, G[R]]) =>
+            right.value.traverse(_.map(_.tidy))
+          },
+          combine = '{ (left, right) =>
+            SanitisedT((left, right).mapN(Ior.fromOptions).traverse(_.map(HChain.one)))
           }
-        }
+        )
       }
 
       sanitised.get
