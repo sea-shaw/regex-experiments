@@ -1,0 +1,40 @@
+package experiments.macros
+
+import experiments.macros.hcollections.hchain.{HChain, ++}
+import experiments.macros.tidy.tidy
+import org.scalatest.flatspec.AnyFlatSpec
+
+import org.scalatest.matchers.should.Matchers.{compile, equal, should, shouldNot, typeCheck}
+
+class TidyUnitTests extends AnyFlatSpec {
+  behavior of "HChain tidier"
+
+  it should "tidy empty HChain type" in {
+    "val x: EmptyTuple = tidy(HChain.nil)" should compile
+    "val x: Tuple1[Int] = tidy(HChain.nil)" shouldNot typeCheck
+
+    tidy(HChain.nil) should equal (EmptyTuple)
+  }
+
+  it should "tidy singleton HChain type" in {
+    "val x: Tuple1[Int] = tidy(HChain.one(0))" should compile
+    "val x: Tuple1[String] = tidy(HChain.one(0))" shouldNot typeCheck
+    "val x: (Int, String) = tidy(HChain.one(0))" shouldNot typeCheck
+
+    tidy(HChain.one(0)) should equal (Tuple1(0))
+  }
+
+  it should "tidy append HChain type" in {
+    "val x: (Int, Boolean) = tidy(0 +: false +: HChain.nil)" should compile
+    "val x: (Boolean, Int) = tidy(0 +: false +: HChain.nil)" shouldNot typeCheck
+
+    tidy(0 +: false +: HChain.nil) should equal (0, false)
+  }
+
+  it should "tidy concat HChain type" in {
+    "val x: (Int, Boolean, Char, String) = tidy((0 +: false +: HChain.nil) ++ ('a' +: \"b\" +: HChain.nil))" should compile
+    "val x: (String, Char, Boolean, Int) = tidy((0 +: false +: HChain.nil) ++ ('a' +: \"b\" +: HChain.nil))" shouldNot typeCheck
+
+    tidy((0 +: false +: HChain.nil) ++ ('a' +: "b" +: HChain.nil)) should equal (0, false, 'a', "b")
+  }
+}
