@@ -101,11 +101,21 @@ object ast {
       }
 
       override def flatMap[A, B](fa: SanitisedT[F, A])(f: A => SanitisedT[F, B]): SanitisedT[F, B] = {
-        ???
+        val fb = Monad[F].flatMap(fa.value) { a =>
+          f(a.captures).value.map(b => Sanitised(b.captures, a.any || b.any))
+        }
+        SanitisedT(fb)
       }
 
       override def tailRecM[A, B](a: A)(f: A => SanitisedT[F, Either[A, B]]): SanitisedT[F, B] = {
-        ???
+        SanitisedT {
+          Monad[F].tailRecM((a, false)) { (x, any) =>
+            f(x).value.map {
+              case Sanitised(Left(left), leftAny) => Left(left, any || leftAny)
+              case Sanitised(Right(right), rightAny) => Right(Sanitised(right, any || rightAny))
+            }
+          }
+        }
       }
     }
 
@@ -160,7 +170,10 @@ object ast {
           sanitisedCapture <- capture
           sanitisedInner <- inner.sanitiseCode(groups)
         } yield '{
-          ($sanitisedCapture, $sanitisedInner).mapN(_ ++ _)
+          for {
+            capture <- $sanitisedCapture
+            inner <- $sanitisedInner
+          } yield capture ++ inner
         }
       }
     }
@@ -228,9 +241,10 @@ object ast {
           sanitisedLeft <- left.sanitiseCode(groups)
           sanitisedRight <- right.sanitiseCode(groups)
         } yield '{
-          val left = $sanitisedLeft
-          val right = $sanitisedRight
-          (left, right).mapN(_ ++ _)
+          for {
+            left <- $sanitisedLeft
+            right <- $sanitisedRight
+          } yield left ++ right
         }
       }
     }
