@@ -61,20 +61,23 @@ object hchain {
       }
     }
 
-    // TODO: `ArrayBuilder`? Don't want to use `*:` because it's O(n^2) overall
-    def tidy: Tidy[A] = {
+    def toList: List[Any] = {
       @tailrec
-      def toList(xs: HChain, acc: List[Any], rest: List[HNonEmpty]): List[Any] = xs match {
+      def go(xs: HChain, acc: List[Any], rest: List[HNonEmpty]): List[Any] = xs match {
         case Empty => rest match {
           case Nil => acc
-          case head :: tail => toList(head, acc, tail)
+          case head :: tail => go(head, acc, tail)
         }
-        case Singleton(x) => toList(Empty, x :: acc, rest)
-        case Append(left, right) => toList(right, acc, left :: rest)
+        case Singleton(x) => go(Empty, x :: acc, rest)
+        case Append(left, right) => go(right, acc, left :: rest)
       }
 
-      val tup = Tuple.fromArray(toList(xs, Nil, Nil).toArray).asInstanceOf[ToTuple[A]]
+      go(xs, Nil, Nil)
+    }
 
+    // TODO: `ArrayBuilder`? Don't want to use `*:` because it's O(n^2) overall
+    def tidy: Tidy[A] = {
+      val tup = Tuple.fromArray(toList.toArray).asInstanceOf[ToTuple[A]]
       tup match {
         case _: EmptyTuple  => ()
         case tup: Tuple1[_] => tup._1
