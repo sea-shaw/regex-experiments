@@ -2,13 +2,12 @@ package experiments.macros
 
 import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
-import cats.{Applicative, Eval, Functor, Monad, Traverse}
+import cats.{Applicative, Eval, Functor, Traverse}
 import cats.collections.Diet
 import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
-import scala.annotation.tailrec
 import parsley.templates.PureParserBridge0
 
 object ast {
@@ -22,8 +21,6 @@ object ast {
   case class Sanitised[+A](captures: A, any: Boolean)
 
   object Sanitised {
-    given [A] => Order[Sanitised[A]] = Order.by(_.any)
-
     given Functor[Sanitised] {
       override def map[A, B](fa: Sanitised[A])(f: A => B): Sanitised[B] = {
         Sanitised(f(fa.captures), fa.any)
@@ -54,26 +51,7 @@ object ast {
       }
     }
 
-    given Monad[Sanitised] {
-      override def pure[A](x: A): Sanitised[A] = {
-        Sanitised(x, false)
-      }
-
-      override def flatMap[A, B](fa: Sanitised[A])(f: A => Sanitised[B]): Sanitised[B] = {
-        val Sanitised(captures, any) = f(fa.captures)
-        Sanitised(captures, any || fa.any)
-      }
-
-      override def tailRecM[A, B](a: A)(f: A => Sanitised[Either[A, B]]): Sanitised[B] = {
-        @tailrec
-        def go(x: A, any: Boolean): Sanitised[B] = f(x) match {
-          case Sanitised(Left(left), anyLeft) => go(left, any || anyLeft)
-          case Sanitised(Right(right), anyRight) => Sanitised(right, any || anyRight)
-        }
-
-        go(a, false)
-      }
-    }
+    given [A] => Order[Sanitised[A]] = Order.by(_.any)
   }
 
   case class SanitisedT[F[_], A](value: F[Sanitised[A]])
@@ -91,7 +69,7 @@ object ast {
       }
 
       override def ap[A, B](ff: SanitisedT[F, A => B])(fa: SanitisedT[F, A]): SanitisedT[F, B] = {
-        SanitisedT(Applicative[F].map2(ff.value, fa.value)(_ ap _))
+        SanitisedT((ff.value, fa.value).mapN(_ ap _))
       }
     }
 
@@ -146,7 +124,7 @@ object ast {
           sanitisedCapture <- capture
           sanitisedInner <- inner.sanitiseCode(groups)
         } yield '{
-          $sanitisedCapture.map2($sanitisedInner)(_ ++ _)
+          ($sanitisedCapture, $sanitisedInner).mapN(_ ++ _)
         }
       }
     }
@@ -216,7 +194,7 @@ object ast {
         } yield '{
           val left = $sanitisedLeft
           val right = $sanitisedRight
-          left.map2(right)(_ ++ _)
+          (left, right).mapN(_ ++ _)
         }
       }
     }
@@ -268,7 +246,7 @@ object ast {
           '{
             val left = $sanitisedLeft.value.traverse(_.map(_.tidy))
             val right = $sanitisedRight.value.traverse(_.map(_.tidy))
-            val caps = left.map2(right)(Ior.fromOptions)
+            val caps = (left, right).mapN(Ior.fromOptions)
             SanitisedT(caps.traverse(_.map(HChain.one)))
           }
         }
