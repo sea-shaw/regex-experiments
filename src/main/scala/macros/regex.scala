@@ -40,7 +40,7 @@ object regex {
               val groups = Array.tabulate(m.groupCount) {i =>
                 Option(m.group(i + 1))
               }
-              val sanitised = ${ ast.sanitiseCode[false]('groups, 0).sanitised }
+              val sanitised = ${ ast.sanitiseCode[false]('groups).runA(0).value }
               sanitised.value.map(_.captures.tidy)
             } else {
               None
