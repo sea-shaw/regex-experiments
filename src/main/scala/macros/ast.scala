@@ -2,13 +2,14 @@ package experiments.macros
 
 import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
-import cats.{Applicative, Eval, Functor, Traverse}
+import cats.{Applicative, Eval, Functor, Monad, Traverse}
 import cats.collections.Diet
 import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
 import parsley.templates.PureParserBridge0
+import scala.annotation.tailrec
 
 object ast {
 
@@ -34,6 +35,27 @@ object ast {
 
       override def ap[A, B](ff: Sanitised[A => B])(fa: Sanitised[A]): Sanitised[B] = {
         Sanitised(ff.captures(fa.captures), ff.any || fa.any)
+      }
+    }
+
+    given Monad[Sanitised] {
+      override def pure[A](x: A): Sanitised[A] = {
+        Sanitised(x, false)
+      }
+
+      override def flatMap[A, B](fa: Sanitised[A])(f: A => Sanitised[B]): Sanitised[B] = {
+        val fb = f(fa.captures)
+        Sanitised(fb.captures, fa.any || fb.any)
+      }
+
+      override def tailRecM[A, B](a: A)(f: A => Sanitised[Either[A, B]]): Sanitised[B] = {
+        @tailrec
+        def go(a: A, any: Boolean): Sanitised[B] = f(a) match {
+          case Sanitised(Left(value), leftAny) => go(value, any || leftAny)
+          case Sanitised(Right(value), rightAny) => Sanitised(value, any || rightAny)
+        }
+
+        go(a, false)
       }
     }
 
@@ -70,6 +92,30 @@ object ast {
 
       override def ap[A, B](ff: SanitisedT[F, A => B])(fa: SanitisedT[F, A]): SanitisedT[F, B] = {
         SanitisedT((ff.value, fa.value).mapN(_ ap _))
+      }
+    }
+
+    given [F[_]: Monad] => Monad[[A] =>> SanitisedT[F, A]] {
+      override def pure[A](x: A): SanitisedT[F, A] = {
+        SanitisedT(Monad[F].pure(Monad[Sanitised].pure(x)))
+      }
+
+      override def flatMap[A, B](fa: SanitisedT[F, A])(f: A => SanitisedT[F, B]): SanitisedT[F, B] = {
+        val fb = Monad[F].flatMap(fa.value) { a =>
+          f(a.captures).value.map(b => Sanitised(b.captures, a.any || b.any))
+        }
+        SanitisedT(fb)
+      }
+
+      override def tailRecM[A, B](a: A)(f: A => SanitisedT[F, Either[A, B]]): SanitisedT[F, B] = {
+        SanitisedT {
+          Monad[F].tailRecM((a, false)) { (x, any) =>
+            f(x).value.map {
+              case Sanitised(Left(left), leftAny) => Left(left, any || leftAny)
+              case Sanitised(Right(right), rightAny) => Right(Sanitised(right, any || rightAny))
+            }
+          }
+        }
       }
     }
 
@@ -124,7 +170,10 @@ object ast {
           sanitisedCapture <- capture
           sanitisedInner <- inner.sanitiseCode(groups)
         } yield '{
-          ($sanitisedCapture, $sanitisedInner).mapN(_ ++ _)
+          for {
+            capture <- $sanitisedCapture
+            inner <- $sanitisedInner
+          } yield capture ++ inner
         }
       }
     }
@@ -192,9 +241,10 @@ object ast {
           sanitisedLeft <- left.sanitiseCode(groups)
           sanitisedRight <- right.sanitiseCode(groups)
         } yield '{
-          val left = $sanitisedLeft
-          val right = $sanitisedRight
-          (left, right).mapN(_ ++ _)
+          for {
+            left <- $sanitisedLeft
+            right <- $sanitisedRight
+          } yield left ++ right
         }
       }
     }
