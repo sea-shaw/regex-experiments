@@ -2,14 +2,12 @@ package experiments.macros
 
 import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
-import cats.{Applicative, Functor, Monad, Traverse}
+import cats.{Applicative, Eval, Functor, Traverse}
 import cats.collections.Diet
-import cats.data.Ior
+import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
-import cats.Eval
-import scala.annotation.tailrec
 import parsley.templates.PureParserBridge0
 
 object ast {
@@ -23,8 +21,6 @@ object ast {
   case class Sanitised[+A](captures: A, any: Boolean)
 
   object Sanitised {
-    given [A] => Order[Sanitised[A]] = Order.by(_.any)
-
     given Functor[Sanitised] {
       override def map[A, B](fa: Sanitised[A])(f: A => B): Sanitised[B] = {
         Sanitised(f(fa.captures), fa.any)
@@ -55,26 +51,7 @@ object ast {
       }
     }
 
-    given Monad[Sanitised] {
-      override def pure[A](x: A): Sanitised[A] = {
-        Sanitised(x, false)
-      }
-
-      override def flatMap[A, B](fa: Sanitised[A])(f: A => Sanitised[B]): Sanitised[B] = {
-        val Sanitised(captures, any) = f(fa.captures)
-        Sanitised(captures, any || fa.any)
-      }
-
-      override def tailRecM[A, B](a: A)(f: A => Sanitised[Either[A, B]]): Sanitised[B] = {
-        @tailrec
-        def go(x: A, any: Boolean): Sanitised[B] = f(x) match {
-          case Sanitised(Left(left), anyLeft) => go(left, any || anyLeft)
-          case Sanitised(Right(right), anyRight) => Sanitised(right, any || anyRight)
-        }
-
-        go(a, false)
-      }
-    }
+    given [A] => Order[Sanitised[A]] = Order.by(_.any)
   }
 
   case class SanitisedT[F[_], A](value: F[Sanitised[A]])
@@ -92,7 +69,7 @@ object ast {
       }
 
       override def ap[A, B](ff: SanitisedT[F, A => B])(fa: SanitisedT[F, A]): SanitisedT[F, B] = {
-        SanitisedT(Applicative[F].map2(ff.value, fa.value)(_ ap _))
+        SanitisedT((ff.value, fa.value).mapN(_ ap _))
       }
     }
 
@@ -102,18 +79,18 @@ object ast {
   }
 
   type SanitiseExpr[A] = Expr[SanitisedT[Option, A]]
-  case class SanitiseCode[A](sanitised: SanitiseExpr[A], nextGroup: Int)
 
   sealed trait Regex[F[_ <: Rep] <: HChain] {
-    def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[F[R]]
+    def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]]
 
     def getType(using Quotes): Type[F]
   }
 
   sealed trait Match extends Regex[Const[HEmpty]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[HEmpty] = {
-      SanitiseCode(empty, i)
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[HEmpty]] = {
+      State.pure(empty)
     }
+
     override def getType(using Quotes): Type[Const[HEmpty]] = {
       Type.of[Const[HEmpty]]
     }
@@ -126,26 +103,30 @@ object ast {
 
   type CaptureType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HCons[String, F[R]]
   case class Capture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[CaptureType[F]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[CaptureType[F][R]] = {
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CaptureType[F][R]]] = {
       given Type[F] = inner.getType
 
-      val idx = Expr(i)
-      val SanitiseCode(sanitisedInner, j) = inner.sanitiseCode(groups, i + 1)
-      val sanitised = Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
-        liftSanitised(ev) {
-          '{  SanitisedT($groups($idx).map(cap => Sanitised(HChain.one(cap), true))) }
-        }
-      } getOrElse {
-        '{
-          val sanitised = $groups($idx).flatMap { s =>
-            $sanitisedInner.value.map { case Sanitised(caps, _) =>
-              Sanitised(s +: caps, true)
-            }
+      val capture = State { (i: Int) =>
+        val idx = Expr(i)
+        val expr = '{
+          val sanitised = $groups($idx).map { s =>
+            Sanitised(HChain.one(s), true)
           }
           SanitisedT(sanitised)
         }
+        (i + 1, expr)
       }
-      SanitiseCode(sanitised, j)
+
+      Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
+        capture.map(liftSanitised(ev)(_))
+      } getOrElse {
+        for {
+          sanitisedCapture <- capture
+          sanitisedInner <- inner.sanitiseCode(groups)
+        } yield '{
+          ($sanitisedCapture, $sanitisedInner).mapN(_ ++ _)
+        }
+      }
     }
 
     override def getType(using Quotes): Type[CaptureType[F]] = {
@@ -155,9 +136,10 @@ object ast {
   }
 
   case class NonCapture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[F] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[F[R]] = {
-      inner.sanitiseCode(groups, i)
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]] = {
+      inner.sanitiseCode(groups)
     }
+
     override def getType(using Quotes): Type[F] = {
       inner.getType
     }
@@ -170,21 +152,20 @@ object ast {
   }
 
   case class Opt[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[OptType[F]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[OptType[F][R]] = {
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[OptType[F][R]]] = {
       given Type[F] = inner.getType
 
       val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
-        val sanitised = liftSanitised(ev)(empty)
-        SanitiseCode(sanitised, i)
+        State.pure(liftSanitised(ev)(empty))
       } orElse Expr.summon[HSingleton[Option[Tidy[F[R]]]] =:= OptType[F][R]].map { ev =>
-        val SanitiseCode(sanitisedInner, j) = inner.sanitiseCode(groups, i)
-        val sanitised = liftSanitised(ev) {
-          '{
-            val innerCaps = $sanitisedInner
-            SanitisedT(Some(innerCaps.value.traverse(_.map(_.tidy)).map(HChain.one)))
+        inner.sanitiseCode(groups).map { sanitisedInner =>
+          liftSanitised(ev) {
+            '{
+              val innerCaps = $sanitisedInner
+              SanitisedT(Some(innerCaps.value.traverse(_.map(_.tidy)).map(HChain.one)))
+            }
           }
         }
-        SanitiseCode(sanitised, j)
       }
 
       sanitised.get
@@ -198,27 +179,23 @@ object ast {
 
   type CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> HConcat[F[R], G[R]]
   case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[CatType[F, G]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[CatType[F, G][R]] = {
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CatType[F, G][R]]] = {
       given Type[F] = left.getType
       given Type[G] = right.getType
 
       Expr.summon[F[R] =:= CatType[F, G][R]].map { ev =>
-        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val sanitised = liftSanitised(ev)(sanitisedLeft)
-        SanitiseCode(sanitised, j)
+        left.sanitiseCode(groups).map(liftSanitised(ev)(_))
       } orElse Expr.summon[G[R] =:= CatType[F, G][R]].map { ev =>
-        val SanitiseCode(sanitisedRight, j) = right.sanitiseCode(groups, i)
-        val sanitised = liftSanitised(ev)(sanitisedRight)
-        SanitiseCode(sanitised, j)
+        right.sanitiseCode(groups).map(liftSanitised(ev)(_))
       } getOrElse {
-        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
-        val expr = '{
+        for {
+          sanitisedLeft <- left.sanitiseCode(groups)
+          sanitisedRight <- right.sanitiseCode(groups)
+        } yield '{
           val left = $sanitisedLeft
           val right = $sanitisedRight
-          left.map2(right)(_ ++ _)
+          (left, right).mapN(_ ++ _)
         }
-        SanitiseCode(expr, k)
       }
     }
 
@@ -244,36 +221,35 @@ object ast {
   type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[Tidy[A], Tidy[B]]]
 
   case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[AltType[F, G]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[AltType[F, G][R]] = {
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[AltType[F, G][R]]] = {
       given Type[F] = left.getType
       given Type[G] = right.getType
 
       val sanitised = Expr.summon[HEmpty =:= AltType[F, G][R]].map { ev =>
-        val sanitised = liftSanitised(ev)(empty)
-        SanitiseCode(sanitised, i)
+        State.pure(liftSanitised(ev)(empty))
       } orElse Expr.summon[SingletonEither[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
-        val expr = liftSanitised(ev) {
+        for {
+          sanitisedLeft <- left.sanitiseCode(groups)
+          sanitisedRight <- right.sanitiseCode(groups)
+        } yield liftSanitised(ev) {
           '{
             val left = $sanitisedLeft.map(_.tidy.asLeft[Tidy[G[R]]])
             val right = $sanitisedRight.map(_.tidy.asRight[Tidy[F[R]]])
             (left max right).map(HChain.one)
           }
         }
-        SanitiseCode(expr, k)
       } orElse Expr.summon[SingletonIor[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        val SanitiseCode(sanitisedLeft, j) = left.sanitiseCode(groups, i)
-        val SanitiseCode(sanitisedRight, k) = right.sanitiseCode(groups, j)
-        val expr = liftSanitised(ev) {
+        for {
+          sanitisedLeft <- left.sanitiseCode(groups)
+          sanitisedRight <- right.sanitiseCode(groups)
+        } yield liftSanitised(ev) {
           '{
             val left = $sanitisedLeft.value.traverse(_.map(_.tidy))
             val right = $sanitisedRight.value.traverse(_.map(_.tidy))
-            val caps = left.map2(right)(Ior.fromOptions)
+            val caps = (left, right).mapN(Ior.fromOptions)
             SanitisedT(caps.traverse(_.map(HChain.one)))
           }
         }
-        SanitiseCode(expr, k)
       }
 
       sanitised.get
@@ -287,18 +263,10 @@ object ast {
     }
   }
 
-  object Rep0 {
-    def apply[F[_ <: Rep] <: HChain](inner: Regex[F]) = {
-      Opt(Rep1(inner))
-    }
-  }
-
-  /*
-
   type Rep0Type[F[_ <: Rep] <: HChain] = OptType[Rep1Type[F]]
   class Rep0[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep0Type[F]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Rep0Type[F][R]] = {
-      Opt(Rep1(inner)).sanitiseCode(groups, i)
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep0Type[F][R]]] = {
+      Opt(Rep1(inner)).sanitiseCode(groups)
     }
 
     override def getType(using Quotes): Type[Rep0Type[F]] = {
@@ -308,12 +276,10 @@ object ast {
     }
   }
 
-  */
-
   type Rep1Type[F[_ <: Rep] <: HChain] = Const[F[true]]
   case class Rep1[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep1Type[F]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseCode[Rep1Type[F][R]] = {
-      inner.sanitiseCode(groups, i)
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep1Type[F][R]]] = {
+      inner.sanitiseCode(groups)
     }
 
     override def getType(using Quotes): Type[Rep1Type[F]] = {
