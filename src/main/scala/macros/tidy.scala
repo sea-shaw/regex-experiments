@@ -1,6 +1,6 @@
 package experiments.macros
 
-import cats.data.Chain
+import cats.data.{Chain, Ior}
 import cats.syntax.all.*
 import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty}
 import scala.quoted.{Expr, Quotes, Type, quotes}
@@ -23,11 +23,44 @@ object tidy {
       // Needs type annotation otherwise we get a cyclic reference
       val inner: TidyFunction[a, ?] = tidyFunction[a]
       val tidy = inner.tidy
-      given tpe: Type[inner.tpe.Underlying] = inner.tpe
+
+      type B = inner.tpe.Underlying
+      given tpe: Type[B] = inner.tpe
+
       val elem = '{ (singleton: HSingleton[Option[a]]) =>
         singleton.value.map($tidy)
       }
-      Chain.one(ElemFunction(elem.asExprOf[A => Option[tpe.Underlying]], Type.of[Option[tpe.Underlying]]))
+      Chain.one(ElemFunction(elem.asExprOf[A => Option[B]], Type.of[Option[B]]))
+    }
+    case '[type a <: HChain; type b <: HChain; HSingleton[Either[a, b]]] => {
+      val left: TidyFunction[a, ?] = tidyFunction[a]
+      val right: TidyFunction[b, ?] = tidyFunction[b]
+
+      type L = left.tpe.Underlying
+      type R = right.tpe.Underlying 
+      given leftType: Type[L] = left.tpe
+      given rightType: Type[R] = right.tpe
+
+      val elem = '{ (singleton: HSingleton[Either[a, b]]) =>
+        singleton.value.bimap(${left.tidy}, ${right.tidy})
+      }
+      val tpe = Type.of[Either[L, R]]
+      Chain.one(ElemFunction(elem.asExprOf[A => Either[L, R]], tpe))
+    }
+    case '[type a <: HChain; type b <: HChain; HSingleton[Ior[a, b]]] => {
+      val left: TidyFunction[a, ?] = tidyFunction[a]
+      val right: TidyFunction[b, ?] = tidyFunction[b]
+
+      type L = left.tpe.Underlying
+      type R = right.tpe.Underlying
+      given leftType: Type[L] = left.tpe
+      given rightType: Type[R] = right.tpe
+
+      val elem = '{ (singleton: HSingleton[Ior[a, b]]) =>
+        singleton.value.bimap(${left.tidy}, ${right.tidy})
+      }
+      val tpe = Type.of[Ior[L, R]]
+      Chain.one(ElemFunction(elem.asExprOf[A => Ior[L, R]], tpe))
     }
     case '[HSingleton[a]] => {
       val elem = '{ (singleton: HSingleton[a]) => singleton.value }
