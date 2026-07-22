@@ -1,6 +1,7 @@
 package experiments.macros
 
 import cats.data.Chain
+import cats.syntax.all.*
 import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty}
 import scala.quoted.{Expr, Quotes, Type, quotes}
 
@@ -18,6 +19,16 @@ object tidy {
   // TODO: Can this be tail-recursive?
   def elemFunctions[A <: HChain: Type](using Quotes): Chain[ElemFunction[A, ?]] = Type.of[A] match {
     case '[HEmpty] => Chain.nil
+    case '[type a <: HChain; HSingleton[Option[a]]] => {
+      // Needs type annotation otherwise we get a cyclic reference
+      val inner: TidyFunction[a, ?] = tidyFunction[a]
+      val tidy = inner.tidy
+      given tpe: Type[inner.tpe.Underlying] = inner.tpe
+      val elem = '{ (singleton: HSingleton[Option[a]]) =>
+        singleton.value.map($tidy)
+      }
+      Chain.one(ElemFunction(elem.asExprOf[A => Option[tpe.Underlying]], Type.of[Option[tpe.Underlying]]))
+    }
     case '[HSingleton[a]] => {
       val elem = '{ (singleton: HSingleton[a]) => singleton.value }
       Chain.one(ElemFunction(elem.asExprOf[A => a], Type.of[a]))

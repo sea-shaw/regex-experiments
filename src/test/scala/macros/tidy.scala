@@ -37,4 +37,12 @@ class TidyUnitTests extends AnyFlatSpec {
 
     tidy((0 +: false +: HChain.nil) ++ ('a' +: "b" +: HChain.nil)) should equal (0, false, 'a', "b")
   }
+
+  it should "tidy HChain with nested Option of singleton" in {
+    "val x: Option[String] = tidy(HChain.one(Some(HChain.one(\"a\"))))" should compile
+    "val x: Option[Int] = tidy(HChain.one(Some(HChain.one(\"a\"))))" shouldNot typeCheck
+    "val x: Option[HSingleton[String]] = tidy(HChain.one(Some(HChain.one(\"a\"))))" shouldNot typeCheck
+
+    tidy(HChain.one(Some(HChain.one("a")))) should equal (Some("a"))
+  }
 }
