@@ -84,12 +84,12 @@ class TidyUnitTests extends AnyFlatSpec {
 
     """
     val ys: HSingleton[Ior[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]] = HChain.one(IRight(HChain.one("b") ++ HChain.one("c")))
-    val y: Ior[String, (String, String)] = tidy(xs)
+    val y: Ior[String, (String, String)] = tidy(ys)
     """ should compile
 
     """
     val zs: HSingleton[Ior[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]] = HChain.one(IBoth(HChain.one("a"), HChain.one("b") ++ HChain.one("c")))
-    val z: Ior[String, (String, String)] = tidy(xs)
+    val z: Ior[String, (String, String)] = tidy(zs)
     """ should compile
 
     """
@@ -99,12 +99,12 @@ class TidyUnitTests extends AnyFlatSpec {
 
     """
     val ys: HSingleton[Ior[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]] = HChain.one(IRight(HChain.one("b") ++ HChain.one("c")))
-    val y: Ior[(String, String), String] = tidy(xs)
+    val y: Ior[(String, String), String] = tidy(ys)
     """ shouldNot typeCheck
 
     """
     val zs: HSingleton[Ior[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]] = HChain.one(IBoth(HChain.one("a"), HChain.one("b") ++ HChain.one("c")))
-    val z: Ior[(String, String), String] = tidy(xs)
+    val z: Ior[(String, String), String] = tidy(zs)
     """ shouldNot typeCheck
 
     val xs: HSingleton[Ior[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]] = HChain.one(ILeft(HChain.one("a")))
