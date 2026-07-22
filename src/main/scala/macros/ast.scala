@@ -8,7 +8,6 @@ import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
 import scala.quoted.{Expr, Quotes, Type}
-import parsley.templates.PureParserBridge0
 import scala.annotation.tailrec
 
 object ast {
@@ -129,28 +128,41 @@ object ast {
   sealed trait Regex[F[_ <: Rep] <: HChain] {
     def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]]
 
-    def getType(using Quotes): Type[F]
+    val tpe: Type[F]
   }
 
-  sealed trait Match extends Regex[Const[HEmpty]] {
+  type BaseType = Const[HEmpty]
+  sealed trait Base extends Regex[BaseType] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[HEmpty]] = {
       State.pure(empty)
     }
+  }
 
-    override def getType(using Quotes): Type[Const[HEmpty]] = {
-      Type.of[Const[HEmpty]]
+  case class Dot private ()(override val tpe: Type[BaseType]) extends Base
+  object Dot {
+    def apply(using Quotes): Dot = {
+      new Dot()(Type.of[BaseType])
     }
   }
 
-  type Dot = Dot.type
-  case object Dot extends Match with PureParserBridge0[Dot]
-  case class Lit(c: Int) extends Match
-  case class Class(cs: Diet[Int]) extends Match
+  case class Lit private (c: Int)(override val tpe: Type[BaseType]) extends Base
+  object Lit {
+    def apply(c: Int)(using Quotes): Lit = {
+      new Lit(c)(Type.of[BaseType])
+    }
+  }
+
+  case class Class private(cs: Diet[Int])(override val tpe: Type[BaseType]) extends Base
+  object Class {
+    def apply(cs: Diet[Int])(using Quotes): Class = {
+      new Class(cs)(Type.of[BaseType])
+    }
+  }
 
   type CaptureType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HCons[String, F[R]]
-  case class Capture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[CaptureType[F]] {
+  case class Capture[F[_ <: Rep] <: HChain] private (inner: Regex[F])(override val tpe: Type[CaptureType[F]]) extends Regex[CaptureType[F]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CaptureType[F][R]]] = {
-      given Type[F] = inner.getType
+      given Type[F] = inner.tpe
 
       val capture = State { (i: Int) =>
         val idx = Expr(i)
@@ -177,10 +189,12 @@ object ast {
         }
       }
     }
+  }
 
-    override def getType(using Quotes): Type[CaptureType[F]] = {
-      given Type[F] = inner.getType
-      Type.of[CaptureType[F]]
+  object Capture {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Capture[F] = {
+      given Type[F] = inner.tpe
+      new Capture(inner)(Type.of[CaptureType[F]])
     }
   }
 
@@ -189,9 +203,7 @@ object ast {
       inner.sanitiseCode(groups)
     }
 
-    override def getType(using Quotes): Type[F] = {
-      inner.getType
-    }
+    override val tpe: Type[F] = inner.tpe
   }
 
   type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> OptCapture[F[R]] 
@@ -200,9 +212,9 @@ object ast {
     case _      => HSingleton[Option[Tidy[A]]]
   }
 
-  case class Opt[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[OptType[F]] {
+  case class Opt[F[_ <: Rep] <: HChain] private (inner: Regex[F])(override val tpe: Type[OptType[F]]) extends Regex[OptType[F]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[OptType[F][R]]] = {
-      given Type[F] = inner.getType
+      given Type[F] = inner.tpe
 
       val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
         State.pure(liftSanitised(ev)(empty))
@@ -219,18 +231,20 @@ object ast {
 
       sanitised.get
     }
-    override def getType(using Quotes): Type[OptType[F]] = {
-      given Type[F] = inner.getType
+  }
 
-      Type.of[OptType[F]]
+  object Opt {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Opt[F] = {
+      given Type[F] = inner.tpe
+      new Opt(inner)(Type.of[OptType[F]])
     }
   }
 
   type CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> HConcat[F[R], G[R]]
-  case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[CatType[F, G]] {
+  case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val tpe: Type[CatType[F, G]]) extends Regex[CatType[F, G]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CatType[F, G][R]]] = {
-      given Type[F] = left.getType
-      given Type[G] = right.getType
+      given Type[F] = left.tpe
+      given Type[G] = right.tpe
 
       Expr.summon[F[R] =:= CatType[F, G][R]].map { ev =>
         left.sanitiseCode(groups).map(liftSanitised(ev)(_))
@@ -248,12 +262,13 @@ object ast {
         }
       }
     }
+  }
 
-    override def getType(using Quotes): Type[CatType[F, G]] = {
-      given Type[F] = left.getType
-      given Type[G] = right.getType
-
-      Type.of[CatType[F, G]]
+  object Cat {
+    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Cat[F, G] = {
+      given Type[F] = left.tpe
+      given Type[G] = right.tpe
+      new Cat(left, right)(Type.of[CatType[F, G]])
     }
   }
 
@@ -270,10 +285,10 @@ object ast {
   type SingletonEither[A <: HChain, B <: HChain] = SingletonWith[Either, A, B]
   type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[Tidy[A], Tidy[B]]]
 
-  case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G]) extends Regex[AltType[F, G]] {
+  case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val tpe: Type[AltType[F, G]]) extends Regex[AltType[F, G]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[AltType[F, G][R]]] = {
-      given Type[F] = left.getType
-      given Type[G] = right.getType
+      given Type[F] = left.tpe
+      given Type[G] = right.tpe
 
       val sanitised = Expr.summon[HEmpty =:= AltType[F, G][R]].map { ev =>
         State.pure(liftSanitised(ev)(empty))
@@ -304,38 +319,47 @@ object ast {
 
       sanitised.get
     }
+  }
 
-    override def getType(using Quotes): Type[AltType[F, G]] = {
-      given Type[F] = left.getType
-      given Type[G] = right.getType
-
-      Type.of[AltType[F, G]]
+  object Alt {
+    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Alt[F, G] = {
+      given Type[F] = left.tpe
+      given Type[G] = right.tpe
+      new Alt(left, right)(Type.of[AltType[F, G]])
     }
   }
 
+  object Rep0 {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes) = Opt(Rep1(inner))
+  }
+
+  /*
   type Rep0Type[F[_ <: Rep] <: HChain] = OptType[Rep1Type[F]]
-  class Rep0[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep0Type[F]] {
+  class Rep0[F[_ <: Rep] <: HChain] private (inner: Regex[F])(override val tpe: Type[Rep0Type[F]]) extends Regex[Rep0Type[F]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep0Type[F][R]]] = {
       Opt(Rep1(inner)).sanitiseCode(groups)
     }
-
-    override def getType(using Quotes): Type[Rep0Type[F]] = {
-      given Type[F] = inner.getType
-
-      Type.of[Rep0Type[F]]
-    }
   }
 
+  object Rep0 {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep0[F] = {
+      given Type[F] = inner.tpe
+      new Rep0(inner)(Type.of[Rep0Type[F]])
+    }
+  }
+  */
+
   type Rep1Type[F[_ <: Rep] <: HChain] = Const[F[true]]
-  case class Rep1[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[Rep1Type[F]] {
+  case class Rep1[F[_ <: Rep] <: HChain] private (inner: Regex[F])(override val tpe: Type[Rep1Type[F]]) extends Regex[Rep1Type[F]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep1Type[F][R]]] = {
       inner.sanitiseCode(groups)
     }
+  }
 
-    override def getType(using Quotes): Type[Rep1Type[F]] = {
-      given Type[F] = inner.getType
-
-      Type.of[Rep1Type[F]]
+  object Rep1 {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep1[F] = {
+      given Type[F] = inner.tpe
+      new Rep1(inner)(Type.of[Rep1Type[F]])
     }
   }
 
