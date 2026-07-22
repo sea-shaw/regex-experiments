@@ -50,4 +50,13 @@ object tidy {
       case _             => tpe
     }
   }
+
+  transparent inline def tidyHChain[A <: HChain](xs: A) = ${ tidyHChainCode('xs) }
+
+  private def tidyHChainCode[A <: HChain: Type](xs: Expr[A])(using Quotes): Expr[?] = {
+    val tpe = buildTidyType[A]
+    tpe match {
+      case '[a] => '{ Tuple.fromArray($xs.toList.toArray).asInstanceOf[a] }
+    }
+  }
 }
