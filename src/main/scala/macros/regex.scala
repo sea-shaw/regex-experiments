@@ -3,10 +3,10 @@ package experiments.macros
 import experiments.macros.ast.{Regex => RegexAST, Rep}
 import experiments.macros.hcollections.hchain.{HChain, Tidy}
 import experiments.macros.parser
-import scala.quoted.{Expr, Quotes, quotes}
-import scala.quoted.Type
 import java.util.regex.Pattern
 import parsley.{Failure, Success}
+import scala.quoted.{Expr, Quotes, quotes}
+import scala.quoted.Type
 
 object regex {
   sealed trait Regex[A] {

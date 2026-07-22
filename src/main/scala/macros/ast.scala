@@ -1,14 +1,14 @@
 package experiments.macros
 
-import experiments.macros.evidence.{apply, liftCo}
-import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
 import cats.{Applicative, Eval, Functor, Monad, Traverse}
 import cats.collections.Diet
 import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
-import scala.quoted.{Expr, Quotes, Type}
+import experiments.macros.evidence.{apply, liftCo}
+import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
 import scala.annotation.tailrec
+import scala.quoted.{Expr, Quotes, Type}
 
 object ast {
 
