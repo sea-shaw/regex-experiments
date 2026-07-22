@@ -10,18 +10,18 @@ class TidyUnitTests extends AnyFlatSpec {
   behavior of "HChain tidier"
 
   it should "tidy empty HChain type" in {
-    "val x: EmptyTuple = tidy(HChain.nil)" should compile
+    "val x: Unit = tidy(HChain.nil)" should compile
     "val x: Tuple1[Int] = tidy(HChain.nil)" shouldNot typeCheck
 
-    tidy(HChain.nil) should equal (EmptyTuple)
+    tidy(HChain.nil) should equal (())
   }
 
   it should "tidy singleton HChain type" in {
-    "val x: Tuple1[Int] = tidy(HChain.one(0))" should compile
-    "val x: Tuple1[String] = tidy(HChain.one(0))" shouldNot typeCheck
+    "val x: Int = tidy(HChain.one(0))" should compile
+    "val x: String = tidy(HChain.one(0))" shouldNot typeCheck
     "val x: (Int, String) = tidy(HChain.one(0))" shouldNot typeCheck
 
-    tidy(HChain.one(0)) should equal (Tuple1(0))
+    tidy(HChain.one(0)) should equal (0)
   }
 
   it should "tidy append HChain type" in {
