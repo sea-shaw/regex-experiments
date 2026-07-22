@@ -140,7 +140,7 @@ object ast {
 
   case class Dot private ()(override val tpe: Type[BaseType]) extends Base
   object Dot {
-    def apply(using Quotes): Dot = {
+    def apply()(using Quotes): Dot = {
       new Dot()(Type.of[BaseType])
     }
   }
@@ -152,7 +152,7 @@ object ast {
     }
   }
 
-  case class Class private(cs: Diet[Int])(override val tpe: Type[BaseType]) extends Base
+  case class Class private (cs: Diet[Int])(override val tpe: Type[BaseType]) extends Base
   object Class {
     def apply(cs: Diet[Int])(using Quotes): Class = {
       new Class(cs)(Type.of[BaseType])

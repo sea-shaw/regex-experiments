@@ -2,19 +2,19 @@ package experiments.macros
 
 import experiments.macros.ast.{Regex}
 import experiments.macros.bridges.{Alt, Capture, Cat, Dot, Lit, NonCapture, Opt, Rep0, Rep1}
-import parsley.Parsley
+import parsley.{Parsley, Result}
 import parsley.cats.combinator.some
 import parsley.expr.chain
 import parsley.quick.{atomic, eof, noneOf}
 import parsley.syntax.character.{charLift, stringLift}
-import scala.quoted.{Quotes, quotes}
+import scala.quoted.Quotes
 
 object parser {
 
-  def parse(s: String)(using Quotes): Either[String, Regex[?]] = regex.parse(s).toEither.map(_(quotes))
+  def parse(s: String)(using q: Quotes): Result[String, Regex[?]] = regex.parse(s).map(_(using q))
 
   private lazy val regex = expr <~ eof
-  private lazy val expr: Parsley[Quotes => Regex[?]] = chain.right1(term)(Alt from '|')
+  private lazy val expr: Parsley[Quotes ?=> Regex[?]] = chain.right1(term)(Alt from '|')
   private lazy val term = Cat(some(atomWithPostfix))
   private lazy val atomWithPostfix = chain.postfix(atom)(postfixOps)
   private lazy val atom = nonCapture | capture | lit | dot

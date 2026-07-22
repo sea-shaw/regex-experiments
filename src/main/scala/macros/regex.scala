@@ -6,6 +6,7 @@ import experiments.macros.parser
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
 import java.util.regex.Pattern
+import parsley.{Failure, Success}
 
 object regex {
   sealed trait Regex[A] {
@@ -19,8 +20,8 @@ object regex {
       import quotes.reflect.report
       strExpr match {
         case Expr(s) => parser.parse(s) match {
-          case Right(ast) => regexCode(s, ast)
-          case Left(err)  => report.errorAndAbort(err, strExpr)
+          case Success(ast) => regexCode(s, ast)
+          case Failure(err)  => report.errorAndAbort(err, strExpr)
         }
         case _       => report.errorAndAbort("Regex string must be compile-time constant.", strExpr)
       }
