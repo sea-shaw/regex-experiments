@@ -46,10 +46,15 @@ object hchain {
 
   sealed trait HNonEmpty extends HChain
 
-  sealed trait HSingleton[+A] extends HNonEmpty
-  private case class Singleton[+A](x: A) extends HSingleton[A]
+  sealed trait HSingleton[+A] extends HNonEmpty {
+    val value: A
+  }
+  private case class Singleton[+A](value: A) extends HSingleton[A]
 
-  sealed trait HAppend[+A, +B] extends HNonEmpty
+  sealed trait HAppend[+A, +B] extends HNonEmpty {
+    val left: A
+    val right: B
+  }
   private case class Append[+A <: HNonEmpty, +B <: HNonEmpty](left: A, right: B) extends HAppend[A, B]
 
   extension [A <: HChain] (xs: A) {
