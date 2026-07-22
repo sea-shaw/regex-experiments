@@ -17,23 +17,6 @@ object hchain {
     case HNonEmpty => HAppend[HSingleton[A], B]
   }
 
-  type Tidy[A <: HChain] = TidyTuple[ToTuple[A]]
-
-  type TidyTuple[T <: Tuple] = T match {
-    case EmptyTuple => Unit
-    case Tuple1[a]  => a
-    case _          => T
-  }
-
-  type ToTuple[A <: HChain] = Build[A, EmptyTuple]
-
-  // TODO: Remove recusrive match type.
-  type Build[A <: HChain, Acc <: Tuple] <: Tuple = A match {
-    case HEmpty => Acc
-    case HSingleton[a] => a *: Acc
-    case HAppend[a, b] => Build[a, Build[b, Acc]]
-  }
-
   sealed trait HChain {
     def +:[A, B >: this.type <: HChain](x: A): HCons[A, B] = (this: B) match {
       case _: HEmpty             => Singleton(x)
@@ -78,16 +61,6 @@ object hchain {
       }
 
       go(xs, Nil, Nil)
-    }
-
-    // TODO: `ArrayBuilder`? Don't want to use `*:` because it's O(n^2) overall
-    def tidy: Tidy[A] = {
-      val tup = Tuple.fromArray(toList.toArray).asInstanceOf[ToTuple[A]]
-      tup match {
-        case _: EmptyTuple  => ()
-        case tup: Tuple1[_] => tup._1
-        case _: Any         => tup
-      }
     }
   }
 

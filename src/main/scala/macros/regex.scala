@@ -1,12 +1,14 @@
 package experiments.macros
 
 import experiments.macros.ast.{Regex => RegexAST, Rep}
-import experiments.macros.hcollections.hchain.{HChain, Tidy}
+import experiments.macros.hcollections.hchain.HChain
 import experiments.macros.parser
 import java.util.regex.Pattern
 import parsley.{Failure, Success}
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
+import experiments.macros.tidy.tidyFunction
+import experiments.macros.tidy.TidyFunction
 
 object regex {
   sealed trait Regex[A] {
@@ -27,22 +29,27 @@ object regex {
       }
     }
 
-    private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: RegexAST[F])(using Quotes): Expr[Regex[Tidy[F[false]]]] = {      
+    private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: RegexAST[F])(using Quotes): Expr[Regex[?]] = {      
       given Type[F] = ast.tpe
+
+      val tidy: TidyFunction[F[false], ?] = tidyFunction
+
+      type A = tidy.tpe.Underlying
+      given Type[A] = tidy.tpe
 
       val regexStrExpr = Expr(regexStr)
       '{
-        new Regex[Tidy[F[false]]] {
+        new Regex[A] {
           private val pattern: Pattern = Pattern.compile($regexStrExpr)
 
-          override def unapply(s: String): Option[Tidy[F[false]]] = {
+          override def unapply(s: String): Option[A] = {
             val m = pattern.matcher(s)
             if (m.matches()) {
               val groups = Array.tabulate(m.groupCount) {i =>
                 Option(m.group(i + 1))
               }
               val sanitised = ${ ast.sanitiseCode[false]('groups).runA(0).value }
-              sanitised.value.map(_.captures.tidy)
+              sanitised.value.map(s => ${tidy.tidy}(s.captures))
             } else {
               None
             }

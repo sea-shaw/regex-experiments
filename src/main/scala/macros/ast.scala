@@ -6,7 +6,7 @@ import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
 import experiments.macros.evidence.{apply, liftCo}
-import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
+import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton}
 import scala.annotation.tailrec
 import scala.quoted.{Expr, Quotes, Type}
 
@@ -209,7 +209,7 @@ object ast {
   type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> OptCapture[F[R]] 
   type OptCapture[A <: HChain] <: HChain = A match {
     case HEmpty => HEmpty
-    case _      => HSingleton[Option[Tidy[A]]]
+    case _      => HSingleton[Option[A]]
   }
 
   case class Opt[F[_ <: Rep] <: HChain] private (inner: Regex[F])(override val tpe: Type[OptType[F]]) extends Regex[OptType[F]] {
@@ -218,12 +218,12 @@ object ast {
 
       val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
         State.pure(liftSanitised(ev)(empty))
-      } orElse Expr.summon[HSingleton[Option[Tidy[F[R]]]] =:= OptType[F][R]].map { ev =>
+      } orElse Expr.summon[HSingleton[Option[F[R]]] =:= OptType[F][R]].map { ev =>
         inner.sanitiseCode(groups).map { sanitisedInner =>
           liftSanitised(ev) {
             '{
               val innerCaps = $sanitisedInner
-              SanitisedT(Some(innerCaps.value.traverse(_.map(_.tidy)).map(HChain.one)))
+              SanitisedT(Some(innerCaps.value.sequence.map(HChain.one)))
             }
           }
         }
@@ -283,7 +283,7 @@ object ast {
 
   type SingletonIor[A <: HChain, B <: HChain] = SingletonWith[Ior, A, B]
   type SingletonEither[A <: HChain, B <: HChain] = SingletonWith[Either, A, B]
-  type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[Tidy[A], Tidy[B]]]
+  type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[A, B]]
 
   case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val tpe: Type[AltType[F, G]]) extends Regex[AltType[F, G]] {
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[AltType[F, G][R]]] = {
@@ -314,10 +314,10 @@ object ast {
         combineWith(
           ev = ev,
           tidyLeft = '{ (left: SanitisedT[Option, F[R]]) =>
-            left.map(_.tidy.asLeft[Tidy[G[R]]])
+            left.map(_.asLeft[G[R]])
           },
           tidyRight = '{ (right: SanitisedT[Option, G[R]]) =>
-            right.map(_.tidy.asRight[Tidy[F[R]]])
+            right.map(_.asRight[F[R]])
           },
           combine = '{ (left, right) =>
             (left max right).map(HChain.one)
@@ -327,10 +327,10 @@ object ast {
         combineWith(
           ev = ev,
           tidyLeft = '{ (left: SanitisedT[Option, F[R]]) =>
-            left.value.traverse(_.map(_.tidy))
+            left.value.sequence
           },
           tidyRight = '{ (right: SanitisedT[Option, G[R]]) =>
-            right.value.traverse(_.map(_.tidy))
+            right.value.sequence
           },
           combine = '{ (left, right) =>
             SanitisedT((left, right).mapN(Ior.fromOptions).traverse(_.map(HChain.one)))
