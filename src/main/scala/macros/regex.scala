@@ -2,7 +2,7 @@ package experiments.macros
 
 import experiments.macros.ast.{Regex => RegexAST, Rep}
 import experiments.macros.hcollections.hchain.{HChain, Tidy}
-import experiments.macros.parser.Parser
+import experiments.macros.parser
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
 import java.util.regex.Pattern
@@ -17,7 +17,6 @@ object regex {
 
     private def isInlineable(strExpr: Expr[String])(using Quotes): Expr[Regex[?]] = {
       import quotes.reflect.report
-      val parser = Parser()
       strExpr match {
         case Expr(s) => parser.parse(s) match {
           case Right(ast) => regexCode(s, ast)
