@@ -59,4 +59,18 @@ object tidy {
       case '[a] => '{ Tuple.fromArray($xs.toList.toArray).asInstanceOf[a] }
     }
   }
+
+  case class Tidy[A](tidy: Expr[Any] => Expr[Any], tpe: Type[A])
+
+  private def buildTupleType(types: List[Type[?]])(using Quotes): Type[? <: Tuple] = {
+    @tailrec
+    def go[Acc <: Tuple: Type](types: List[Type[?]]): Type[? <: Tuple] = types match {
+      case Nil => Type.of[Acc]
+      case tpe :: types => tpe match {
+        case '[a] => go[a *: Acc](types)
+      }
+    }
+
+    go[EmptyTuple](types)
+  }
 }
