@@ -9,6 +9,7 @@ import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
 import experiments.macros.tidy.tidyFunction
 import experiments.macros.tidy.TidyFunction
+import scala.annotation.unused
 
 object regex {
   sealed trait Regex[A] {
@@ -45,7 +46,7 @@ object regex {
           override def unapply(s: String): Option[A] = {
             val m = pattern.matcher(s)
             if (m.matches()) {
-              val groups = Array.tabulate(m.groupCount) {i =>
+              @unused val groups = Array.tabulate(m.groupCount) {i =>
                 Option(m.group(i + 1))
               }
               val sanitised = ${ ast.sanitiseCode[false]('groups).runA(0).value }
