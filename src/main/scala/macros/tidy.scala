@@ -2,6 +2,7 @@ package experiments.macros
 
 import cats.data.{Chain, Ior}
 import cats.syntax.all.*
+import experiments.macros.evidence.<:<.{apply, liftContra}
 import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty}
 import scala.quoted.{Expr, Quotes, Type, quotes}
 
@@ -17,76 +18,90 @@ object tidy {
   }
 
   // TODO: Can this be tail-recursive?
-  def elemFunctions[A <: HChain: Type](using Quotes): Chain[ElemFunction[A, ?]] = Type.of[A] match {
-    case '[HEmpty] => Chain.nil
-    case '[type a <: HChain; HSingleton[Option[a]]] => {
-      // Needs type annotation otherwise we get a cyclic reference
-      val inner: TidyFunction[a, ?] = tidyFunction[a]
-      val tidy = inner.tidy
+  def elemFunctions[A <: HChain: Type](using Quotes): Chain[ElemFunction[A, ?]] = {
+    val fs: Option[Chain[ElemFunction[A, ?]]] = Type.of[A] match {
+      case '[HEmpty] => Some(Chain.nil)
+      case '[type a <: HChain; HSingleton[Option[a]]] => Expr.summon[A <:< HSingleton[Option[a]]].map { ev =>
+        // Needs type annotation otherwise we get a cyclic reference
+        val inner: TidyFunction[a, ?] = tidyFunction[a]
+        val tidy = inner.tidy
 
-      type B = inner.tpe.Underlying
-      given Type[B] = inner.tpe
+        type B = inner.tpe.Underlying
+        given Type[B] = inner.tpe
 
-      val elem: Expr[HSingleton[Option[a]] => Option[B]] = '{ singleton =>
-        singleton.value.map($tidy)
-      }
-      Chain.one(ElemFunction(elem.asExprOf[A => Option[B]], Type.of[Option[B]]))
-    }
-    case '[type a <: HChain; type b <: HChain; HSingleton[Either[a, b]]] => {
-      val left: TidyFunction[a, ?] = tidyFunction[a]
-      val right: TidyFunction[b, ?] = tidyFunction[b]
-
-      type L = left.tpe.Underlying
-      type R = right.tpe.Underlying 
-      given Type[L] = left.tpe
-      given Type[R] = right.tpe
-
-      val elem: Expr[HSingleton[Either[a, b]] => Either[L, R]] = '{ singleton =>
-        singleton.value.bimap(${left.tidy}, ${right.tidy})
-      }
-      val tpe = Type.of[Either[L, R]]
-      Chain.one(ElemFunction(elem.asExprOf[A => Either[L, R]], tpe))
-    }
-    case '[type a <: HChain; type b <: HChain; HSingleton[Ior[a, b]]] => {
-      val left: TidyFunction[a, ?] = tidyFunction[a]
-      val right: TidyFunction[b, ?] = tidyFunction[b]
-
-      type L = left.tpe.Underlying
-      type R = right.tpe.Underlying
-      given Type[L] = left.tpe
-      given Type[R] = right.tpe
-
-      val elem: Expr[HSingleton[Ior[a, b]] => Ior[L, R]] = '{ singleton =>
-        singleton.value.bimap(${left.tidy}, ${right.tidy})
-      }
-      val tpe = Type.of[Ior[L, R]]
-      Chain.one(ElemFunction(elem.asExprOf[A => Ior[L, R]], tpe))
-    }
-    case '[HSingleton[a]] => {
-      val elem: Expr[HSingleton[a] => a] = '{ _.value }
-      Chain.one(ElemFunction(elem.asExprOf[A => a], Type.of[a]))
-    }
-    case '[type a <: HChain; type b <: HChain; HAppend[a, b]] => {
-      val leftFunctions = elemFunctions[a].map { case ElemFunction(leftElem, tpe) => 
-        type L = tpe.Underlying
-        given Type[L] = tpe
-
-        val elem: Expr[HAppend[a, b] => L] = '{ append =>
-          $leftElem(append.left)
+        val elem = liftFunction(ev) {
+          '{ (singleton: HSingleton[Option[a]]) => singleton.value.map($tidy) }
         }
-        ElemFunction(elem.asExprOf[A => L], tpe)
+        Chain.one(ElemFunction(elem, Type.of[Option[B]]))
       }
-      val rightFunctions = elemFunctions[b].map { case ElemFunction(rightElem, tpe) => 
-        type R = tpe.Underlying
-        given Type[R] = tpe
+      case '[type a <: HChain; type b <: HChain; HSingleton[Either[a, b]]] => Expr.summon[A <:< HSingleton[Either[a, b]]].map { ev =>
+        val left: TidyFunction[a, ?] = tidyFunction[a]
+        val right: TidyFunction[b, ?] = tidyFunction[b]
 
-        val elem: Expr[HAppend[a, b] => R] = '{ append =>
-          $rightElem(append.right)
+        type L = left.tpe.Underlying
+        type R = right.tpe.Underlying 
+        given Type[L] = left.tpe
+        given Type[R] = right.tpe
+
+        val elem = liftFunction(ev) {
+          '{ (singleton: HSingleton[Either[a, b]]) =>
+            singleton.value.bimap(${left.tidy}, ${right.tidy})
+          }
         }
-        ElemFunction(elem.asExprOf[A => R], tpe)
+        val tpe = Type.of[Either[L, R]]
+        Chain.one(ElemFunction(elem, tpe))
       }
-      leftFunctions ++ rightFunctions
+      case '[type a <: HChain; type b <: HChain; HSingleton[Ior[a, b]]] => Expr.summon[A <:< HSingleton[Ior[a, b]]].map { ev =>
+        val left: TidyFunction[a, ?] = tidyFunction[a]
+        val right: TidyFunction[b, ?] = tidyFunction[b]
+
+        type L = left.tpe.Underlying
+        type R = right.tpe.Underlying
+        given Type[L] = left.tpe
+        given Type[R] = right.tpe
+
+        val elem = liftFunction(ev) {
+          '{ (singleton: HSingleton[Ior[a, b]]) =>
+            singleton.value.bimap(${left.tidy}, ${right.tidy})
+          }
+        }
+        val tpe = Type.of[Ior[L, R]]
+        Chain.one(ElemFunction(elem, tpe))
+      }
+      case '[HSingleton[a]] => Expr.summon[A <:< HSingleton[a]].map { ev =>
+        val elem = liftFunction(ev) {
+          '{ (singleton: HSingleton[a]) => singleton.value }
+        }
+        Chain.one(ElemFunction(elem, Type.of[a]))
+      }
+      case '[type a <: HChain; type b <: HChain; HAppend[a, b]] => Expr.summon[A <:< HAppend[a, b]].map { ev =>
+        val leftFunctions = elemFunctions[a].map { case ElemFunction(leftElem, tpe) => 
+          type L = tpe.Underlying
+          given Type[L] = tpe
+
+          val elem = liftFunction(ev) {
+            '{ (append: HAppend[a, b]) => $leftElem(append.left) }
+          }
+          ElemFunction(elem, tpe)
+        }
+        val rightFunctions = elemFunctions[b].map { case ElemFunction(rightElem, tpe) => 
+          type R = tpe.Underlying
+          given Type[R] = tpe
+
+          val elem = liftFunction(ev) {
+            '{ (append: HAppend[a, b]) => $rightElem(append.right) }
+          }
+          ElemFunction(elem, tpe)
+        }
+        leftFunctions ++ rightFunctions
+      }
     }
+
+    fs.get
+  }
+
+  private def liftFunction[A: Type, B: Type, C: Type](ev: Expr[A <:< B])(f: Expr[B => C])(using Quotes): Expr[(A => C)] = {
+    ev.liftContra[[X] =>> (X => C)](f)
   }
 
   def tidyFunction[A <: HChain: Type](using Quotes): TidyFunction[A, ?] = {
