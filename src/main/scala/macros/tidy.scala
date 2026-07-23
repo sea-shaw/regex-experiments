@@ -17,8 +17,64 @@ object tidy {
     Expr.betaReduce('{ $tidy($xs) })
   }
 
+  def tidyFunction[A <: HChain: Type](using Quotes): TidyFunction[A, ?] = {
+    import quotes.reflect.{Position, report}
+
+    val vec = elemFunctions[A].toVector
+    vec match {
+      case Vector() => {
+        val tidy = '{ (_: A) => () }
+        TidyFunction(tidy, Type.of[Unit])
+      }
+      case Vector(ElemFunction(e0, t0)) => {
+        TidyFunction(e0, Type.of[t0.Underlying])
+      }
+      case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1)) => {
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
+
+        val tidy = '{ (xs: A) => ($e0(xs), $e1(xs)) }
+        val tpe = Type.of[(T0, T1)]
+        TidyFunction(tidy, tpe)
+      }
+      case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1), ElemFunction(e2, t2)) => {
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+        type T2 = t2.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
+        given Type[T2] = t2
+
+        val tidy = '{ (xs: A) => ($e0(xs), $e1(xs), $e2(xs)) }
+        val tpe = Type.of[(T0, T1, T2)]
+        TidyFunction(tidy, tpe)
+      }
+      case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1), ElemFunction(e2, t2), ElemFunction(e3, t3)) => {
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+        type T2 = t2.Underlying
+        type T3 = t3.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
+        given Type[T2] = t2
+        given Type[T3] = t3
+
+        val tidy = '{ (xs: A) => ($e0(xs), $e1(xs), $e2(xs), $e3(xs)) }
+        val tpe = Type.of[(T0, T1, T2, T3)]
+        TidyFunction(tidy, tpe)
+      }
+      // TODO: 18 more cases. What about tuples with >22 elements?
+      case _ => report.errorAndAbort(s"Unsupported tuple size ${vec.size}", Position.ofMacroExpansion)
+    }
+  }
+
   // TODO: Can this be tail-recursive?
-  def elemFunctions[A <: HChain: Type](using Quotes): Chain[ElemFunction[A, ?]] = {
+  private def elemFunctions[A <: HChain: Type](using Quotes): Chain[ElemFunction[A, ?]] = {
     val fs: Option[Chain[ElemFunction[A, ?]]] = Type.of[A] match {
       case '[HEmpty] => Some(Chain.nil)
       case '[type a <: HChain; HSingleton[Option[a]]] => Expr.summon[A <:< HSingleton[Option[a]]].map { ev =>
@@ -102,61 +158,5 @@ object tidy {
 
   private def liftFunction[A: Type, B: Type, C: Type](ev: Expr[A <:< B])(f: Expr[B => C])(using Quotes): Expr[(A => C)] = {
     ev.liftContra[[X] =>> (X => C)](f)
-  }
-
-  def tidyFunction[A <: HChain: Type](using Quotes): TidyFunction[A, ?] = {
-    import quotes.reflect.{Position, report}
-
-    val vec = elemFunctions[A].toVector
-    vec match {
-      case Vector() => {
-        val tidy = '{ (_: A) => () }
-        TidyFunction(tidy, Type.of[Unit])
-      }
-      case Vector(ElemFunction(e0, t0)) => {
-        TidyFunction(e0, Type.of[t0.Underlying])
-      }
-      case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1)) => {
-        type T0 = t0.Underlying
-        type T1 = t1.Underlying
-
-        given Type[T0] = t0
-        given Type[T1] = t1
-
-        val tidy = '{ (xs: A) => ($e0(xs), $e1(xs)) }
-        val tpe = Type.of[(T0, T1)]
-        TidyFunction(tidy, tpe)
-      }
-      case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1), ElemFunction(e2, t2)) => {
-        type T0 = t0.Underlying
-        type T1 = t1.Underlying
-        type T2 = t2.Underlying
-
-        given Type[T0] = t0
-        given Type[T1] = t1
-        given Type[T2] = t2
-
-        val tidy = '{ (xs: A) => ($e0(xs), $e1(xs), $e2(xs)) }
-        val tpe = Type.of[(T0, T1, T2)]
-        TidyFunction(tidy, tpe)
-      }
-      case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1), ElemFunction(e2, t2), ElemFunction(e3, t3)) => {
-        type T0 = t0.Underlying
-        type T1 = t1.Underlying
-        type T2 = t2.Underlying
-        type T3 = t3.Underlying
-
-        given Type[T0] = t0
-        given Type[T1] = t1
-        given Type[T2] = t2
-        given Type[T3] = t3
-
-        val tidy = '{ (xs: A) => ($e0(xs), $e1(xs), $e2(xs), $e3(xs)) }
-        val tpe = Type.of[(T0, T1, T2, T3)]
-        TidyFunction(tidy, tpe)
-      }
-      // TODO: 18 more cases. What about tuples with >22 elements?
-      case _ => report.errorAndAbort(s"Unsupported tuple size ${vec.size}", Position.ofMacroExpansion)
-    }
   }
 }
