@@ -50,9 +50,8 @@ object regex {
                 Option(m.group(i + 1))
               }
               val sanitised = ${ ast.sanitiseCode[false]('groups).runA(0).value }
-              sanitised.value match {
-                case Some(Sanitised(captures, _)) => Some(${tidy.tidy('captures)})
-                case None                         => None
+              sanitised.value.map { case Sanitised(captures, _) =>
+                ${ tidy.tidy('captures) }
               }
             } else {
               None

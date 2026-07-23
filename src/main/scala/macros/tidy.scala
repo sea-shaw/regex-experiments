@@ -1,7 +1,7 @@
 package experiments.macros
 
 import cats.data.{Chain, Ior}
-import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
+import cats.syntax.all.*
 import experiments.macros.evidence.<:<.{apply}
 import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty}
 import scala.quoted.{Expr, Quotes, Type, quotes}
@@ -93,12 +93,7 @@ object tidy {
 
         val elem = { (expr: Expr[A]) => (_: Quotes) ?=> 
           val singleton = ev(expr)
-          '{
-            $singleton.value match {
-              case Some(value) => Some(${tidy('value)})
-              case None        => None
-            }
-          }
+          '{ $singleton.value.map(value => ${ tidy('value) }) }
         }
 
         Chain.one(ElemFunction(elem, Type.of[Option[B]]))
@@ -115,10 +110,10 @@ object tidy {
         val elem = { (expr: Expr[A]) => (_: Quotes) ?=>
           val singleton = ev(expr)
           '{
-            $singleton.value match {
-              case Left(value) => Left(${left.tidy('value)})
-              case Right(value) => Right(${right.tidy('value)})
-            }
+            $singleton.value.bimap(
+              value => ${ left.tidy('value) },
+              value => ${ right.tidy('value) }
+            )
           }
         }
 
@@ -136,11 +131,10 @@ object tidy {
         val elem = { (expr: Expr[A]) => (_: Quotes) ?=>
           val singleton = ev(expr)
           '{
-            $singleton.value match {
-              case ILeft(leftValue) => ILeft(${left.tidy('leftValue)})
-              case IRight(rightValue) => IRight(${right.tidy('rightValue)})
-              case IBoth(leftValue, rightValue) => IBoth(${left.tidy('leftValue)}, ${right.tidy('rightValue)})
-            }
+            $singleton.value.bimap(
+              value => ${ left.tidy('value) },
+              value => ${ right.tidy('value) }
+            )
           }
         }
 
