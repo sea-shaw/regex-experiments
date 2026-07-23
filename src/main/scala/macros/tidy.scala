@@ -25,9 +25,9 @@ object tidy {
       val tidy = inner.tidy
 
       type B = inner.tpe.Underlying
-      given tpe: Type[B] = inner.tpe
+      given Type[B] = inner.tpe
 
-      val elem = '{ (singleton: HSingleton[Option[a]]) =>
+      val elem: Expr[HSingleton[Option[a]] => Option[B]] = '{ singleton =>
         singleton.value.map($tidy)
       }
       Chain.one(ElemFunction(elem.asExprOf[A => Option[B]], Type.of[Option[B]]))
@@ -38,10 +38,10 @@ object tidy {
 
       type L = left.tpe.Underlying
       type R = right.tpe.Underlying 
-      given leftType: Type[L] = left.tpe
-      given rightType: Type[R] = right.tpe
+      given Type[L] = left.tpe
+      given Type[R] = right.tpe
 
-      val elem = '{ (singleton: HSingleton[Either[a, b]]) =>
+      val elem: Expr[HSingleton[Either[a, b]] => Either[L, R]] = '{ singleton =>
         singleton.value.bimap(${left.tidy}, ${right.tidy})
       }
       val tpe = Type.of[Either[L, R]]
@@ -53,29 +53,37 @@ object tidy {
 
       type L = left.tpe.Underlying
       type R = right.tpe.Underlying
-      given leftType: Type[L] = left.tpe
-      given rightType: Type[R] = right.tpe
+      given Type[L] = left.tpe
+      given Type[R] = right.tpe
 
-      val elem = '{ (singleton: HSingleton[Ior[a, b]]) =>
+      val elem: Expr[HSingleton[Ior[a, b]] => Ior[L, R]] = '{ singleton =>
         singleton.value.bimap(${left.tidy}, ${right.tidy})
       }
       val tpe = Type.of[Ior[L, R]]
       Chain.one(ElemFunction(elem.asExprOf[A => Ior[L, R]], tpe))
     }
     case '[HSingleton[a]] => {
-      val elem = '{ (singleton: HSingleton[a]) => singleton.value }
+      val elem: Expr[HSingleton[a] => a] = '{ _.value }
       Chain.one(ElemFunction(elem.asExprOf[A => a], Type.of[a]))
     }
     case '[type a <: HChain; type b <: HChain; HAppend[a, b]] => {
       val leftFunctions = elemFunctions[a].map { case ElemFunction(leftElem, tpe) => 
-        given Type[tpe.Underlying] = tpe
-        val elem = '{ (append: HAppend[a, b]) => $leftElem(append.left) }
-        ElemFunction(elem.asExprOf[A => tpe.Underlying], tpe)
+        type L = tpe.Underlying
+        given Type[L] = tpe
+
+        val elem: Expr[HAppend[a, b] => L] = '{ append =>
+          $leftElem(append.left)
+        }
+        ElemFunction(elem.asExprOf[A => L], tpe)
       }
       val rightFunctions = elemFunctions[b].map { case ElemFunction(rightElem, tpe) => 
-        given Type[tpe.Underlying] = tpe
-        val elem = '{ (append: HAppend[a, b]) => $rightElem(append.right) }
-        ElemFunction(elem.asExprOf[A => tpe.Underlying], tpe)
+        type R = tpe.Underlying
+        given Type[R] = tpe
+
+        val elem: Expr[HAppend[a, b] => R] = '{ append =>
+          $rightElem(append.right)
+        }
+        ElemFunction(elem.asExprOf[A => R], tpe)
       }
       leftFunctions ++ rightFunctions
     }
@@ -94,30 +102,42 @@ object tidy {
         TidyFunction(e0, Type.of[t0.Underlying])
       }
       case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1)) => {
-        given tpe0: Type[t0.Underlying] = t0
-        given tpe1: Type[t1.Underlying] = t1
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
 
         val tidy = '{ (xs: A) => ($e0(xs), $e1(xs)) }
-        val tpe = Type.of[(t0.Underlying, t1.Underlying)]
+        val tpe = Type.of[(T0, T1)]
         TidyFunction(tidy, tpe)
       }
       case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1), ElemFunction(e2, t2)) => {
-        given type0: Type[t0.Underlying] = t0
-        given type1: Type[t1.Underlying] = t1
-        given type2: Type[t2.Underlying] = t2
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+        type T2 = t2.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
+        given Type[T2] = t2
 
         val tidy = '{ (xs: A) => ($e0(xs), $e1(xs), $e2(xs)) }
-        val tpe = Type.of[(t0.Underlying, t1.Underlying, t2.Underlying)]
+        val tpe = Type.of[(T0, T1, T2)]
         TidyFunction(tidy, tpe)
       }
       case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1), ElemFunction(e2, t2), ElemFunction(e3, t3)) => {
-        given type0: Type[t0.Underlying] = t0
-        given type1: Type[t1.Underlying] = t1
-        given type2: Type[t2.Underlying] = t2
-        given type3: Type[t3.Underlying] = t3
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+        type T2 = t2.Underlying
+        type T3 = t3.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
+        given Type[T2] = t2
+        given Type[T3] = t3
 
         val tidy = '{ (xs: A) => ($e0(xs), $e1(xs), $e2(xs), $e3(xs)) }
-        val tpe = Type.of[(t0.Underlying, t1.Underlying, t2.Underlying, t3.Underlying)]
+        val tpe = Type.of[(T0, T1, T2, T3)]
         TidyFunction(tidy, tpe)
       }
       // TODO: 18 more cases. What about tuples with >22 elements?
