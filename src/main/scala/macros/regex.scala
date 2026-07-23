@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.ast.{Regex => RegexAST, Rep}
+import experiments.macros.ast.{Regex => RegexAST, Rep, Sanitised}
 import experiments.macros.hcollections.hchain.HChain
 import experiments.macros.parser
 import java.util.regex.Pattern
@@ -50,7 +50,10 @@ object regex {
                 Option(m.group(i + 1))
               }
               val sanitised = ${ ast.sanitiseCode[false]('groups).runA(0).value }
-              sanitised.value.map(s => ${tidy.tidy}(s.captures))
+              sanitised.value match {
+                case Some(Sanitised(captures, _)) => Some(${tidy.tidy('captures)})
+                case None                         => None
+              }
             } else {
               None
             }
