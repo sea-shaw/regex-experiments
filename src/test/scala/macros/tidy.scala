@@ -56,7 +56,7 @@ class TidyUnitTests extends AnyFlatSpec {
 
     """
     val ys: HSingleton[Either[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]] = HChain.one(Right(HChain.one("b") ++ HChain.one("c")))
-    val y: Either[String, (String, String)] = tidy(xs)
+    val y: Either[String, (String, String)] = tidy(ys)
     """ should compile
 
     """
@@ -66,7 +66,7 @@ class TidyUnitTests extends AnyFlatSpec {
 
     """
     val ys: HSingleton[Either[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]] = HChain.one(Right(HChain.one("b") ++ HChain.one("c")))
-    val y: Either[(String, String), String] = tidy(xs)
+    val y: Either[(String, String), String] = tidy(ys)
     """ shouldNot typeCheck
 
     val xs: HSingleton[Either[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]] = HChain.one(Left(HChain.one("a")))
