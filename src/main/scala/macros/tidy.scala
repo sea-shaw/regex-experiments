@@ -3,7 +3,7 @@ package experiments.macros
 import cats.data.{Chain, Ior}
 import cats.syntax.all.*
 import experiments.macros.evidence.<:<.{apply}
-import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty}
+import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty, HNonEmpty}
 import scala.quoted.{Expr, Quotes, Type, quotes}
 import scala.annotation.unused
 
@@ -169,6 +169,83 @@ object tidy {
     }
 
     fs.get
+  }
+
+  transparent inline def tidy2[A <: HChain](xs: A): Any = ${ tidy2Code('xs) }
+
+  case class TypedNode[A <: HNonEmpty](node: Expr[A], tpe: Type[A])
+  case class TypedLeaf[A](leaf: Expr[A], tpe: Type[A])
+
+  private def tidy2Code[A <: HChain: Type](xs: Expr[A])(using Quotes): Expr[?] = Type.of[A] match {
+    case '[HEmpty] => '{ () }
+    case '[HSingleton[a]] => tidyNonEmpty(xs.asExprOf[HSingleton[a]])
+    case '[HAppend[a, b]] => tidyNonEmpty(xs.asExprOf[HAppend[a, b]])
+  }
+
+  private def tidyNonEmpty[A <: HNonEmpty: Type](xs: Expr[A])(using Quotes): Expr[?] = {
+    def go(nodes: List[TypedNode[?]], leaves: List[TypedLeaf[?]])(using Quotes): Expr[?] = nodes match {
+      case Nil     => build(leaves)
+      case TypedNode(node, tpe) :: ns => tpe match {
+        case '[HSingleton[a]] => {
+          val singleton = node.asExprOf[HSingleton[a]]
+          go(ns, TypedLeaf('{ $singleton.value }, Type.of[a]) :: leaves)
+        }
+        case '[type a <: HNonEmpty; type b <: HNonEmpty; HAppend[a, b]] => {
+          val append = node.asExprOf[HAppend[a, b]]
+          '{
+            val left = $append.left
+            val right = $append.right
+            ${ go(TypedNode('{ right }, Type.of[b]) :: TypedNode('{ left }, Type.of[a]) :: ns, leaves) }
+          }
+        }
+      }
+    }
+
+    go(TypedNode(xs, Type.of[A]) :: Nil, Nil)
+  }
+
+  private def build(leaves: List[TypedLeaf[?]])(using Quotes): Expr[?] = {
+    import quotes.reflect.{Position, report}
+    val elems = leaves.toVector
+
+    elems match {
+      case Vector() => '{ () }
+      case Vector(TypedLeaf(e0, _)) => e0
+      case Vector(TypedLeaf(e0, t0), TypedLeaf(e1, t1)) => {
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
+
+        '{ ($e0, $e1) }
+      }
+      case Vector(TypedLeaf(e0, t0), TypedLeaf(e1, t1), TypedLeaf(e2, t2)) => {
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+        type T2 = t2.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
+        given Type[T2] = t2
+
+        '{ ($e0, $e1, $e2) }
+      }
+      case Vector(TypedLeaf(e0, t0), TypedLeaf(e1, t1), TypedLeaf(e2, t2), TypedLeaf(e3, t3)) => {
+        type T0 = t0.Underlying
+        type T1 = t1.Underlying
+        type T2 = t2.Underlying
+        type T3 = t3.Underlying
+
+        given Type[T0] = t0
+        given Type[T1] = t1
+        given Type[T2] = t2
+        given Type[T3] = t3
+
+        '{ ($e0, $e1, $e2, $e3) }
+      }
+      case _ => report.errorAndAbort(s"Unsupported tuple size ${elems.size}", Position.ofMacroExpansion)
+    }
   }
 }
 
