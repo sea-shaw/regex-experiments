@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import experiments.macros.evidence.<:<.{apply}
 import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty}
 import scala.quoted.{Expr, Quotes, Type, quotes}
+import scala.annotation.unused
 
 object tidy {
   class ElemFunction[A <: HChain, B](val elem: Expr[A] => Quotes ?=> Expr[B], val tpe: Type[B])
@@ -18,7 +19,7 @@ object tidy {
 
   transparent inline def tidy[A <: HChain](xs: A) = ${ tidyCode('xs) }
 
-  private def tidyCode[A <: HChain: Type](xs: Expr[A]): Quotes ?=> Expr[?] = {
+  private def tidyCode[A <: HChain: Type](xs: Expr[A])(using Quotes): Expr[?] = {
     tidyFunction[A].tidy(xs)
   }
 
@@ -28,11 +29,11 @@ object tidy {
     val vec = elemFunctions[A].toVector
     vec match {
       case Vector() => {
-        val tidy = (_: Expr[A]) => (_: Quotes) ?=> '{ () }
+        def tidy(@unused expr: Expr[A])(using Quotes) = '{ () }
         TidyFunction(tidy, Type.of[Unit])
       }
       case Vector(ElemFunction(e0, t0)) => {
-        val tidy = (xs: Expr[A]) => (_: Quotes) ?=> e0(xs)
+        def tidy(xs: Expr[A])(using Quotes) = e0(xs)
         TidyFunction(tidy, Type.of[t0.Underlying])
       }
       case Vector(ElemFunction(e0, t0), ElemFunction(e1, t1)) => {
@@ -42,7 +43,7 @@ object tidy {
         given Type[T0] = t0
         given Type[T1] = t1
 
-        val tidy = (xs: Expr[A]) => (_: Quotes) ?=> '{ (${e0(xs)}, ${e1(xs)}) }
+        def tidy(xs: Expr[A])(using Quotes) = '{ (${e0(xs)}, ${e1(xs)}) }
         val tpe = Type.of[(T0, T1)]
         TidyFunction(tidy, tpe)
       }
@@ -55,7 +56,7 @@ object tidy {
         given Type[T1] = t1
         given Type[T2] = t2
 
-        val tidy = (xs: Expr[A]) => (_: Quotes) ?=> '{ (${e0(xs)}, ${e1(xs)}, ${e2(xs)}) }
+        def tidy(xs: Expr[A])(using Quotes) = '{ (${e0(xs)}, ${e1(xs)}, ${e2(xs)}) }
         val tpe = Type.of[(T0, T1, T2)]
         TidyFunction(tidy, tpe)
       }
@@ -70,7 +71,7 @@ object tidy {
         given Type[T2] = t2
         given Type[T3] = t3
 
-        val tidy = (xs: Expr[A]) => (_: Quotes) ?=> '{ (${e0(xs)}, ${e1(xs)}, ${e2(xs)}, ${e3(xs)}) }
+        def tidy(xs: Expr[A])(using Quotes) = '{ (${e0(xs)}, ${e1(xs)}, ${e2(xs)}, ${e3(xs)}) }
         val tpe = Type.of[(T0, T1, T2, T3)]
         TidyFunction(tidy, tpe)
       }
@@ -91,7 +92,7 @@ object tidy {
         type B = inner.tpe.Underlying
         given Type[B] = inner.tpe
 
-        val elem = { (expr: Expr[A]) => (_: Quotes) ?=> 
+        def elem(expr: Expr[A])(using Quotes) = { 
           val singleton = ev(expr)
           '{ $singleton.value.map(value => ${ tidy('value) }) }
         }
@@ -107,7 +108,7 @@ object tidy {
         given Type[L] = left.tpe
         given Type[R] = right.tpe
 
-        val elem = { (expr: Expr[A]) => (_: Quotes) ?=>
+        def elem(expr: Expr[A])(using Quotes) = {
           val singleton = ev(expr)
           '{
             $singleton.value.bimap(
@@ -128,7 +129,7 @@ object tidy {
         given Type[L] = left.tpe
         given Type[R] = right.tpe
 
-        val elem = { (expr: Expr[A]) => (_: Quotes) ?=>
+        def elem(expr: Expr[A])(using Quotes) = {
           val singleton = ev(expr)
           '{
             $singleton.value.bimap(
@@ -142,7 +143,7 @@ object tidy {
         Chain.one(ElemFunction(elem, tpe))
       }
       case '[HSingleton[a]] => Expr.summon[A <:< HSingleton[a]].map { ev =>
-        val elem = { (expr: Expr[A]) => (_: Quotes) ?=>
+        def elem(expr: Expr[A])(using Quotes) = {
           val singleton = ev(expr)
           '{ $singleton.value }
         }
@@ -150,14 +151,14 @@ object tidy {
       }
       case '[type a <: HChain; type b <: HChain; HAppend[a, b]] => Expr.summon[A <:< HAppend[a, b]].map { ev =>
         val leftFunctions = elemFunctions[a].map { case ElemFunction(leftElem, tpe) => 
-          val elem = { (expr: Expr[A]) => (_: Quotes) ?=>
+          def elem(expr: Expr[A])(using Quotes) = {
             val append = ev(expr)
             leftElem('{ $append.left })
           }
           ElemFunction(elem, tpe)
         }
         val rightFunctions = elemFunctions[b].map { case ElemFunction(rightElem, tpe) => 
-          val elem = { (expr: Expr[A]) => (_: Quotes) ?=>
+          def elem(expr: Expr[A])(using Quotes) = {
             val append = ev(expr)
             rightElem('{ $append.right })
           }
@@ -170,3 +171,4 @@ object tidy {
     fs.get
   }
 }
+
