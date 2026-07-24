@@ -7,7 +7,13 @@ object tidy {
   class TidyFunction[A <: HChain, B](val tidy: Expr[A] => Quotes ?=> Expr[B], val tpe: Type[B])
 
   def tidyFunction[A <: HChain: Type](using Quotes): TidyFunction[A, ?] = {
-    ???
+    val typed: Typed[?] = tidyType[A]
+    type B = typed.tpe.Underlying
+    given Type[B] = typed.tpe
+
+    def tidy(xs: Expr[A])(using Quotes): Expr[B] = tidyCode[A](xs).asExprOf[B]
+
+    TidyFunction(tidy, typed.tpe)
   }
 
   transparent inline def tidy[A <: HChain](xs: A) = ${ tidyCode('xs) }
@@ -81,5 +87,54 @@ object tidy {
 
     go(TypedExpr(xs, Type.of[A]) :: Nil, Nil)
   }
-}
 
+  case class Typed[A: Type](tpe: Type[A])
+  object Typed {
+    def of[A: Type](using Quotes) = Typed(Type.of[A])
+  }
+
+  def tidyType[A <: HChain: Type](using Quotes): Typed[?] = {
+
+    def go(nodes: List[Typed[? <: HChain]], leaves: List[Typed[?]])(using Quotes): Typed[?] = nodes match {
+      case Nil => build(leaves)
+      case node :: nodes => node.tpe match {
+        case '[HEmpty] => go(nodes, leaves)
+        case '[HSingleton[a]] => go(nodes, Typed.of[a] :: leaves)
+        case '[type a <: HChain; type b <: HChain; HAppend[a, b]] => {
+          go(Typed.of[b] :: Typed.of[a] :: nodes, leaves)
+        }
+      }
+    }
+
+    def build(leaves: List[Typed[?]])(using Quotes): Typed[?] = {
+      import quotes.reflect.{Position, report}
+
+      val types = leaves.toVector
+      types match {
+        case Vector() => Typed.of[Unit]
+        case Vector(t0) => t0
+        case Vector(Typed(t0), Typed(t1)) => {
+          type T0 = t0.Underlying
+          type T1 = t1.Underlying
+          Typed.of[(T0, T1)]
+        }
+        case Vector(Typed(t0), Typed(t1), Typed(t2)) => {
+          type T0 = t0.Underlying
+          type T1 = t1.Underlying
+          type T2 = t2.Underlying
+          Typed.of[(T0, T1, T2)]
+        }
+        case Vector(Typed(t0), Typed(t1), Typed(t2), Typed(t3)) => {
+          type T0 = t0.Underlying
+          type T1 = t1.Underlying
+          type T2 = t2.Underlying
+          type T3 = t3.Underlying
+          Typed.of[(T0, T1, T2, T3)]
+        }
+        case _ => report.errorAndAbort(s"Unsupported tuple size ${types.size}", Position.ofMacroExpansion)
+      }
+    }
+
+    go(Typed(Type.of[A]) :: Nil, Nil)
+  }
+}
