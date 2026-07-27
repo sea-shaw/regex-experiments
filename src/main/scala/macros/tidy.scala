@@ -29,17 +29,17 @@ object tidy {
 
   def tidyFunction[A <: HChain: Type](using Quotes): TidyFunction[A, ?] = {
 
-    case class Tidy[-N <: Nodes, -L <: Leaves, B](tidy: (N, L) => Quotes ?=> Expr[B], tpe: Type[B])
+    case class Flatten[-N <: Nodes, -L <: Leaves, B](flatten: (N, L) => Quotes ?=> Expr[B], tpe: Type[B])
     case class Build[-L <: Leaves, B](build: L => Quotes ?=> Expr[B], tpe: Type[B])
 
-    def go[N <: Nodes: Type, L <: Leaves: Type](using Quotes): Tidy[N, L, ?] = Type.of[N] match {
+    def flatten[N <: Nodes: Type, L <: Leaves: Type](using Quotes): Flatten[N, L, ?] = Type.of[N] match {
       case '[NNil] => {
         val build = buildFunction[L]
         type B = build.tpe.Underlying
         def tidy(@unused nodes: N, leaves: L)(using Quotes): Expr[B] = {
           build.build(leaves)
         }
-        Tidy(tidy, build.tpe)
+        Flatten(tidy, build.tpe)
       }
       case '[NCons[n, ns]] => Type.of[n] match {
         case '[type b <: HChain; HSingleton[Option[b]]] => {
@@ -47,16 +47,16 @@ object tidy {
           type B = inner.tpe.Underlying
           given Type[B] = inner.tpe
 
-          val next = go[ns, LCons[Option[B], L]]
+          val next = flatten[ns, LCons[Option[B], L]]
           type C = next.tpe.Underlying
 
           def tidy(nodes: N, leaves: L)(using Quotes): Expr[C] = {
             // TODO
             val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[Option[b]], ns]]
-            next.tidy(tail, LCons('{ $node.value.map(x => ${ inner.tidy('x) }) }, leaves))
+            next.flatten(tail, LCons('{ $node.value.map(x => ${ inner.tidy('x) }) }, leaves))
           }
 
-          Tidy(tidy, next.tpe)
+          Flatten(tidy, next.tpe)
         }
         case '[type b <: HChain; type c <: HChain; HSingleton[Either[b, c]]] => {
           val left: TidyFunction[b, ?] = tidyFunction[b]
@@ -67,16 +67,16 @@ object tidy {
           type C = right.tpe.Underlying
           given Type[C] = right.tpe
 
-          val next = go[ns, LCons[Either[B, C], L]]
+          val next = flatten[ns, LCons[Either[B, C], L]]
           type D = next.tpe.Underlying
 
           def tidy(nodes: N, leaves: L)(using Quotes): Expr[D] = {
             // TODO
             val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[Either[b, c]], ns]]
-            next.tidy(tail, LCons('{ $node.value.bimap(x => ${ left.tidy('x) }, x => ${ right.tidy('x) }) }, leaves))
+            next.flatten(tail, LCons('{ $node.value.bimap(x => ${ left.tidy('x) }, x => ${ right.tidy('x) }) }, leaves))
           }
 
-          Tidy(tidy, next.tpe)
+          Flatten(tidy, next.tpe)
         }
         case '[type b <: HChain; type c <: HChain; HSingleton[Ior[b, c]]] => {
           val left: TidyFunction[b, ?] = tidyFunction[b]
@@ -87,29 +87,29 @@ object tidy {
           type C = right.tpe.Underlying
           given Type[C] = right.tpe
 
-          val next = go[ns, LCons[Ior[B, C], L]]
+          val next = flatten[ns, LCons[Ior[B, C], L]]
           type D = next.tpe.Underlying
 
           def tidy(nodes: N, leaves: L)(using Quotes): Expr[D] = {
             // TODO
             val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[Ior[b, c]], ns]]
-            next.tidy(tail, LCons('{ $node.value.bimap(x => ${ left.tidy('x) }, x => ${ right.tidy('x) }) }, leaves))
+            next.flatten(tail, LCons('{ $node.value.bimap(x => ${ left.tidy('x) }, x => ${ right.tidy('x) }) }, leaves))
           }
 
-          Tidy(tidy, next.tpe)
+          Flatten(tidy, next.tpe)
         }
         case '[HSingleton[a]] => {
-          val next = go[ns, LCons[a, L]]
+          val next = flatten[ns, LCons[a, L]]
           type B = next.tpe.Underlying
           def tidy(nodes: N, leaves: L)(using Quotes): Expr[B] = {
             // TODO: Ewwwwww
             val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[a], ns]]
-            next.tidy(tail, LCons('{ $node.value }, leaves))
+            next.flatten(tail, LCons('{ $node.value }, leaves))
           }
-          Tidy(tidy, next.tpe)
+          Flatten(tidy, next.tpe)
         }
         case '[type a <: HNonEmpty; type b <: HNonEmpty; HAppend[a, b]] => {
-          val next: Tidy[NCons[b, NCons[a, ns]], L, ?] = go[NCons[b, NCons[a, ns]], L]
+          val next: Flatten[NCons[b, NCons[a, ns]], L, ?] = flatten[NCons[b, NCons[a, ns]], L]
           type B = next.tpe.Underlying
           given Type[B] = next.tpe
           def tidy(nodes: N, leaves: L)(using Quotes): Expr[B] = {
@@ -118,10 +118,10 @@ object tidy {
             '{
               val left = $node.left
               val right = $node.right
-              ${ next.tidy(NCons('{ right }, NCons('{left}, tail)), leaves) }
+              ${ next.flatten(NCons('{ right }, NCons('{left}, tail)), leaves) }
             }
           }
-          Tidy(tidy, next.tpe)
+          Flatten(tidy, next.tpe)
         }
       }
     }
@@ -165,8 +165,8 @@ object tidy {
     Type.of[A] match {
       case '[HEmpty] => TidyFunction[A, Unit](_ => _ ?=> '{ () }, Type.of[Unit])
       case '[type a <: HNonEmpty; a] => {
-        val tidyFunction = go[NCons[a, NNil], LNil]
-        TidyFunction(xs => _ ?=> tidyFunction.tidy(NCons(xs.asExprOf[a], NNil), LNil), tidyFunction.tpe)
+        val tidyFunction = flatten[NCons[a, NNil], LNil]
+        TidyFunction(xs => _ ?=> tidyFunction.flatten(NCons(xs.asExprOf[a], NNil), LNil), tidyFunction.tpe)
       }
     }
   }
