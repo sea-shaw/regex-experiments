@@ -33,7 +33,7 @@ object regex {
     private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: RegexAST[F])(using Quotes): Expr[Regex[?]] = {      
       given Type[F] = ast.tpe
 
-      val tidy: TidyFunction[F[false], ?] = tidyFunction
+      val tidy: TidyFunction[F[false], ?] = tidyFunction[F[false]]
 
       type A = tidy.tpe.Underlying
       given Type[A] = tidy.tpe
@@ -51,7 +51,7 @@ object regex {
               }
               val sanitised = ${ ast.sanitiseCode[false]('groups).runA(0).value }
               sanitised.value.map { case Sanitised(captures, _) =>
-                ${ tidy.tidy('captures) }
+                ${ tidy('captures) }
               }
             } else {
               None
