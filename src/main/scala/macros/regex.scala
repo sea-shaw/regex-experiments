@@ -1,6 +1,7 @@
 package experiments.macros
 
-import experiments.macros.ast.{Regex => RegexAST, Rep}
+import experiments.macros.ast.Rep
+import experiments.macros.ast.Catnip.{Regex => RegexAST}
 import experiments.macros.hcollections.hchain.{HChain, Tidy}
 import experiments.macros.parser
 import java.util.regex.Pattern
