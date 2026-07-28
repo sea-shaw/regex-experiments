@@ -14,15 +14,11 @@ object bridges {
   type ToRegex = (ast: AST, q: Quotes) ?=> ast.Regex[?]
 
   object Alt extends PureParserBridge2[ToRegex, ToRegex, ToRegex] {
-    override def apply(left: ToRegex, right: ToRegex): ToRegex = {
-      ast.Alt(left, right)
-    }
+    override def apply(left: ToRegex, right: ToRegex): ToRegex = ast.Alt(left, right)
   }
 
   object Capture extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = {
-      ast.Capture(inner)
-    }
+    override def apply(inner: ToRegex): ToRegex = ast.Capture(inner)
   }
 
   object Cat extends PureParserBridge1[NonEmptyList[ToRegex], ToRegex] {
@@ -33,45 +29,31 @@ object bridges {
   }
 
   object Dot extends ParserSingletonBridge[ToRegex] {
-    override protected def singleton: Parsley[ToRegex] = pure {
-      ast.Dot()
-    }
+    override protected def singleton: Parsley[ToRegex] = pure(ast.Dot())
   }
 
   object Lit extends PureParserBridge1[Int, ToRegex] {
-    override def apply(c: Int): ToRegex = {
-      ast.Lit(c)
-    }
+    override def apply(c: Int): ToRegex = ast.Lit(c)
   }
 
   object Class extends PureParserBridge1[Diet[Int], ToRegex] {
-    override def apply(cs: Diet[Int]): ToRegex = {
-      ast.Class(cs)
-    }
+    override def apply(cs: Diet[Int]): ToRegex = ast.Class(cs)
   }
 
   object NonCapture extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = {
-      ast.NonCapture(inner)
-    }
+    override def apply(inner: ToRegex): ToRegex = ast.NonCapture(inner)
   }
 
   object Opt extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = {
-      ast.Opt(inner)
-    }
+    override def apply(inner: ToRegex): ToRegex = ast.Opt(inner)
   }
 
   object Rep0 extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = {
-      ast.Rep0(inner)
-    }
+    override def apply(inner: ToRegex): ToRegex = ast.Rep0(inner)
   }
 
   object Rep1 extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = {
-      ast.Rep1(inner)
-    }
+    override def apply(inner: ToRegex): ToRegex = ast.Rep1(inner)
   }
 
   private def ast(using ast: AST): ast.type = ast
