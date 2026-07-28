@@ -11,7 +11,7 @@ import scala.quoted.Quotes
 
 object parser {
 
-  def parse(s: String, ast: AST)(using q: Quotes): Result[String, ast.Regex[?]] = regex.parse(s).map(_(ast)(using q))
+  def parse(s: String, ast: AST)(using q: Quotes): Result[String, ast.Regex[?]] = regex.parse(s).map(_(using ast, q))
 
   private lazy val regex = expr <~ eof
   private lazy val expr: Parsley[ToRegex] = chain.right1(term)(Alt from '|')
