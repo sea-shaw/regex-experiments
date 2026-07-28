@@ -3,7 +3,6 @@ package experiments.macros
 import cats.data.Ior
 import cats.syntax.all.*
 import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty, HNonEmpty}
-import scala.annotation.unused
 import scala.quoted.{Expr, Quotes, Type}
 
 object tidy {
@@ -49,16 +48,17 @@ object tidy {
       }
       case '[NCons[n, ns]] => Type.of[n] match {
         case '[type b <: HChain; HSingleton[Option[b]]] => {
-          val inner: TidyFunction[b, ?] = tidyFunction[b]
-          type B = inner.tpe.Underlying
-          given Type[B] = inner.tpe
+          val tidy: TidyFunction[b, ?] = tidyFunction[b]
+          type B = tidy.tpe.Underlying
+          given Type[B] = tidy.tpe
 
           val flatten = flattenFunction[ns, LCons[Option[B], L]]
           new FlattenFunction[N, L, flatten.tpe.Underlying](flatten.tpe) {
             override def apply(nodes: N, leaves: L)(using Quotes) = {
               // TODO
               val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[Option[b]], ns]]
-              flatten(tail, LCons('{ $node.value.map(x => ${ inner('x) }) }, leaves))
+              val expr = '{ $node.value.map(value => ${ tidy('value) }) }
+              flatten(tail, LCons(expr, leaves))
             }
           }
         }
@@ -77,7 +77,8 @@ object tidy {
             override def apply(nodes: N, leaves: L)(using Quotes) = {
               // TODO
               val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[Either[b, c]], ns]]
-              flatten(tail, LCons('{ $node.value.bimap(x => ${ left('x) }, x => ${ right('x) }) }, leaves))
+              val expr = '{ $node.value.bimap(value => ${ left('value) }, value => ${ right('value) }) }
+              flatten(tail, LCons(expr, leaves))
             }
           }
         }
@@ -96,7 +97,8 @@ object tidy {
             override def apply(nodes: N, leaves: L)(using Quotes) = {
               // TODO
               val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[Ior[b, c]], ns]]
-              flatten(tail, LCons('{ $node.value.bimap(x => ${ left('x) }, x => ${ right('x) }) }, leaves))
+              val expr = '{ $node.value.bimap(value => ${ left('value) }, value => ${ right('value) }) }
+              flatten(tail, LCons(expr, leaves))
             }
           }
         }
@@ -132,7 +134,7 @@ object tidy {
     def buildFunction[L <: Leaves: Type](using Quotes): BuildFunction[L, ?] = Type.of[L] match {
       case '[LNil] => {
         new BuildFunction[L, Unit] {
-          override def apply(@unused leaves: L)(using Quotes): Expr[Unit] = '{ () }
+          override def apply(leaves: L)(using Quotes): Expr[Unit] = '{ () }
         }
       }
       case '[LCons[t0, LNil]] => {
