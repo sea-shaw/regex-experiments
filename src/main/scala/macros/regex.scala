@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.ast.{Regex => RegexAST, Rep}
+import experiments.macros.ast.{AltRep, AltRepIor, Regex => RegexAST, Rep}
 import experiments.macros.hcollections.hchain.{HChain, Tidy}
 import experiments.macros.parser
 import java.util.regex.Pattern
@@ -18,6 +18,7 @@ object regex {
 
     private def isInlineable(strExpr: Expr[String])(using Quotes): Expr[Regex[?]] = {
       import quotes.reflect.report
+      given AltRep[?] = AltRepIor
       strExpr match {
         case Expr(s) => parser.parse(s) match {
           case Success(ast) => regexCode(s, ast)

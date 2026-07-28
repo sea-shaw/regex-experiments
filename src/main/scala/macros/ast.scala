@@ -270,27 +270,65 @@ object ast {
     }
   }
 
-  type AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> AltCapture[F[R], G[R], R]
-  type AltCapture[A <: HChain, B <: HChain, R <: Rep] <: HChain = (A, B) match {
+  sealed trait AltRep[F[+_, +_]] {
+    def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[F[A, B]]]
+    def bimap[A, B, C, D](f: A => C, g: B => D)(x: F[A, B]): F[C, D]
+    def tpe(using Quotes): Type[F]
+  }
+
+  object AltRep {
+    def apply[F[+_, +_]](using altRep: AltRep[F]): AltRep[F] = altRep
+  }
+
+  object AltRepIor extends AltRep[Ior] {
+    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[Ior[A, B]]] = {
+      '{ Ior.fromOptions($left, $right) }
+    }
+
+    override def bimap[A, B, C, D](f: A => C, g: B => D)(x: Ior[A, B]): Ior[C, D] = x.bimap(f, g)
+
+    override def tpe(using Quotes): Type[Ior] = Type.of[Ior]
+  }
+
+  type RepEither[+A, +B] = Either[(A, B), Either[A, B]]
+  object AltRepEither extends AltRep[RepEither] {
+    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[RepEither[A, B]]] = {
+      '{
+        ($left, $right) match {
+          case (Some(a), Some(b)) => Some(Left(a, b))
+          case (Some(a), None)    => Some(Right(Left(a)))
+          case (None, Some(b))    => Some(Right(Right(b)))
+          case (None, None)       => None
+        }
+      }
+    }
+
+    override def bimap[A, B, C, D](f: A => C, g: B => D)(x: RepEither[A, B]): RepEither[C, D] = x.bimap(_.bimap(f, g), _.bimap(f, g))
+  
+    override def tpe(using Quotes): Type[RepEither] = Type.of[RepEither]
+  }
+
+  type AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[+_, +_]] = [R <: Rep] =>> AltCapture[F[R], G[R], H, R]
+  type AltCapture[A <: HChain, B <: HChain, H[+_, +_], R <: Rep] <: HChain = (A, B) match {
     case (HEmpty, HEmpty) => HEmpty
     case _                => R match {
-      case true  => SingletonIor[A, B]
+      case true  => SingletonWith[H, A, B]
       case false => SingletonEither[A, B]
     }
   }
 
-  type SingletonIor[A <: HChain, B <: HChain] = SingletonWith[Ior, A, B]
   type SingletonEither[A <: HChain, B <: HChain] = SingletonWith[Either, A, B]
-  type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[Tidy[A], Tidy[B]]]
+  type SingletonWith[F[+_, +_], A <: HChain, B <: HChain] = HSingleton[F[Tidy[A], Tidy[B]]]
 
-  case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val tpe: Type[AltType[F, G]]) extends Regex[AltType[F, G]] {
-    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[AltType[F, G][R]]] = {
+  case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[+_, +_]: AltRep] private (left: Regex[F], right: Regex[G])(override val tpe: Type[AltType[F, G, H]]) extends Regex[AltType[F, G, H]] {
+    override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[AltType[F, G, H][R]]] = {
       given Type[F] = left.tpe
       given Type[G] = right.tpe
+      given Type[H] = AltRep[H].tpe
 
-      val sanitised = Expr.summon[HEmpty =:= AltType[F, G][R]].map { ev =>
+      val sanitised = Expr.summon[HEmpty =:= AltType[F, G, H][R]].map { ev =>
         State.pure(liftSanitised(ev)(empty))
-      } orElse Expr.summon[SingletonEither[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
+      } orElse Expr.summon[SingletonEither[F[R], G[R]] =:= AltType[F, G, H][R]].map { ev =>
         (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
           liftSanitised(ev) {
             '{
@@ -300,13 +338,14 @@ object ast {
             }
           }
         }
-      } orElse Expr.summon[SingletonIor[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
+      } orElse Expr.summon[SingletonWith[H, F[R], G[R]] =:= AltType[F, G, H][R]].map { ev =>
+
         (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
           liftSanitised(ev) {
             '{
               val left = $sanitisedLeft.value.traverse(_.map(_.tidy))
               val right = $sanitisedRight.value.traverse(_.map(_.tidy))
-              val caps = (left, right).mapN(Ior.fromOptions)
+              val caps = (left, right).mapN((l, r) => ${ AltRep[H].fromOptions('l, 'r) })
               SanitisedT(caps.traverse(_.map(HChain.one)))
             }
           }
@@ -318,10 +357,11 @@ object ast {
   }
 
   object Alt {
-    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Alt[F, G] = {
+    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[+_, +_]: AltRep](left: Regex[F], right: Regex[G])(using Quotes): Alt[F, G, H] = {
       given Type[F] = left.tpe
       given Type[G] = right.tpe
-      new Alt(left, right)(Type.of[AltType[F, G]])
+      given Type[H] = AltRep[H].tpe
+      new Alt(left, right)(Type.of[AltType[F, G, H]])
     }
   }
 
