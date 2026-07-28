@@ -178,14 +178,13 @@ object ast {
       Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
         capture.map(liftSanitised(ev)(_))
       } getOrElse {
-        for {
-          sanitisedCapture <- capture
-          sanitisedInner <- inner.sanitiseCode(groups)
-        } yield '{
-          for {
-            capture <- $sanitisedCapture
-            inner <- $sanitisedInner
-          } yield capture ++ inner
+        (capture, inner.sanitiseCode(groups)).mapN { case (sanitisedCapture, sanitisedInner) =>
+          '{
+            for {
+              capture <- $sanitisedCapture
+              inner <- $sanitisedInner
+            } yield capture ++ inner
+          }
         }
       }
     }
@@ -251,14 +250,13 @@ object ast {
       } orElse Expr.summon[G[R] =:= CatType[F, G][R]].map { ev =>
         right.sanitiseCode(groups).map(liftSanitised(ev)(_))
       } getOrElse {
-        for {
-          sanitisedLeft <- left.sanitiseCode(groups)
-          sanitisedRight <- right.sanitiseCode(groups)
-        } yield '{
-          for {
-            left <- $sanitisedLeft
-            right <- $sanitisedRight
-          } yield left ++ right
+        (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
+          '{
+            for {
+              left <- $sanitisedLeft
+              right <- $sanitisedRight
+            } yield left ++ right
+          }
         }
       }
     }
@@ -290,52 +288,29 @@ object ast {
       given Type[F] = left.tpe
       given Type[G] = right.tpe
 
-      def combineWith[H[_ <: HChain, _ <: HChain] <: HChain: Type, P: Type, Q: Type](
-        ev: Expr[H[F[R], G[R]] =:= AltType[F, G][R]],
-        tidyLeft: Expr[SanitisedT[Option, F[R]] => P],
-        tidyRight: Expr[SanitisedT[Option, G[R]] => Q],
-        combine: Expr[(P, Q) => SanitisedT[Option, H[F[R], G[R]]]]
-      ): State[Int, SanitiseExpr[AltType[F, G][R]]] = {
-        for {
-          sanitisedLeft <- left.sanitiseCode(groups)
-          sanitisedRight <- right.sanitiseCode(groups)
-        } yield liftSanitised(ev) {
-          '{
-            val left = $tidyLeft($sanitisedLeft)
-            val right = $tidyRight($sanitisedRight)
-            $combine(left, right)
-          }
-        }
-      }
-
       val sanitised = Expr.summon[HEmpty =:= AltType[F, G][R]].map { ev =>
         State.pure(liftSanitised(ev)(empty))
       } orElse Expr.summon[SingletonEither[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        combineWith(
-          ev = ev,
-          tidyLeft = '{ (left: SanitisedT[Option, F[R]]) =>
-            left.map(_.asLeft[G[R]])
-          },
-          tidyRight = '{ (right: SanitisedT[Option, G[R]]) =>
-            right.map(_.asRight[F[R]])
-          },
-          combine = '{ (left, right) =>
-            (left max right).map(HChain.one)
+        (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
+          liftSanitised(ev) {
+            '{
+              val left = $sanitisedLeft.map(_.asLeft[G[R]])
+              val right = $sanitisedRight.map(_.asRight[F[R]])
+              (left max right).map(HChain.one)
+            }
           }
-        )
+        }
       } orElse Expr.summon[SingletonIor[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        combineWith(
-          ev = ev,
-          tidyLeft = '{ (left: SanitisedT[Option, F[R]]) =>
-            left.value.sequence
-          },
-          tidyRight = '{ (right: SanitisedT[Option, G[R]]) =>
-            right.value.sequence
-          },
-          combine = '{ (left, right) =>
-            SanitisedT((left, right).mapN(Ior.fromOptions).traverse(_.map(HChain.one)))
+        (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
+          liftSanitised(ev) {
+            '{
+              val left = $sanitisedLeft.value.sequence
+              val right = $sanitisedRight.value.sequence
+              val caps = (left, right).mapN(Ior.fromOptions)
+              SanitisedT(caps.traverse(_.map(HChain.one)))
+            }
           }
-        )
+        }
       }
 
       sanitised.get
