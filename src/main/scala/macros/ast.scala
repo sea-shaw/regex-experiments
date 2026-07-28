@@ -178,14 +178,13 @@ object ast {
       Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
         capture.map(liftSanitised(ev)(_))
       } getOrElse {
-        for {
-          sanitisedCapture <- capture
-          sanitisedInner <- inner.sanitiseCode(groups)
-        } yield '{
-          for {
-            capture <- $sanitisedCapture
-            inner <- $sanitisedInner
-          } yield capture ++ inner
+        (capture, inner.sanitiseCode(groups)).mapN { case (sanitisedCapture, sanitisedInner) =>
+          '{
+            for {
+              capture <- $sanitisedCapture
+              inner <- $sanitisedInner
+            } yield capture ++ inner
+          }
         }
       }
     }
@@ -251,14 +250,13 @@ object ast {
       } orElse Expr.summon[G[R] =:= CatType[F, G][R]].map { ev =>
         right.sanitiseCode(groups).map(liftSanitised(ev)(_))
       } getOrElse {
-        for {
-          sanitisedLeft <- left.sanitiseCode(groups)
-          sanitisedRight <- right.sanitiseCode(groups)
-        } yield '{
-          for {
-            left <- $sanitisedLeft
-            right <- $sanitisedRight
-          } yield left ++ right
+        (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
+          '{
+            for {
+              left <- $sanitisedLeft
+              right <- $sanitisedRight
+            } yield left ++ right
+          }
         }
       }
     }
@@ -293,26 +291,24 @@ object ast {
       val sanitised = Expr.summon[HEmpty =:= AltType[F, G][R]].map { ev =>
         State.pure(liftSanitised(ev)(empty))
       } orElse Expr.summon[SingletonEither[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        for {
-          sanitisedLeft <- left.sanitiseCode(groups)
-          sanitisedRight <- right.sanitiseCode(groups)
-        } yield liftSanitised(ev) {
-          '{
-            val left = $sanitisedLeft.map(_.tidy.asLeft[Tidy[G[R]]])
-            val right = $sanitisedRight.map(_.tidy.asRight[Tidy[F[R]]])
-            (left max right).map(HChain.one)
+        (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
+          liftSanitised(ev) {
+            '{
+              val left = $sanitisedLeft.map(_.tidy.asLeft[Tidy[G[R]]])
+              val right = $sanitisedRight.map(_.tidy.asRight[Tidy[F[R]]])
+              (left max right).map(HChain.one)
+            }
           }
         }
       } orElse Expr.summon[SingletonIor[F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-        for {
-          sanitisedLeft <- left.sanitiseCode(groups)
-          sanitisedRight <- right.sanitiseCode(groups)
-        } yield liftSanitised(ev) {
-          '{
-            val left = $sanitisedLeft.value.traverse(_.map(_.tidy))
-            val right = $sanitisedRight.value.traverse(_.map(_.tidy))
-            val caps = (left, right).mapN(Ior.fromOptions)
-            SanitisedT(caps.traverse(_.map(HChain.one)))
+        (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
+          liftSanitised(ev) {
+            '{
+              val left = $sanitisedLeft.value.traverse(_.map(_.tidy))
+              val right = $sanitisedRight.value.traverse(_.map(_.tidy))
+              val caps = (left, right).mapN(Ior.fromOptions)
+              SanitisedT(caps.traverse(_.map(HChain.one)))
+            }
           }
         }
       }
