@@ -1,7 +1,6 @@
 package experiments.macros
 
-import experiments.macros.ast.Rep
-import experiments.macros.ast.Catnip.{Regex => RegexAST}
+import experiments.macros.ast.{Catnip,Rep}
 import experiments.macros.hcollections.hchain.{HChain, Tidy}
 import experiments.macros.parser
 import java.util.regex.Pattern
@@ -20,7 +19,7 @@ object regex {
     private def isInlineable(strExpr: Expr[String])(using Quotes): Expr[Regex[?]] = {
       import quotes.reflect.report
       strExpr match {
-        case Expr(s) => parser.parse(s) match {
+        case Expr(s) => parser.parse(s, Catnip) match {
           case Success(ast) => regexCode(s, ast)
           case Failure(err)  => report.errorAndAbort(err, strExpr)
         }
@@ -28,7 +27,7 @@ object regex {
       }
     }
 
-    private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: RegexAST[F])(using Quotes): Expr[Regex[Tidy[F[false]]]] = {      
+    private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: Catnip.Regex[F])(using Quotes): Expr[Regex[Tidy[F[false]]]] = {      
       given Type[F] = ast.tpe
 
       val regexStrExpr = Expr(regexStr)
