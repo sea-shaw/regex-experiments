@@ -5,7 +5,7 @@ import cats.collections.Diet
 import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
-import experiments.macros.evidence.=:=.{apply, liftCo}
+import experiments.macros.evidence.{apply, liftCo}
 import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton}
 import scala.annotation.tailrec
 import scala.quoted.{Expr, Quotes, Type}
