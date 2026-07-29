@@ -24,7 +24,7 @@ object bridges {
   object Cat extends PureParserBridge1[NonEmptyList[ToRegex], ToRegex] {
     override def apply(regexes: NonEmptyList[ToRegex]): ToRegex = {
       val NonEmptyList(head, tail) = regexes
-      tail.foldLeft(head)((left, right) => ast.Cat(left, right))
+      tail.foldLeft(head)(ast.Cat(_, _))
     }
   }
 
@@ -56,5 +56,5 @@ object bridges {
     override def apply(inner: ToRegex): ToRegex = ast.Rep1(inner)
   }
 
-  private def ast(using ast: AST): ast.type = ast
+  private inline def ast(using ast: AST): ast.type = ast
 }
