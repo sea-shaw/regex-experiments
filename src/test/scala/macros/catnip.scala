@@ -5,9 +5,9 @@ import experiments.macros.catnip.Regex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 
-class RegexMacroUnitTests extends AnyFlatSpec {
+class CatnipUnitTests extends AnyFlatSpec {
 
-  behavior of "Regex macro"
+  behavior of "Catnip regex macro"
 
   it should "match zero capture groups" in {
     val r = Regex("a")
