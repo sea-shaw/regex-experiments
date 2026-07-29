@@ -1,7 +1,7 @@
 package experiments.macros
 
 import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
-import experiments.macros.regex.Regex
+import experiments.macros.catnip.Regex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 

@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.regex.Regex
+import experiments.macros.catnip.Regex
 import cats.data.Ior.Both
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
