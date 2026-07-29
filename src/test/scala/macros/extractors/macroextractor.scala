@@ -1,7 +1,7 @@
 package experiments.macros.extractors
 
 import experiments.macros.extractors.macroextractor.Alt
-import experiments.macros.regex.Regex
+import experiments.macros.regex.r
 import org.scalatest.flatspec.AnyFlatSpec
 
 class MacroExtractorUnitTests extends AnyFlatSpec {
@@ -17,7 +17,7 @@ class MacroExtractorUnitTests extends AnyFlatSpec {
   }
 
   it should "extract from alternatives of single capture groups" in {
-    val r = Regex("(a)|(b)|(c)|(d)|(e)|(f)|(g)|(h)")
+    val r = r"(a)|(b)|(c)|(d)|(e)|(f)|(g)|(h)"
     "a" shouldMatchPattern { case r(Alt(0, "a")) => }
     "b" shouldMatchPattern { case r(Alt(1, "b")) => }
     "c" shouldMatchPattern { case r(Alt(2, "c")) => }
@@ -29,7 +29,7 @@ class MacroExtractorUnitTests extends AnyFlatSpec {
   }
 
   it should "extract from alternatives of multiple capture groups" in {
-    val r = Regex("(a)(b)?|(c)(d)?|(e)(f)?")
+    val r = r"(a)(b)?|(c)(d)?|(e)(f)?"
     "a" shouldMatchPattern { case r(Alt(0, ("a", None))) => }
     "ab" shouldMatchPattern { case r(Alt(0, ("a", Some("b")))) => }
     "c" shouldMatchPattern { case r(Alt(1, ("c", None))) => }
@@ -39,7 +39,7 @@ class MacroExtractorUnitTests extends AnyFlatSpec {
   }
 
   it should "extract from alternatives of alternatives of different types" in {
-    val r = Regex("(?:(a)|(b)(c))|(?:(d)|(e)(f))")
+    val r = r"(?:(a)|(b)(c))|(?:(d)|(e)(f))"
     "a" shouldMatchPattern { case r(Alt(0, Left("a"))) => }
     "bc" shouldMatchPattern { case r(Alt(0, Right("b", "c"))) => }
     "d" shouldMatchPattern { case r(Alt(1, Left("d"))) => }

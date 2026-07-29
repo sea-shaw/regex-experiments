@@ -13,39 +13,39 @@ object regex {
     def unapply(s: String): Option[A]
   }
 
-  object Regex {
-    transparent inline def apply(inline s: String): Regex[?] = ${ isInlineable('s) }
+  extension (inline sc: StringContext) {
+    transparent inline def r() = ${ isInlineable('sc) }
+  }
 
-    private def isInlineable(strExpr: Expr[String])(using Quotes): Expr[Regex[?]] = {
-      import quotes.reflect.report
-      strExpr match {
-        case Expr(s) => parser.parse(s) match {
-          case Success(ast) => regexCode(s, ast)
-          case Failure(err)  => report.errorAndAbort(err, strExpr)
-        }
-        case _       => report.errorAndAbort("Regex string must be compile-time constant.", strExpr)
+  private def isInlineable(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
+    import quotes.reflect.report
+    sc match {
+      case '{ StringContext(${ strExpr @ Expr(s) }) } => parser.parse(s) match {
+        case Success(ast) => regexCode(s, ast)
+        case Failure(err)  => report.errorAndAbort(err, strExpr)
       }
+      case _       => report.errorAndAbort("Regex string must be compile-time constant.", sc)
     }
+  }
 
-    private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: RegexAST[F])(using Quotes): Expr[Regex[Tidy[F[false]]]] = {      
-      given Type[F] = ast.tpe
+  private def regexCode[F[_ <: Rep] <: HChain](regexStr: String, ast: RegexAST[F])(using Quotes): Expr[Regex[Tidy[F[false]]]] = {      
+    given Type[F] = ast.tpe
 
-      val regexStrExpr = Expr(regexStr)
-      '{
-        new Regex[Tidy[F[false]]] {
-          private val pattern: Pattern = Pattern.compile($regexStrExpr)
+    val regexStrExpr = Expr(regexStr)
+    '{
+      new Regex[Tidy[F[false]]] {
+        private val pattern: Pattern = Pattern.compile($regexStrExpr)
 
-          override def unapply(s: String): Option[Tidy[F[false]]] = {
-            val m = pattern.matcher(s)
-            if (m.matches()) {
-              val groups = Array.tabulate(m.groupCount) {i =>
-                Option(m.group(i + 1))
-              }
-              val sanitised = ${ ast.sanitiseCode[false]('groups).runA(0).value }
-              sanitised.value.map(_.captures.tidy)
-            } else {
-              None
+        override def unapply(s: String): Option[Tidy[F[false]]] = {
+          val m = pattern.matcher(s)
+          if (m.matches()) {
+            val groups = Array.tabulate(m.groupCount) {i =>
+              Option(m.group(i + 1))
             }
+            val sanitised = ${ ast.sanitiseCode[false]('groups).runA(0).value }
+            sanitised.value.map(_.captures.tidy)
+          } else {
+            None
           }
         }
       }
