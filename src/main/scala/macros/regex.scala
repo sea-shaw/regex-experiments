@@ -30,7 +30,7 @@ object regex {
   private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {      
     given Type[F] = regex.tpe
 
-      val tidy: TidyFunction[F[false], ?] = tidyFunction[F[false]]
+      val tidy: TidyFunction[F[false], ?] = tidyFunction[F[false]](using ast)
 
       type A = tidy.tpe.Underlying
       given Type[A] = tidy.tpe

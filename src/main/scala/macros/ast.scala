@@ -294,6 +294,7 @@ object ast {
     type InclusiveOr[+_, +_]
     def inclusiveOrType(using Quotes): Type[InclusiveOr]
     def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]]
+    def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(x: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
 
     type AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> AltCapture[F[R], G[R], R, InclusiveOr]
     case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val tpe: Type[AltType[F, G]]) extends Regex[AltType[F, G]] {
@@ -380,8 +381,16 @@ object ast {
 
     override def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
 
-    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = '{
+    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[Either[Either[A, B], (A, B)]]] = '{
       Ior.fromOptions($left, $right).map(_.unwrap)
+    }
+
+    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(x: Expr[Either[Either[A, B], (A, B)]])(using Quotes): Expr[Either[Either[C, D], (C, D)]] = {
+      '{
+        val left = (x: A) => ${ f('x) }
+        val right = (x: B) => ${ g('x) }
+        $x.bimap(_.bimap(left, right), _.bimap(left, right))
+      }
     }
   }
 
@@ -392,6 +401,10 @@ object ast {
 
     override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = '{
       Ior.fromOptions($left, $right)
+    }
+
+    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(x: Expr[Ior[A, B]])(using Quotes): Expr[Ior[C, D]] = {
+      '{ $x.bimap(x => ${ f('x) }, x => ${ g('x) }) }
     }
   }
 }

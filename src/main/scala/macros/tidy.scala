@@ -1,7 +1,7 @@
 package experiments.macros
 
-import cats.data.Ior
 import cats.syntax.all.*
+import experiments.macros.ast.{AST, Catnip}
 import experiments.macros.hcollections.hchain.{HChain, HSingleton, HAppend, HEmpty, HNonEmpty}
 import scala.quoted.{Expr, Quotes, Type}
 
@@ -24,10 +24,12 @@ object tidy {
   transparent inline def tidy[A <: HChain](xs: A) = ${ tidyCode('xs) }
 
   private def tidyCode[A <: HChain: Type](xs: Expr[A])(using Quotes): Expr[?] = {
-    tidyFunction[A](xs)
+    tidyFunction[A](using Catnip)(xs)
   }
 
-  def tidyFunction[A <: HChain: Type](using Quotes): TidyFunction[A, ?] = {
+  def tidyFunction[A <: HChain: Type](using ast: AST)(using Quotes): TidyFunction[A, ?] = {
+
+    given Type[ast.InclusiveOr] = ast.inclusiveOrType
 
     sealed abstract class FlattenFunction[-N <: Nodes, -L <: Leaves, B](val tpe: Type[B]) {
       def apply(nodes: N, leaves: L)(using Quotes): Expr[B]
@@ -82,7 +84,7 @@ object tidy {
             }
           }
         }
-        case '[type b <: HChain; type c <: HChain; HSingleton[Ior[b, c]]] => {
+        case '[type b <: HChain; type c <: HChain; HSingleton[ast.InclusiveOr[b, c]]] => {
           val left: TidyFunction[b, ?] = tidyFunction[b]
           type B = left.tpe.Underlying
           given Type[B] = left.tpe
@@ -91,13 +93,13 @@ object tidy {
           type C = right.tpe.Underlying
           given Type[C] = right.tpe
 
-          val flatten = flattenFunction[ns, LCons[Ior[B, C], L]]
+          val flatten = flattenFunction[ns, LCons[ast.InclusiveOr[B, C], L]]
 
           new FlattenFunction[N, L, flatten.tpe.Underlying](flatten.tpe) {
             override def apply(nodes: N, leaves: L)(using Quotes) = {
               // TODO
-              val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[Ior[b, c]], ns]]
-              val expr = '{ $node.value.bimap(value => ${ left('value) }, value => ${ right('value) }) }
+              val NCons(node, tail) = nodes.asInstanceOf[NCons[HSingleton[ast.InclusiveOr[b, c]], ns]]
+              val expr = ast.bimap(left(_), right(_))('{ $node.value })
               flatten(tail, LCons(expr, leaves))
             }
           }
