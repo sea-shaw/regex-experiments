@@ -5,8 +5,8 @@ import cats.collections.Diet
 import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
-import experiments.macros.evidence.{apply, liftCo}
-import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, Tidy}
+import experiments.macros.evidence.=:=.{apply, liftCo}
+import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton}
 import scala.annotation.tailrec
 import scala.quoted.{Expr, Quotes, Type}
 
@@ -129,7 +129,7 @@ object ast {
   // It says it needs a `Type[AST.this.OptCapture]`
   type OptCapture[A <: HChain] <: HChain = A match {
     case HEmpty => HEmpty
-    case _      => HSingleton[Option[Tidy[A]]]
+    case _      => HSingleton[Option[A]]
   }
 
   type AltCapture[A <: HChain, B <: HChain, R <: Rep, InclusiveOr[+_, +_]] <: HChain = (A, B) match {
@@ -140,7 +140,7 @@ object ast {
     }
   }
 
-  type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[Tidy[A], Tidy[B]]]
+  type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[A, B]]
 
   private def empty(using Quotes): SanitiseExpr[HEmpty] = {
     '{ Applicative[[A] =>> SanitisedT[Option, A]].pure(HChain.nil) }
@@ -232,23 +232,23 @@ object ast {
     }
 
     type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> OptCapture[F[R]] 
+
     case class Opt[F[_ <: Rep] <: HChain] private (inner: Regex[F])(override val tpe: Type[OptType[F]]) extends Regex[OptType[F]] {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[OptType[F][R]]] = {
         given Type[F] = inner.tpe
 
         val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
           State.pure(liftSanitised(ev)(empty))
-        } orElse Expr.summon[HSingleton[Option[Tidy[F[R]]]] =:= OptType[F][R]].map { ev =>
+        } orElse Expr.summon[HSingleton[Option[F[R]]] =:= OptType[F][R]].map { ev =>
           inner.sanitiseCode(groups).map { sanitisedInner =>
             liftSanitised(ev) {
               '{
                 val innerCaps = $sanitisedInner
-                SanitisedT(Some(innerCaps.value.traverse(_.map(_.tidy)).map(HChain.one)))
+                SanitisedT(Some(innerCaps.value.sequence.map(HChain.one)))
               }
             }
           }
         }
-
         sanitised.get
       }
     }
@@ -308,8 +308,8 @@ object ast {
           (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
             liftSanitised(ev) {
               '{
-                val left = $sanitisedLeft.map(_.tidy.asLeft[Tidy[G[R]]])
-                val right = $sanitisedRight.map(_.tidy.asRight[Tidy[F[R]]])
+                val left = $sanitisedLeft.map(_.asLeft[G[R]])
+                val right = $sanitisedRight.map(_.asRight[F[R]])
                 (left max right).map(HChain.one)
               }
             }
@@ -318,8 +318,8 @@ object ast {
           (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
             liftSanitised(ev) {
               '{
-                val left = $sanitisedLeft.value.traverse(_.map(_.tidy))
-                val right = $sanitisedRight.value.traverse(_.map(_.tidy))
+                val left = $sanitisedLeft.value.sequence
+                val right = $sanitisedRight.value.sequence
                 val caps = (left, right).mapN((l, r) => ${ fromOptions('l, 'r) })
                 SanitisedT(caps.traverse(_.map(HChain.one)))
               }
