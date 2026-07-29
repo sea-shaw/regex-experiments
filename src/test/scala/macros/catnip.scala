@@ -1,13 +1,13 @@
 package experiments.macros
 
 import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
-import experiments.macros.regex.r
+import experiments.macros.catnip.r
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 
-class RegexMacroUnitTests extends AnyFlatSpec {
+class CatnipUnitTests extends AnyFlatSpec {
 
-  behavior of "Regex macro"
+  behavior of "Catnip regex macro"
 
   it should "match zero capture groups" in {
     val r = r"a"

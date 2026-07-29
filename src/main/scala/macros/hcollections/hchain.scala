@@ -17,23 +17,6 @@ object hchain {
     case HNonEmpty => HAppend[HSingleton[A], B]
   }
 
-  type Tidy[A <: HChain] = TidyTuple[ToTuple[A]]
-
-  type TidyTuple[T <: Tuple] = T match {
-    case EmptyTuple => Unit
-    case Tuple1[a]  => a
-    case _          => T
-  }
-
-  type ToTuple[A <: HChain] = Build[A, EmptyTuple]
-
-  // TODO: Remove recusrive match type.
-  type Build[A <: HChain, Acc <: Tuple] <: Tuple = A match {
-    case HEmpty => Acc
-    case HSingleton[a] => a *: Acc
-    case HAppend[a, b] => Build[a, Build[b, Acc]]
-  }
-
   sealed trait HChain {
     def +:[A, B >: this.type <: HChain](x: A): HCons[A, B] = (this: B) match {
       case _: HEmpty             => Singleton(x)
@@ -46,10 +29,15 @@ object hchain {
 
   sealed trait HNonEmpty extends HChain
 
-  sealed trait HSingleton[+A] extends HNonEmpty
-  private case class Singleton[+A](x: A) extends HSingleton[A]
+  sealed trait HSingleton[+A] extends HNonEmpty {
+    val value: A
+  }
+  private case class Singleton[+A](value: A) extends HSingleton[A]
 
-  sealed trait HAppend[+A, +B] extends HNonEmpty
+  sealed trait HAppend[+A, +B] extends HNonEmpty {
+    val left: A
+    val right: B
+  }
   private case class Append[+A <: HNonEmpty, +B <: HNonEmpty](left: A, right: B) extends HAppend[A, B]
 
   extension [A <: HChain] (xs: A) {
@@ -61,25 +49,18 @@ object hchain {
       }
     }
 
-    // TODO: `ArrayBuilder`? Don't want to use `*:` because it's O(n^2) overall
-    def tidy: Tidy[A] = {
+    def toList: List[Any] = {
       @tailrec
-      def toList(xs: HChain, acc: List[Any], rest: List[HNonEmpty]): List[Any] = xs match {
+      def go(xs: HChain, acc: List[Any], rest: List[HNonEmpty]): List[Any] = xs match {
         case Empty => rest match {
           case Nil => acc
-          case head :: tail => toList(head, acc, tail)
+          case head :: tail => go(head, acc, tail)
         }
-        case Singleton(x) => toList(Empty, x :: acc, rest)
-        case Append(left, right) => toList(right, acc, left :: rest)
+        case Singleton(x) => go(Empty, x :: acc, rest)
+        case Append(left, right) => go(right, acc, left :: rest)
       }
 
-      val tup = Tuple.fromArray(toList(xs, Nil, Nil).toArray).asInstanceOf[ToTuple[A]]
-
-      tup match {
-        case _: EmptyTuple  => ()
-        case tup: Tuple1[_] => tup._1
-        case _: Any         => tup
-      }
+      go(xs, Nil, Nil)
     }
   }
 

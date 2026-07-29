@@ -4,7 +4,9 @@ import scala.quoted.{Expr, Quotes, Type}
 
 object evidence {
   extension [From: Type, To: Type] (ev: Expr[From =:= To])(using Quotes) {
-    def substituteBoth[F[_ <: From | To, _ <: From | To]: Type](ftf: Expr[F[To, From]]): Expr[F[From, To]] = ftf.asExprOf[F[From, To]]
+    def substituteBoth[F[_ <: From | To, _ <: From | To]: Type](ftf: Expr[F[To, From]]): Expr[F[From, To]] = {
+      ftf.asExprOf[F[From, To]]
+    }
 
     def substituteCo[F[_ <: From | To]: Type](ff: Expr[F[From]]): Expr[F[To]] = {
       type G[_, T <: From | To] = F[T]

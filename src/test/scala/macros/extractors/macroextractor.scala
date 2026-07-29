@@ -1,7 +1,7 @@
 package experiments.macros.extractors
 
 import experiments.macros.extractors.macroextractor.Alt
-import experiments.macros.regex.r
+import experiments.macros.catnip.r
 import org.scalatest.flatspec.AnyFlatSpec
 
 class MacroExtractorUnitTests extends AnyFlatSpec {

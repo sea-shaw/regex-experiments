@@ -1,7 +1,7 @@
 package experiments.macros.extractors
 
 import experiments.macros.extractors.implicitextractor.Alt
-import experiments.macros.regex.r
+import experiments.macros.catnip.r
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 
