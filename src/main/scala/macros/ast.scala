@@ -6,7 +6,7 @@ import cats.data.{Ior, State}
 import cats.kernel.Order
 import cats.syntax.all.*
 import experiments.macros.evidence.{apply, liftCo}
-import experiments.macros.hcollections.hchain.{HChain, HConcat, HCons, HEmpty, HSingleton, head, tail}
+import experiments.macros.hcollections.hchain.{HAppend, HChain, HConcat, HCons, HEmpty, HSingleton}
 import scala.annotation.tailrec
 import scala.quoted.{Expr, Quotes, Type}
 
@@ -150,6 +150,50 @@ object ast {
     ev.liftCo[[X <: HChain] =>> SanitisedT[Option, X]]
   }
 
+  private def headExpr[A: Type, B <: HChain: Type](hcons: Expr[HCons[A, B]])(using Quotes): Expr[A] = {
+    val x = Expr.summon[HCons[A, B] =:= HSingleton[A]].map { ev =>
+      '{ ${ ev(hcons) }.value }
+    } orElse Expr.summon[HCons[A, B] =:= HAppend[HSingleton[A], B]].map { ev =>
+      '{ ${ ev(hcons) }.left.value }
+    }
+
+    x.get
+  }
+
+  private def tailExpr[A: Type, B <: HChain: Type](hcons: Expr[HCons[A, B]])(using Quotes): Expr[B] = {
+    val x = Expr.summon[HEmpty =:= B].map { ev =>
+      ev('{ HChain.nil })
+    } orElse Expr.summon[HCons[A, B] =:= HAppend[HSingleton[A], B]].map { ev =>
+      '{ ${ ev(hcons) }.right }
+    }
+
+    x.get
+  }
+
+  private def leftExpr[A <: HChain: Type, B <: HChain: Type](hconcat: Expr[HConcat[A, B]])(using Quotes): Expr[A] = {
+    val x = Expr.summon[HEmpty =:= A].map { ev =>
+      ev('{ HChain.nil })
+    } orElse Expr.summon[HConcat[A, B] =:= A].map { ev =>
+      ev(hconcat)
+    } orElse Expr.summon[HConcat[A, B] =:= HAppend[A, B]].map { ev =>
+      '{ ${ ev(hconcat) }.left }
+    }
+
+    x.get
+  }
+
+  private def rightExpr[A <: HChain: Type, B <: HChain: Type](hconcat: Expr[HConcat[A, B]])(using Quotes): Expr[B] = {
+    val x = Expr.summon[HEmpty =:= B].map { ev =>
+      ev('{ HChain.nil })
+    } orElse Expr.summon[HConcat[A, B] =:= B].map { ev =>
+      ev(hconcat)
+    } orElse Expr.summon[HConcat[A, B] =:= HAppend[A, B]].map { ev =>
+      '{ ${ ev(hconcat) }.right }
+    }
+
+    x.get
+  }
+
   sealed trait AST {
     type InclusiveOr[+_, +_]
     def inclusiveOrType(using Quotes): Type[InclusiveOr]
@@ -277,8 +321,8 @@ object ast {
           override def apply(chains: CCons[HCons[String, F[R]], nodes.ToChains], leaves: L)(using Quotes): Expr[A] = {
             '{
               val chain = ${ chains.head }
-              val capture = chain.head
-              val inner = chain.tail
+              val capture = ${ headExpr('chain) }
+              val inner = ${ tailExpr('chain) }
               ${ flatten(CCons('{ inner }, chains.tail), LCons('{ capture }, leaves)) }
             }
           }
