@@ -230,11 +230,11 @@ object ast {
     case object LNil extends Leaves
     case class LCons[A, L <: Leaves](head: Expr[A], tail: L) extends Leaves
 
-    sealed abstract class TidyFunction[-A <: HChain, B](val tpe: Type[B]) {
+    sealed abstract class TidyFunction[A <: HChain, B](val tpe: Type[B]) {
       def apply(xs: Expr[A])(using Quotes): Expr[B]
     }
 
-    sealed trait FlattenFunction[-C <: Chains, -L <: Leaves, B](val tpe: Type[B]) {
+    sealed trait FlattenFunction[C <: Chains, L <: Leaves, B](val tpe: Type[B]) {
       def apply(chains: C, leaves: L)(using Quotes): Expr[B]
     }
 
@@ -405,7 +405,8 @@ object ast {
       }
 
       override def flattenFunction[N <: Nodes, L <: Leaves, R <: Rep: Type](nodes: N)(using Quotes): FlattenFunction[CCons[HConcat[F[R], G[R]], nodes.ToChains], L, ?] = {
-        val flatten: FlattenFunction[Nothing, L, ?] = NCons(left, NCons(right, nodes)).flattenFunction[L]
+        val newNodes: NCons[F, R, NCons[G, R, nodes.type]] = NCons(left, NCons(right, nodes))
+        val flatten: FlattenFunction[newNodes.ToChains, L, ?] = newNodes.flattenFunction[L]
         type A = flatten.tpe.Underlying
         given Type[A] = flatten.tpe
         given Type[F] = left.tpe
@@ -413,7 +414,12 @@ object ast {
 
         new FlattenFunction[CCons[HConcat[F[R], G[R]], nodes.ToChains], L, A](flatten.tpe) {
           override def apply(chains: CCons[HConcat[F[R], G[R]], nodes.ToChains], leaves: L)(using Quotes): Expr[A] = {
-            ???
+            '{
+              val chain = ${ chains.head }
+              val left = ${ leftExpr('chain) }
+              val right = ${ rightExpr('chain) }
+              ${ flatten(CCons('{ left }, CCons('{ right }, chains.tail)), leaves) }
+            }
           }
         }
       }
