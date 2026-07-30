@@ -68,4 +68,15 @@ object hchain {
     val nil: HEmpty = Empty
     def one[A](x: A): HSingleton[A] = Singleton(x)
   }
+
+  extension [A, B <: HChain] (hcons: HCons[A, B]) {
+    def head: A = hcons match {
+      case Singleton(value)            => value.asInstanceOf[A]
+      case Append(Singleton(value), _) => value.asInstanceOf[A]
+    }
+    def tail: B = hcons match {
+      case Singleton(_)     => Empty.asInstanceOf[B]
+      case Append(_, right) => right.asInstanceOf[B] 
+    }
+  }
 }
