@@ -223,7 +223,19 @@ object ast {
 
     sealed trait Regex[F[_ <: Rep] <: HChain] {
       val tpe: Type[F]
+
       def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]]
+
+      final def tidyFunction[R <: Rep: Type](using Quotes): TidyFunction[F[R], ?] = {
+        val flatten = flattenFunction[R](NNil, TNil)
+        type A = flatten.tpe.Underlying
+        new TidyFunction[F[R], A](flatten.tpe) {
+          override def apply(xs: Expr[F[R]])(using Quotes): Expr[A] = {
+            flatten(CCons(xs, CNil), LNil)
+          }
+        }
+      }
+
       def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[F[R], nodes.ToChains], types.ToLeaves, ?]
     }
 
@@ -370,7 +382,41 @@ object ast {
       }
 
       override def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, ?] = {
-        ???
+        given Type[F] = inner.tpe
+        val flatten = Expr.summon[OptType[F][R] =:= HEmpty].map { _ =>
+          val flatten: FlattenFunction[nodes.ToChains, types.ToLeaves, ?] = nodes.flattenFunction(types)
+          type A = flatten.tpe.Underlying
+          given Type[A] = flatten.tpe
+
+          new FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, A] {
+            override def apply(chains: CCons[OptCapture[F[R]], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[A] = {
+              flatten(chains.tail, leaves)
+            }
+          }
+        } orElse Expr.summon[OptType[F][R] =:= HSingleton[Option[F[R]]]].map { ev =>
+          val tidy: TidyFunction[F[R], ?] = inner.tidyFunction[R]
+          type A = tidy.tpe.Underlying
+          given Type[A] = tidy.tpe
+
+          val newTypes: TCons[Option[A], types.type] = TCons(Type.of[Option[A]], types)
+
+          val flatten: FlattenFunction[nodes.ToChains, newTypes.ToLeaves, ?] = nodes.flattenFunction(newTypes)
+          type B = flatten.tpe.Underlying
+          given Type[B] = flatten.tpe
+
+          new FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, B] {
+            override def apply(chains: CCons[OptCapture[F[R]], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[B] = {
+              '{
+                val inner = ${ ev(chains.head) }.value.map { value =>
+                  ${ tidy('{ value }) }
+                }
+                ${ flatten(chains.tail, LCons('{ inner }, leaves)) }
+              }
+            }
+          }
+        }
+
+        flatten.get
       }
     }
 

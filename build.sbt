@@ -29,6 +29,7 @@ lazy val root = project
       "-Wunused:all",
       "-Wsafe-init",
       "-feature",
+      "-explain-cyclic",
       // "-Vprint:postInlining", // Enable and use `console` to better see generated code
     )
   )
