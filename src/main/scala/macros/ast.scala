@@ -201,18 +201,61 @@ object ast {
     type TNil = TNil.type
     case object TNil extends Types {
       type ToLeaves = LNil
-      override def buildFunction(using Quotes): BuildFunction[LNil, ?] = new BuildFunction[LNil, Unit](Type.of[Unit]) {
+
+      override def buildFunction(using Quotes): BuildFunction[LNil, ?] = new BuildFunction[LNil, Unit] {
         override def apply(leaves: LNil)(using Quotes): Expr[Unit] = '{ () }
       }
     }
 
     case class TCons[A, T <: Types](head: Type[A], tail: T) extends Types {
       type ToLeaves = LCons[A, tail.ToLeaves]
-      override def buildFunction(using Quotes): BuildFunction[LCons[A, tail.ToLeaves], ?] = tail match {
-        case TNil => new BuildFunction[LCons[A, tail.ToLeaves], A](head) {
-          override def apply(leaves: LCons[A, tail.ToLeaves])(using Quotes): Expr[A] = leaves.head
+      override def buildFunction(using Quotes): BuildFunction[LCons[A, tail.ToLeaves], ?] = {
+        type T0 = A
+        given Type[T0] = head
+
+        tail match {
+          case TNil => new BuildFunction[LCons[A, tail.ToLeaves], A](using head) {
+            override def apply(leaves: LCons[A, tail.ToLeaves])(using Quotes): Expr[A] = leaves.head
+          }
+          case TCons(t1, tail1) => {
+            type T1 = t1.Underlying
+            given Type[T1] = t1
+
+            tail1 match {
+              case TNil => new BuildFunction[LCons[A, tail.ToLeaves], (T1, T0)] {
+                override def apply(leaves: LCons[A, tail.ToLeaves])(using Quotes): Expr[(T1, T0)] = {
+                  val LCons(e0, LCons(e1, LNil)) = leaves.asInstanceOf[LCons[T0, LCons[T1, LNil]]]
+                  '{ ($e1, $e0) }
+                }
+              }
+              case TCons(t2, tail2) => {
+                type T2 = t2.Underlying
+                given Type[T2] = t2
+                tail2 match {
+                  case TNil => new BuildFunction[LCons[A, tail.ToLeaves], (T2, T1, T0)] {
+                    override def apply(leaves: LCons[A, tail.ToLeaves])(using Quotes): Expr[(T2, T1, T0)] = {
+                      val LCons(e0, LCons(e1, LCons(e2, LNil))) = leaves.asInstanceOf[LCons[T0, LCons[T1, LCons[T2, LNil]]]]
+                      '{ ($e2, $e1, $e0) }
+                    }
+                  }
+                  case TCons(t3, tail3) => {
+                    type T3 = t3.Underlying
+                    given Type[T3] = t3
+                    tail3 match {
+                      case TNil => new BuildFunction[LCons[A, tail.ToLeaves], (T3, T2, T1, T0)] {
+                        override def apply(leaves: LCons[A, tail.ToLeaves])(using Quotes): Expr[(T3, T2, T1, T0)] = {
+                          val LCons(e0, LCons(e1, LCons(e2, LCons(e3, LNil)))) = leaves.asInstanceOf[LCons[T0, LCons[T1, LCons[T2, LCons[T3, LNil]]]]]
+                          '{ ($e3, $e2, $e1, $e0) }
+                        }
+                      }
+                      case TCons(_, _) => ???
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
-        case TCons(_, _) => ???
       }
     }
 
@@ -229,7 +272,7 @@ object ast {
       def apply(chains: C, leaves: L)(using Quotes): Expr[A]
     }
 
-    sealed abstract class BuildFunction[L <: Leaves, A](val tpe: Type[A]) {
+    sealed abstract class BuildFunction[L <: Leaves, A](using val tpe: Type[A]) {
       def apply(leaves: L)(using Quotes): Expr[A]
     }
 
