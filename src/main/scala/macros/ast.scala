@@ -231,6 +231,7 @@ object ast {
               case TCons(t2, tail2) => {
                 type T2 = t2.Underlying
                 given Type[T2] = t2
+
                 tail2 match {
                   case TNil => new BuildFunction[LCons[A, tail.ToLeaves], (T2, T1, T0)] {
                     override def apply(leaves: LCons[A, tail.ToLeaves])(using Quotes): Expr[(T2, T1, T0)] = {
@@ -371,10 +372,8 @@ object ast {
           given Type[A] = flatten.tpe
           new FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, A] {
             override def apply(chains: CCons[CaptureType[F][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[A] = {
-              '{
-                val capture = ${ ev(chains.head) }.value
-                ${ flatten(chains.tail, LCons('capture, leaves)) }
-              }
+              val capture = '{ ${ ev(chains.head) }.value }
+              flatten(chains.tail, LCons(capture, leaves))
             }
           }
         } orElse Expr.summon[CaptureType[F][R] =:= HAppend[HSingleton[String], F[R]]].map { ev =>
@@ -383,10 +382,10 @@ object ast {
           given Type[A] = flatten.tpe
           new FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, A] {
             override def apply(chains: CCons[CaptureType[F][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[A] = {
+              val capture = '{ ${ ev(chains.head) }.left.value }
               '{
-                val capture = ${ ev(chains.head) }.left.value
                 val inner = ${ ev(chains.head) }.right
-                ${ flatten(CCons('inner, chains.tail), LCons('capture, leaves)) }
+                ${ flatten(CCons('inner, chains.tail), LCons(capture, leaves)) }
               }
             }
           }
