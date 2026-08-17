@@ -459,12 +459,12 @@ object ast {
 
           new FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, B] {
             override def apply(chains: CCons[OptCapture[F[R]], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[B] = {
-              '{
-                val opt = ${ ev(chains.head) }.value.map { value =>
+              val opt = '{
+                ${ ev(chains.head) }.value.map { value =>
                   ${ tidy('value) }
                 }
-                ${ flatten(chains.tail, LCons('opt, leaves)) }
               }
+              flatten(chains.tail, LCons(opt, leaves))
             }
           }
         }
@@ -532,8 +532,8 @@ object ast {
           new FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, A] {
             override def apply(chains: CCons[CatType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[A] = {
               '{
-                val append = ${ ev(chains.head) }
-                ${ flatten(CCons('{ append.left }, CCons('{ append.right }, chains.tail)), leaves) }
+                val node = ${ ev(chains.head) }
+                ${ flatten(CCons('{ node.left }, CCons('{ node.right }, chains.tail)), leaves) }
               }
             }
           }
@@ -616,13 +616,13 @@ object ast {
 
           new FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, C] {
             override def apply(chains: CCons[AltType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[C] = {
-              '{
-                val alt = ${ ev(chains.head) }.value.bimap(
+              val alt = '{
+                ${ ev(chains.head) }.value.bimap(
                   left => ${ tidyLeft('left) },
                   right => ${ tidyRight('right) }
                 )
-                ${ flatten(chains.tail, LCons('alt, leaves)) }
               }
+              flatten(chains.tail, LCons(alt, leaves))
             }
           }
         } orElse Expr.summon[AltType[F, G][R] =:= SingletonWith[InclusiveOr, F[R], G[R]]].map { ev =>
@@ -641,11 +641,11 @@ object ast {
 
           new FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, C] {
             override def apply(chains: CCons[AltType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[C] = {
-              '{
-                val value = ${ ev(chains.head) }.value
-                val alt = ${ bimap(tidyLeft(_), tidyRight(_))('value) }
-                ${ flatten(chains.tail, LCons('alt, leaves)) }
+              val alt = '{
+                val alt = ${ ev(chains.head) }.value
+                ${ bimap(tidyLeft(_), tidyRight(_))('alt) }
               }
+              flatten(chains.tail, LCons(alt, leaves))
             }
           }
         }
