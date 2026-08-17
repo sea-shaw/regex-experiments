@@ -211,39 +211,30 @@ object ast {
         given Type[T0] = head
 
         tail match {
-          case TNil => new BuildFunction[ToLeaves, A](using head) {
+          case TNil => new BuildFunction[ToLeaves, A] {
             override def apply(leaves: ToLeaves)(using Quotes): Expr[A] = leaves.head
           }
-          case TCons(t1, tail1) => {
-            type T1 = t1.Underlying
-            given Type[T1] = t1
-
+          case TCons(given Type[t1], tail1) => {
             tail1 match {
-              case TNil => new BuildFunction[ToLeaves, (T1, T0)] {
-                override def apply(leaves: ToLeaves)(using Quotes): Expr[(T1, T0)] = {
-                  val LCons(e0, LCons(e1, LNil)) = leaves.asInstanceOf[LCons[T0, LCons[T1, LNil]]]
+              case TNil => new BuildFunction[ToLeaves, (t1, T0)] {
+                override def apply(leaves: ToLeaves)(using Quotes): Expr[(t1, T0)] = {
+                  val LCons(e0, LCons(e1, LNil)) = leaves.asInstanceOf[LCons[T0, LCons[t1, LNil]]]
                   '{ ($e1, $e0) }
                 }
               }
-              case TCons(t2, tail2) => {
-                type T2 = t2.Underlying
-                given Type[T2] = t2
-
+              case TCons(given Type[t2], tail2) => {
                 tail2 match {
-                  case TNil => new BuildFunction[ToLeaves, (T2, T1, T0)] {
-                    override def apply(leaves: ToLeaves)(using Quotes): Expr[(T2, T1, T0)] = {
-                      val LCons(e0, LCons(e1, LCons(e2, LNil))) = leaves.asInstanceOf[LCons[T0, LCons[T1, LCons[T2, LNil]]]]
+                  case TNil => new BuildFunction[ToLeaves, (t2, t1, T0)] {
+                    override def apply(leaves: ToLeaves)(using Quotes): Expr[(t2, t1, T0)] = {
+                      val LCons(e0, LCons(e1, LCons(e2, LNil))) = leaves.asInstanceOf[LCons[T0, LCons[t1, LCons[t2, LNil]]]]
                       '{ ($e2, $e1, $e0) }
                     }
                   }
-                  case TCons(t3, tail3) => {
-                    type T3 = t3.Underlying
-                    given Type[T3] = t3
-
+                  case TCons(given Type[t3], tail3) => {
                     tail3 match {
-                      case TNil => new BuildFunction[ToLeaves, (T3, T2, T1, T0)] {
-                        override def apply(leaves: ToLeaves)(using Quotes): Expr[(T3, T2, T1, T0)] = {
-                          val LCons(e0, LCons(e1, LCons(e2, LCons(e3, LNil)))) = leaves.asInstanceOf[LCons[T0, LCons[T1, LCons[T2, LCons[T3, LNil]]]]]
+                      case TNil => new BuildFunction[ToLeaves, (t3, t2, t1, T0)] {
+                        override def apply(leaves: ToLeaves)(using Quotes): Expr[(t3, t2, t1, T0)] = {
+                          val LCons(e0, LCons(e1, LCons(e2, LCons(e3, LNil)))) = leaves.asInstanceOf[LCons[T0, LCons[t1, LCons[t2, LCons[t3, LNil]]]]]
                           '{ ($e3, $e2, $e1, $e0) }
                         }
                       }
