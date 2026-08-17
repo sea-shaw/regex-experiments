@@ -7,8 +7,6 @@ import java.util.regex.Pattern
 import parsley.{Failure, Success}
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
-import experiments.macros.tidy.tidyFunction
-import experiments.macros.tidy.TidyFunction
 import scala.annotation.unused
 
 object regex {
@@ -30,7 +28,7 @@ object regex {
   private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {      
     given Type[F] = regex.tpe
 
-    val tidy: TidyFunction[F[false], ?] = tidyFunction[F[false]](using ast)
+      val tidy: ast.TidyFunction[F[false], ?] = regex.tidyFunction[false]
 
     type A = tidy.tpe.Underlying
     given Type[A] = tidy.tpe
