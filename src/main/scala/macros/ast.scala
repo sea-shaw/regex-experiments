@@ -706,14 +706,16 @@ object ast {
 
     override def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
 
-    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = '{
-      Ior.fromOptions($left, $right).map(_.unwrap)
+    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
+      '{ Ior.fromOptions($left, $right).map(_.unwrap) }
     }
 
-    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = '{
-      val left = (left: A) => ${ f('left) }
-      val right = (right: B) => ${ g('right) }
-      $expr.bimap(_.bimap(left, right), _.bimap(left, right))
+    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
+      '{
+        val left = (left: A) => ${ f('left) }
+        val right = (right: B) => ${ g('right) }
+        $expr.bimap(_.bimap(left, right), _.bimap(left, right))
+      }
     }
   }
 
@@ -722,12 +724,12 @@ object ast {
 
     override def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
 
-    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = '{
-      Ior.fromOptions($left, $right)
+    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
+      '{ Ior.fromOptions($left, $right) }
     }
 
-    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[Ior[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = '{
-      $expr.bimap(left => ${ f('left) }, right => ${ g('right) })
+    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[Ior[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
+      '{ $expr.bimap(left => ${ f('left) }, right => ${ g('right) }) }
     }
   }
 }
