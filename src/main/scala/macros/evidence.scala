@@ -33,6 +33,8 @@ object evidence {
       substituteContra[G]('{ summon[G[To]] })
     }
 
-    def liftContra[F[_ <: From | To]: Type]: Expr[F[To] =:= F[From]] = liftCo[F].flip
+    def liftContra[F[_ <: From | To]: Type]: Expr[F[To] =:= F[From]] = {
+      liftCo[F].flip
+    }
   }
 }
