@@ -166,9 +166,9 @@ object ast {
       type ToChains = CNil
 
       override def flattenFunction(types: Types)(using Quotes): FlattenFunction[CNil, types.ToLeaves, ?] = {
-        val build: BuildFunction[types.ToLeaves, ?] = types.buildFunction
+        val build = types.buildFunction
         type A = build.tpe.Underlying
-        given Type[A] = build.tpe
+        import build.given
 
         new FlattenFunction[CNil, types.ToLeaves, A] {
           override def apply(chains: CNil, leaves: types.ToLeaves)(using Quotes): Expr[A] = {
@@ -451,7 +451,7 @@ object ast {
             }
           }
         } orElse Expr.summon[OptType[F][R] =:= HSingleton[Option[F[R]]]].map { ev =>
-          val tidy: TidyFunction[F[R], ?] = inner.tidyFunction[R]
+          val tidy = inner.tidyFunction[R]
           type A = tidy.tpe.Underlying
           import tidy.given
 
