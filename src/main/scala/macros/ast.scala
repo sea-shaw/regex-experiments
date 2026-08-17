@@ -152,9 +152,9 @@ object ast {
 
   sealed trait AST {
     type InclusiveOr[+_, +_]
-    def inclusiveOrType(using Quotes): Type[InclusiveOr]
-    def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]]
-    def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
+    protected def inclusiveOrType(using Quotes): Type[InclusiveOr]
+    protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]]
+    protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
 
     private sealed trait Nodes {
       type ToChains <: Chains
@@ -162,7 +162,6 @@ object ast {
       def flattenFunction(types: Types)(using Quotes): FlattenFunction[ToChains, types.ToLeaves, ?]
     }
 
-    private type NNil = NNil.type
     private case object NNil extends Nodes {
       type ToChains = CNil
 
@@ -197,7 +196,6 @@ object ast {
       def buildFunction(using Quotes): BuildFunction[ToLeaves, ?]
     }
 
-    private type TNil = TNil.type
     private case object TNil extends Types {
       type ToLeaves = LNil
 
@@ -303,7 +301,7 @@ object ast {
         State.pure(empty)
       }
 
-      private [AST] override def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[HEmpty, nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[HEmpty, nodes.ToChains], types.ToLeaves, ?] = {
         val flatten = nodes.flattenFunction(types)
         type A = flatten.tpe.Underlying
         import flatten.given
@@ -367,7 +365,7 @@ object ast {
         }
       }
 
-      private [AST] override def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, ?] = {
         given Type[F] = inner.tpe
 
         val newTypes: TCons[String, types.type] = TCons(Type.of[String], types)
@@ -415,7 +413,7 @@ object ast {
         inner.sanitiseCode(groups)
       }
 
-      private [AST] override def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[F[R], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[F[R], nodes.ToChains], types.ToLeaves, ?] = {
         inner.flattenFunction[R](nodes, types)
       }
     }
@@ -441,7 +439,7 @@ object ast {
         sanitised.get
       }
 
-      private [AST] override def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, ?] = {
         given Type[F] = inner.tpe
         val flatten = Expr.summon[OptType[F][R] =:= HEmpty].map { _ =>
           val flatten = nodes.flattenFunction(types)
@@ -508,7 +506,7 @@ object ast {
         }
       }
 
-      private [AST] override def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, ?] = {
         given Type[F] = left.tpe
         given Type[G] = right.tpe
 
@@ -595,7 +593,7 @@ object ast {
         sanitised.get
       }
 
-      private [AST] override def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, ?] = {
         given Type[F] = left.tpe
         given Type[G] = right.tpe
         given Type[InclusiveOr] = inclusiveOrType
@@ -645,9 +643,9 @@ object ast {
           given Type[B] = tidyRight.tpe
 
           val newTypes: TCons[InclusiveOr[A, B], types.type] = TCons(Type.of[InclusiveOr[A, B]], types)
-          val flatten: FlattenFunction[nodes.ToChains, LCons[InclusiveOr[A, B], newTypes.tail.ToLeaves], ?] = nodes.flattenFunction(newTypes)
+          val flatten = nodes.flattenFunction(newTypes)
           type C = flatten.tpe.Underlying
-          given Type[C] = flatten.tpe
+          import flatten.given
 
           new FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, C] {
             override def apply(chains: CCons[AltType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[C] = {
@@ -677,29 +675,13 @@ object ast {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes) = Opt(Rep1(inner))
     }
 
-    /*
-    type Rep0Type[F[_ <: Rep] <: HChain] = OptType[Rep1Type[F]]
-    class Rep0[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[Rep0Type[F]]) extends Regex[Rep0Type[F]] {
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep0Type[F][R]]] = {
-        Opt(Rep1(inner)).sanitiseCode(groups)
-      }
-    }
-
-    object Rep0 {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep0[F] = {
-        given Type[F] = inner.tpe
-        new Rep0(inner)(Type.of[Rep0Type[F]])
-      }
-    }
-    */
-
     type Rep1Type[F[_ <: Rep] <: HChain] = Const[F[true]]
     case class Rep1[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[Rep1Type[F]]) extends Regex[Rep1Type[F]] {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep1Type[F][R]]] = {
         inner.sanitiseCode(groups)
       }
 
-      private [AST] override def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[F[true], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[F[true], nodes.ToChains], types.ToLeaves, ?] = {
         inner.flattenFunction[true](nodes, types)
       }
     }
@@ -715,13 +697,13 @@ object ast {
   object Oregano extends AST {
     type InclusiveOr[+A, +B] = Either[Either[A, B], (A, B)]
 
-    override def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
+    override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
 
-    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
+    override protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
       '{ Ior.fromOptions($left, $right).map(_.unwrap) }
     }
 
-    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
+    override protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
       '{
         val mapLeft = (left: A) => ${ f('left) }
         val mapRight = (right: B) => ${ g('right) }
@@ -733,13 +715,13 @@ object ast {
   object Catnip extends AST {
     type InclusiveOr = Ior
 
-    override def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
+    override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
 
-    override def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
+    override protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
       '{ Ior.fromOptions($left, $right) }
     }
 
-    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[Ior[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
+    override protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[Ior[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
       '{ $expr.bimap(left => ${ f('left) }, right => ${ g('right) }) }
     }
   }
