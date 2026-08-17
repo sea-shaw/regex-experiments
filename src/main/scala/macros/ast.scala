@@ -382,9 +382,10 @@ object ast {
           given Type[A] = flatten.tpe
           new FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, A] {
             override def apply(chains: CCons[CaptureType[F][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[A] = {
-              val capture = '{ ${ ev(chains.head) }.left.value }
-              val inner = '{ ${ ev(chains.head) }.right }
-              flatten(CCons(inner, chains.tail), LCons(capture, leaves))
+              '{
+                val node = ${ ev(chains.head) }
+                ${ flatten(CCons('{ node.right }, chains.tail), LCons('{ node.left.value }, leaves)) }
+              }
             }
           }
         }
@@ -530,10 +531,10 @@ object ast {
           given Type[A] = flatten.tpe
           new FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, A] {
             override def apply(chains: CCons[CatType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[A] = {
-              val append = ev(chains.head)
-              val left = '{ $append.left }
-              val right = '{ $append.right }
-              flatten(CCons(left, CCons(right, chains.tail)), leaves)
+              '{
+                val append = ${ ev(chains.head) }
+                ${ flatten(CCons('{ append.left }, CCons('{ append.right }, chains.tail)), leaves) }
+              }
             }
           }
         }
@@ -712,9 +713,9 @@ object ast {
 
     override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
       '{
-        val left = (left: A) => ${ f('left) }
-        val right = (right: B) => ${ g('right) }
-        $expr.bimap(_.bimap(left, right), _.bimap(left, right))
+        val mapLeft = (left: A) => ${ f('left) }
+        val mapRight = (right: B) => ${ g('right) }
+        $expr.bimap(_.bimap(mapLeft, mapRight), _.bimap(mapLeft, mapRight))
       }
     }
   }
