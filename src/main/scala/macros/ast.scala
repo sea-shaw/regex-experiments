@@ -178,7 +178,7 @@ object ast {
       }
     }
 
-    private case class NCons[F[_ <: Rep] <: HChain, R <: Rep: Type, N <: Nodes](head: Regex[F], tail: N) extends Nodes {
+    private case class NCons[F[_ <: Rep] <: HChain, R <: Rep: Type, N <: Nodes & Singleton](head: Regex[F], tail: N) extends Nodes {
       type ToChains = CCons[F[R], tail.ToChains]
 
       override def flattenFunction(types: Types)(using Quotes): FlattenFunction[CCons[F[R], tail.ToChains], types.ToLeaves, ?] = {
@@ -204,7 +204,7 @@ object ast {
       }
     }
 
-    private case class TCons[A, T <: Types](head: Type[A], tail: T) extends Types {
+    private case class TCons[A, T <: Types & Singleton](head: Type[A], tail: T) extends Types {
       type ToLeaves = LCons[A, tail.ToLeaves]
       override def buildFunction(using Quotes): BuildFunction[ToLeaves, ?] = {
         type T0 = A
@@ -368,9 +368,8 @@ object ast {
       override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, ?] = {
         given Type[F] = inner.tpe
 
-        val newTypes: TCons[String, types.type] = TCons(Type.of[String], types)
         val flatten = Expr.summon[CaptureType[F][R] =:= HSingleton[String]].map { ev =>
-          val flatten = nodes.flattenFunction(newTypes)
+          val flatten = nodes.flattenFunction(TCons(Type.of[String], types))
           type A = flatten.tpe.Underlying
           import flatten.given
 
@@ -381,7 +380,7 @@ object ast {
             }
           }
         } orElse Expr.summon[CaptureType[F][R] =:= HAppend[HSingleton[String], F[R]]].map { ev =>
-          val flatten = inner.flattenFunction[R](nodes, newTypes)
+          val flatten = inner.flattenFunction[R](nodes, TCons(Type.of[String], types))
           type A = flatten.tpe.Underlying
           import flatten.given
 
@@ -456,8 +455,7 @@ object ast {
           type A = tidy.tpe.Underlying
           import tidy.given
 
-          val newTypes: TCons[Option[A], types.type] = TCons(Type.of[Option[A]], types)
-          val flatten = nodes.flattenFunction(newTypes)
+          val flatten = nodes.flattenFunction(TCons(Type.of[Option[A]], types))
           type B = flatten.tpe.Underlying
           import flatten.given
 
@@ -531,8 +529,7 @@ object ast {
             }
           }
         } orElse Expr.summon[CatType[F, G][R] =:= HAppend[F[R], G[R]]].map { ev =>
-          val newNodes: NCons[F, R, NCons[G, R, nodes.type]] = NCons(left, NCons(right, nodes))
-          val flatten = newNodes.flattenFunction(types)
+          val flatten = left.flattenFunction(NCons(right, nodes), types)
           type A = flatten.tpe.Underlying
           import flatten.given
 
@@ -617,8 +614,7 @@ object ast {
           type B = tidyRight.tpe.Underlying
           import tidyRight.given
 
-          val newTypes: TCons[Either[A, B], types.type] = TCons(Type.of[Either[A, B]], types)
-          val flatten = nodes.flattenFunction(newTypes)
+          val flatten = nodes.flattenFunction(TCons(Type.of[Either[A, B]], types))
           type C = flatten.tpe.Underlying
           import flatten.given
 
@@ -642,8 +638,7 @@ object ast {
           type B = tidyRight.tpe.Underlying
           given Type[B] = tidyRight.tpe
 
-          val newTypes: TCons[InclusiveOr[A, B], types.type] = TCons(Type.of[InclusiveOr[A, B]], types)
-          val flatten = nodes.flattenFunction(newTypes)
+          val flatten = nodes.flattenFunction(TCons(Type.of[InclusiveOr[A, B]], types))
           type C = flatten.tpe.Underlying
           import flatten.given
 
