@@ -154,7 +154,7 @@ object ast {
     type InclusiveOr[+_, +_]
     def inclusiveOrType(using Quotes): Type[InclusiveOr]
     def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]]
-    def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(x: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
+    def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
 
     // TODO: Make private
     sealed trait Nodes {
@@ -383,10 +383,8 @@ object ast {
           new FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, A] {
             override def apply(chains: CCons[CaptureType[F][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[A] = {
               val capture = '{ ${ ev(chains.head) }.left.value }
-              '{
-                val inner = ${ ev(chains.head) }.right
-                ${ flatten(CCons('inner, chains.tail), LCons(capture, leaves)) }
-              }
+              val inner = '{ ${ ev(chains.head) }.right }
+              flatten(CCons(inner, chains.tail), LCons(capture, leaves))
             }
           }
         }
@@ -461,10 +459,10 @@ object ast {
           new FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, B] {
             override def apply(chains: CCons[OptCapture[F[R]], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[B] = {
               '{
-                val inner = ${ ev(chains.head) }.value.map { value =>
+                val opt = ${ ev(chains.head) }.value.map { value =>
                   ${ tidy('value) }
                 }
-                ${ flatten(chains.tail, LCons('inner, leaves)) }
+                ${ flatten(chains.tail, LCons('opt, leaves)) }
               }
             }
           }
@@ -532,11 +530,10 @@ object ast {
           given Type[A] = flatten.tpe
           new FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, A] {
             override def apply(chains: CCons[CatType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[A] = {
-              '{
-                val left = ${ ev(chains.head) }.left
-                val right = ${ ev(chains.head) }.right
-                ${ flatten(CCons('left, CCons('right, chains.tail)), leaves) }
-              }
+              val append = ev(chains.head)
+              val left = '{ $append.left }
+              val right = '{ $append.right }
+              flatten(CCons(left, CCons(right, chains.tail)), leaves)
             }
           }
         }
@@ -619,11 +616,11 @@ object ast {
           new FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, C] {
             override def apply(chains: CCons[AltType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[C] = {
               '{
-                val inner = ${ ev(chains.head) }.value.bimap(
-                  value => ${ tidyLeft('value) },
-                  value => ${ tidyRight('value) }
+                val alt = ${ ev(chains.head) }.value.bimap(
+                  left => ${ tidyLeft('left) },
+                  right => ${ tidyRight('right) }
                 )
-                ${ flatten(chains.tail, LCons('inner, leaves)) }
+                ${ flatten(chains.tail, LCons('alt, leaves)) }
               }
             }
           }
@@ -645,8 +642,8 @@ object ast {
             override def apply(chains: CCons[AltType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[C] = {
               '{
                 val value = ${ ev(chains.head) }.value
-                val inner = ${ bimap(tidyLeft(_), tidyRight(_))('value) }
-                ${ flatten(chains.tail, LCons('inner, leaves)) }
+                val alt = ${ bimap(tidyLeft(_), tidyRight(_))('value) }
+                ${ flatten(chains.tail, LCons('alt, leaves)) }
               }
             }
           }
@@ -713,10 +710,10 @@ object ast {
       Ior.fromOptions($left, $right).map(_.unwrap)
     }
 
-    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(x: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = '{
-      val left = (x: A) => ${ f('x) }
-      val right = (x: B) => ${ g('x) }
-      $x.bimap(_.bimap(left, right), _.bimap(left, right))
+    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = '{
+      val left = (left: A) => ${ f('left) }
+      val right = (right: B) => ${ g('right) }
+      $expr.bimap(_.bimap(left, right), _.bimap(left, right))
     }
   }
 
@@ -729,8 +726,8 @@ object ast {
       Ior.fromOptions($left, $right)
     }
 
-    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(x: Expr[Ior[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = '{
-      $x.bimap(x => ${ f('x) }, x => ${ g('x) })
+    override def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[Ior[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = '{
+      $expr.bimap(left => ${ f('left) }, right => ${ g('right) })
     }
   }
 }
