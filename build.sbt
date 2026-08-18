@@ -31,5 +31,7 @@ lazy val root = project
       "-feature",
       "-explain-cyclic",
       // "-Vprint:postInlining", // Enable and use `console` to better see generated code
-    )
+    ),
+
+    Compile / sourceGenerators += (Compile / sourceManaged).map(tuples.gen).taskValue
   )
