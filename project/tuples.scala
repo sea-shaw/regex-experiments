@@ -13,7 +13,7 @@ object tuples {
   val content = s"""|package experiments.macros
     |
     |import experiments.macros.ast.AST
-    |import scala.quoted.{Expr, Quotes, Type}
+    |import scala.quoted.{Expr, Quotes, Type, quotes}
     |
     |object tidy {
     |  trait Tidy extends AST {
@@ -44,10 +44,13 @@ object tuples {
             |      $tupleExpr
             |    }
             |  }
-            |${tupleCase(n + 1).indent(2).stripLineEnd}
+            |${ tupleCase(n + 1).indent(2).stripLineEnd }
             |}""".stripMargin
       } else {
-        "case _ => ???"
+        """|case _ => {
+           |  import quotes.reflect.{Position, report}
+           |  report.errorAndAbort("Tuples of size >22 are not supported.", Position.ofMacroExpansion)
+           |}""".stripMargin
       }
     }
 }
