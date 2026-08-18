@@ -2,7 +2,7 @@ package experiments.macros
 
 import cats.{Applicative, Eval, Functor, Monad, Traverse}
 import cats.collections.Diet
-import cats.data.{Ior, State}
+import cats.data.State
 import cats.kernel.Order
 import cats.syntax.all.*
 import experiments.macros.evidence.{apply, liftCo}
@@ -150,7 +150,7 @@ object ast {
     ev.liftCo[[X <: HChain] =>> SanitisedT[Option, X]]
   }
 
-  sealed trait AST {
+  trait AST {
     type InclusiveOr[+_, +_]
     protected def inclusiveOrType(using Quotes): Type[InclusiveOr]
     protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]]
@@ -649,38 +649,6 @@ object ast {
         given Type[F] = inner.tpe
         new Rep1(inner)
       }
-    }
-  }
-
-  object Oregano extends AST {
-    type InclusiveOr[+A, +B] = Either[Either[A, B], (A, B)]
-
-    override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
-
-    override protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
-      '{ Ior.fromOptions($left, $right).map(_.unwrap) }
-    }
-
-    override protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
-      '{
-        val mapLeft = (left: A) => ${ f('left) }
-        val mapRight = (right: B) => ${ g('right) }
-        $expr.bimap(_.bimap(mapLeft, mapRight), _.bimap(mapLeft, mapRight))
-      }
-    }
-  }
-
-  object Catnip extends AST {
-    type InclusiveOr = Ior
-
-    override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
-
-    override protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
-      '{ Ior.fromOptions($left, $right) }
-    }
-
-    override protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[Ior[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
-      '{ $expr.bimap(left => ${ f('left) }, right => ${ g('right) }) }
     }
   }
 }

@@ -1,10 +1,31 @@
 package experiments.macros
 
-import experiments.macros.ast.Oregano
+import cats.data.Ior
+import cats.syntax.all.*
+import experiments.macros.ast.AST
 import experiments.macros.regex.{Regex, isInlineable}
-import scala.quoted.{Expr, Quotes}
+import scala.quoted.{Expr, Quotes, Type}
 
 object oregano {
+
+  private object Oregano extends AST {
+    type InclusiveOr[+A, +B] = Either[Either[A, B], (A, B)]
+
+    override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
+
+    override protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
+      '{ Ior.fromOptions($left, $right).map(_.unwrap) }
+    }
+
+    override protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
+      '{
+        val mapLeft = (left: A) => ${ f('left) }
+        val mapRight = (right: B) => ${ g('right) }
+        $expr.bimap(_.bimap(mapLeft, mapRight), _.bimap(mapLeft, mapRight))
+      }
+    }
+  }
+
   extension (inline sc: StringContext) {
     transparent inline def r(): Regex[?] = ${ regexCode('sc) }
   }
