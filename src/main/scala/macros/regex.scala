@@ -24,6 +24,15 @@ object regex {
     }
   }
 
+  def code(exprStr: Expr[String], ast: AST)(using Quotes): Expr[String] = {
+    exprStr match {
+      case Expr(s) => parser.parse(s, ast) match {
+        case Success(regex) => Expr(regexCode(exprStr, ast)(regex).show)
+        case Failure(err)   => Expr(err)
+      }
+    }
+  }
+
   private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {      
     given Type[F] = regex.tpe
 
