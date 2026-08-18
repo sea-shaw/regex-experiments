@@ -202,15 +202,14 @@ object ast {
       }
     }
 
-    private case class TCons[A, T <: Types & Singleton](head: Type[A], tail: T) extends Types {
-      type ToLeaves = LCons[A, tail.ToLeaves]
+    private case class TCons[T0, T <: Types & Singleton](head: Type[T0], tail: T) extends Types {
+      type ToLeaves = LCons[T0, tail.ToLeaves]
       override def buildFunction(using Quotes): BuildFunction[ToLeaves, ?] = {
-        type T0 = A
         given Type[T0] = head
 
         tail match {
-          case TNil => new BuildFunction[ToLeaves, A] {
-            override def apply(leaves: ToLeaves)(using Quotes): Expr[A] = leaves.head
+          case TNil => new BuildFunction[ToLeaves, T0] {
+            override def apply(leaves: ToLeaves)(using Quotes): Expr[T0] = leaves.head
           }
           case TCons(given Type[t1], tail1) => {
             tail1 match {
