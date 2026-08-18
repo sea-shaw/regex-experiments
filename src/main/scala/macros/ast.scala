@@ -155,6 +155,7 @@ object ast {
     protected def inclusiveOrType(using Quotes): Type[InclusiveOr]
     protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]]
     protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
+    protected def tconsBuildFunction[T0: Type](tail: Types)(using Quotes): BuildFunction[LCons[T0, tail.ToLeaves], ?]
 
     private sealed trait Nodes {
       type ToChains <: Chains
@@ -189,12 +190,12 @@ object ast {
     private case object CNil extends Chains
     private case class CCons[A <: HChain, C <: Chains](head: Expr[A], tail: C) extends Chains
 
-    private sealed trait Types {
+    protected sealed trait Types {
       type ToLeaves <: Leaves
       def buildFunction(using Quotes): BuildFunction[ToLeaves, ?]
     }
 
-    private case object TNil extends Types {
+    protected case object TNil extends Types {
       type ToLeaves = LNil
 
       override def buildFunction(using Quotes): BuildFunction[LNil, ?] = new BuildFunction[LNil, Unit] {
@@ -202,56 +203,20 @@ object ast {
       }
     }
 
-    private case class TCons[T0, T <: Types & Singleton](head: Type[T0], tail: T) extends Types {
+    protected case class TCons[T0, T <: Types & Singleton](head: Type[T0], tail: T) extends Types {
       type ToLeaves = LCons[T0, tail.ToLeaves]
       override def buildFunction(using Quotes): BuildFunction[ToLeaves, ?] = {
         given Type[T0] = head
-
-        tail match {
-          case TNil => new BuildFunction[ToLeaves, T0] {
-            override def apply(leaves: ToLeaves)(using Quotes): Expr[T0] = leaves.head
-          }
-          case TCons(given Type[t1], tail1) => {
-            tail1 match {
-              case TNil => new BuildFunction[ToLeaves, (t1, T0)] {
-                override def apply(leaves: ToLeaves)(using Quotes): Expr[(t1, T0)] = {
-                  val LCons(e0, LCons(e1, LNil)) = leaves.asInstanceOf[LCons[T0, LCons[t1, LNil]]]
-                  '{ ($e1, $e0) }
-                }
-              }
-              case TCons(given Type[t2], tail2) => {
-                tail2 match {
-                  case TNil => new BuildFunction[ToLeaves, (t2, t1, T0)] {
-                    override def apply(leaves: ToLeaves)(using Quotes): Expr[(t2, t1, T0)] = {
-                      val LCons(e0, LCons(e1, LCons(e2, LNil))) = leaves.asInstanceOf[LCons[T0, LCons[t1, LCons[t2, LNil]]]]
-                      '{ ($e2, $e1, $e0) }
-                    }
-                  }
-                  case TCons(given Type[t3], tail3) => {
-                    tail3 match {
-                      case TNil => new BuildFunction[ToLeaves, (t3, t2, t1, T0)] {
-                        override def apply(leaves: ToLeaves)(using Quotes): Expr[(t3, t2, t1, T0)] = {
-                          val LCons(e0, LCons(e1, LCons(e2, LCons(e3, LNil)))) = leaves.asInstanceOf[LCons[T0, LCons[t1, LCons[t2, LCons[t3, LNil]]]]]
-                          '{ ($e3, $e2, $e1, $e0) }
-                        }
-                      }
-                      case TCons(_, _) => ???
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+        tconsBuildFunction(tail)
       }
     }
 
-    private sealed trait Leaves
-    private type LNil = LNil.type
-    private case object LNil extends Leaves
-    private case class LCons[A, L <: Leaves](head: Expr[A], tail: L) extends Leaves
+    protected sealed trait Leaves
+    protected type LNil = LNil.type
+    protected case object LNil extends Leaves
+    protected case class LCons[A, L <: Leaves](head: Expr[A], tail: L) extends Leaves
 
-    sealed abstract class TidyFunction[A <: HChain, B](using val tpe: Type[B]) {
+    abstract class TidyFunction[A <: HChain, B](using val tpe: Type[B]) {
       def apply(xs: Expr[A])(using Quotes): Expr[B]
     }
 
@@ -259,7 +224,7 @@ object ast {
       def unapply[A <: HChain, B](tidyFunction: TidyFunction[A, B]): Tuple1[Type[B]] = Tuple1(tidyFunction.tpe)
     }
 
-    private sealed abstract class FlattenFunction[C <: Chains, L <: Leaves, A](using val tpe: Type[A]) {
+    private abstract class FlattenFunction[C <: Chains, L <: Leaves, A](using val tpe: Type[A]) {
       def apply(chains: C, leaves: L)(using Quotes): Expr[A]
     }
 
@@ -267,11 +232,11 @@ object ast {
       def unapply[C <: Chains, L <: Leaves, A](tidyFunction: FlattenFunction[C, L, A]): Tuple1[Type[A]] = Tuple1(tidyFunction.tpe)
     }
 
-    private sealed abstract class BuildFunction[L <: Leaves, A](using val tpe: Type[A]) {
+    protected abstract class BuildFunction[L <: Leaves, A](using val tpe: Type[A]) {
       def apply(leaves: L)(using Quotes): Expr[A]
     }
 
-    private object BuildFunction {
+    protected object BuildFunction {
       def unapply[L <: Leaves, A](buildFunction: BuildFunction[L, A]): Tuple1[Type[A]] = Tuple1(buildFunction.tpe)
     }
 
