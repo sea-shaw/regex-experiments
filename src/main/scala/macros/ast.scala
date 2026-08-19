@@ -644,7 +644,7 @@ object ast {
     }
 
     /* {0, m} for m >= 2. Use `Opt` for {0, 1}. */
-    case class AtMost[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int)(using Type[Rep0Type[F]]) extends Rep0[F](inner)
+    case class AtMost[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int)(using Type[Rep0Type[F]]) extends Rep0[F](inner)
     object AtMost {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int)(using Quotes) = {
         given Type[F] = inner.tpe

@@ -6,7 +6,7 @@ import experiments.macros.ast.AST
 import parsley.Parsley
 import parsley.Parsley.pure
 import parsley.bridges.ParserSingletonBridge
-import parsley.templates.{PureParserBridge1, PureParserBridge2}
+import parsley.templates.{PureParserBridge1, PureParserBridge2, PureParserBridge3}
 import scala.quoted.Quotes
 
 object bridges {
@@ -48,12 +48,37 @@ object bridges {
     override def apply(inner: ToRegex): ToRegex = ast.Opt(inner)
   }
 
-  object Rep0 extends PureParserBridge1[ToRegex, ToRegex] {
+  object Star extends PureParserBridge1[ToRegex, ToRegex] {
     override def apply(inner: ToRegex): ToRegex = ast.Star(inner)
   }
 
-  object Rep1 extends PureParserBridge1[ToRegex, ToRegex] {
+  object Plus extends PureParserBridge1[ToRegex, ToRegex] {
     override def apply(inner: ToRegex): ToRegex = ast.Plus(inner)
+  }
+
+  object Exactly extends PureParserBridge2[ToRegex, Int, ToRegex] {
+    override def apply(inner: ToRegex, n: Int): ToRegex = n match {
+      case 0 => ??? // TODO: How to represent? Does it affect capture group indices?
+      case 1 => inner
+      case _ => ast.Exactly(inner, n)
+    }
+  }
+
+  object AtLeast extends PureParserBridge2[ToRegex, Int, ToRegex] {
+    override def apply(inner: ToRegex, n: Int): ToRegex = n match {
+      case 0 => ast.Star(inner)
+      case _ => ast.AtLeast(inner, n)
+    }
+  }
+
+  object Between extends PureParserBridge3[ToRegex, Int, Int, ToRegex] {
+    override def apply(inner: ToRegex, n: Int, m: Int): ToRegex = (n, m) match {
+      case (0, 0) => ??? // TODO: How to represent?
+      case (0, 1) => ast.Opt(inner)
+      case (0, _) => ast.AtMost(inner, m)
+      case (1, 1) => inner
+      case _      => ast.Between(inner, n, m)
+    }
   }
 
   private inline def ast(using ast: AST): ast.type = ast

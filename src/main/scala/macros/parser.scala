@@ -1,7 +1,7 @@
 package experiments.macros
 
 import experiments.macros.ast.AST
-import experiments.macros.bridges.{Alt, Capture, Cat, Dot, Lit, NonCapture, Opt, Rep0, Rep1, ToRegex}
+import experiments.macros.bridges.{Alt, Capture, Cat, Dot, Lit, NonCapture, Opt, Star, Plus, ToRegex}
 import parsley.{Parsley, Result}
 import parsley.cats.combinator.some
 import parsley.expr.chain
@@ -26,5 +26,5 @@ object parser {
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 
-  private lazy val postfixOps = (Opt from '?') <|> (Rep0 from '*') <|> (Rep1 from '+')
+  private lazy val postfixOps = (Opt from '?') <|> (Star from '*') <|> (Plus from '+')
 }
