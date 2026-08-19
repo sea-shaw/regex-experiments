@@ -578,8 +578,22 @@ object ast {
       }
     }
 
+    type Rep0Type[F[_ <: Rep] <: HChain] = OptType[Rep1Type[F]]
+    case class Rep0[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[Rep0Type[F]]) extends Regex[Rep0Type[F]] {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep0Type[F][R]]] = {
+        Opt(Rep1(inner)).sanitiseCode(groups)
+      }
+
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[Rep0Type[F][R], C], L, ?] = {
+        Opt(Rep1(inner)).flattenFunction(nodes,types)
+      }
+    }
+
     object Rep0 {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes) = Opt(Rep1(inner))
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes) = {
+        given Type[F] = inner.tpe
+        new Rep0(inner)
+      }
     }
 
     type Rep1Type[F[_ <: Rep] <: HChain] = Const[F[true]]
