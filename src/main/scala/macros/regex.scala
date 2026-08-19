@@ -40,8 +40,8 @@ object regex {
               }
               val sanitised = ${ regex.sanitiseCode[false]('groups).runA(0).value }
               sanitised.value.map { case Sanitised(captures, _) =>
-                  ${ tidy('captures) }
-                }
+                ${ tidy('captures) }
+              }
             } else {
               None
             }

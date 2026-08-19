@@ -143,7 +143,7 @@ object ast {
   type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[A, B]]
 
   private def empty(using Quotes): SanitiseExpr[HEmpty] = {
-    '{ Applicative[[A] =>> SanitisedT[Option, A]].pure(HChain.nil) }
+    '{ Applicative[[A] =>> SanitisedT[Option, A]].pure(HEmpty) }
   }
 
   private def liftSanitised[A <: HChain: Type, B <: HChain: Type](ev: Expr[A =:= B])(using Quotes): Expr[SanitisedT[Option, A] =:= SanitisedT[Option, B]] = {
@@ -282,25 +282,28 @@ object ast {
           val idx = Expr(i)
           val expr = '{
             val sanitised = $groups($idx).map { s =>
-              Sanitised(HChain.one(s), true)
+              Sanitised(HSingleton(s), true)
             }
             SanitisedT(sanitised)
           }
           (i + 1, expr)
         }
 
-        Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
+        val sanitised = Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
           capture.map(liftSanitised(ev)(_))
-        } getOrElse {
+        } orElse Expr.summon[HAppend[HSingleton[String], F[R]] =:= CaptureType[F][R]].map { ev =>
           (capture, inner.sanitiseCode(groups)).mapN { case (sanitisedCapture, sanitisedInner) =>
-            '{
-              for {
-                capture <- $sanitisedCapture
-                inner <- $sanitisedInner
-              } yield capture ++ inner
+            liftSanitised(ev) {
+              '{
+                for {
+                  capture <- $sanitisedCapture
+                  inner <- $sanitisedInner
+                } yield HAppend(capture, inner)
+              }
             }
           }
         }
+        sanitised.get
       }
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[CaptureType[F][R], C], L, ?] = {
@@ -364,7 +367,7 @@ object ast {
             liftSanitised(ev) {
               '{
                 val innerCaps = $sanitisedInner
-                SanitisedT(Some(innerCaps.value.sequence.map(HChain.one)))
+                SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
               }
             }
           }
@@ -416,20 +419,24 @@ object ast {
         given Type[F] = left.tpe
         given Type[G] = right.tpe
 
-        Expr.summon[F[R] =:= CatType[F, G][R]].map { ev =>
+        val sanitised = Expr.summon[F[R] =:= CatType[F, G][R]].map { ev =>
           left.sanitiseCode(groups).map(liftSanitised(ev)(_))
         } orElse Expr.summon[G[R] =:= CatType[F, G][R]].map { ev =>
           right.sanitiseCode(groups).map(liftSanitised(ev)(_))
-        } getOrElse {
+        } orElse Expr.summon[HAppend[F[R], G[R]] =:= CatType[F, G][R]].map { ev =>
           (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
-            '{
-              for {
-                left <- $sanitisedLeft
-                right <- $sanitisedRight
-              } yield left ++ right
+            liftSanitised(ev) {
+              '{
+                for {
+                  left <- $sanitisedLeft
+                  right <- $sanitisedRight
+                } yield HAppend(left, right)
+              }
             }
           }
         }
+
+        sanitised.get
       }
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[CatType[F, G][R], C], L, ?] = {
@@ -492,7 +499,7 @@ object ast {
               '{
                 val left = $sanitisedLeft.map(_.asLeft[G[R]])
                 val right = $sanitisedRight.map(_.asRight[F[R]])
-                (left max right).map(HChain.one)
+                (left max right).map(HSingleton(_))
               }
             }
           }
@@ -503,7 +510,7 @@ object ast {
                 val left = $sanitisedLeft.value.sequence
                 val right = $sanitisedRight.value.sequence
                 val caps = (left, right).mapN((l, r) => ${ fromOptions('l, 'r) })
-                SanitisedT(caps.traverse(_.map(HChain.one)))
+                SanitisedT(caps.traverse(_.map(HSingleton(_))))
               }
             }
           }
