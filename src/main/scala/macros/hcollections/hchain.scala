@@ -1,71 +1,23 @@
 package experiments.macros.hcollections
 
-import scala.annotation.tailrec
-
 object hchain {
+  sealed trait HChain
 
-  type HConcat[A <: HChain, B <: HChain] = A match {
+  type HEmpty = HEmpty.type
+  case object HEmpty extends HChain
+  case class HSingleton[+A](value: A) extends HChain
+  case class HAppend[+A <: HChain, +B <: HChain](left: A, right: B) extends HChain // TODO: Non-empty constraint
+
+  type HConcat[A <: HChain, B <: HChain] <: HChain = A match {
     case HEmpty    => B
-    case HNonEmpty => B match {
+    case _         => B match {
       case HEmpty    => A
-      case HNonEmpty => HAppend[A, B]
+      case _         => HAppend[A, B]
     }
   }
 
-  type HCons[A, B <: HChain] = B match {
+  type HCons[A, B <: HChain] <: HChain = B match {
     case HEmpty    => HSingleton[A]
-    case HNonEmpty => HAppend[HSingleton[A], B]
-  }
-
-  sealed trait HChain {
-    def +:[A, B >: this.type <: HChain](x: A): HCons[A, B] = (this: B) match {
-      case _: HEmpty             => Singleton(x)
-      case nonEmptyXs: HNonEmpty => Append(Singleton(x), nonEmptyXs)
-    }
-  }
-
-  sealed trait HEmpty extends HChain
-  private case object Empty extends HEmpty
-
-  sealed trait HNonEmpty extends HChain
-
-  sealed trait HSingleton[+A] extends HNonEmpty {
-    val value: A
-  }
-  private case class Singleton[+A](value: A) extends HSingleton[A]
-
-  sealed trait HAppend[+A, +B] extends HNonEmpty {
-    val left: A
-    val right: B
-  }
-  private case class Append[+A <: HNonEmpty, +B <: HNonEmpty](left: A, right: B) extends HAppend[A, B]
-
-  extension [A <: HChain] (xs: A) {
-    def ++[B <: HChain](ys: B): HConcat[A, B] = xs match {
-      case _: HEmpty             => ys
-      case nonEmptyXs: HNonEmpty => ys match {
-        case _: HEmpty             => nonEmptyXs
-        case nonEmptyYs: HNonEmpty => Append(nonEmptyXs, nonEmptyYs)
-      }
-    }
-
-    def toList: List[Any] = {
-      @tailrec
-      def go(xs: HChain, acc: List[Any], rest: List[HNonEmpty]): List[Any] = xs match {
-        case Empty => rest match {
-          case Nil => acc
-          case head :: tail => go(head, acc, tail)
-        }
-        case Singleton(x) => go(Empty, x :: acc, rest)
-        case Append(left, right) => go(right, acc, left :: rest)
-      }
-
-      go(xs, Nil, Nil)
-    }
-  }
-
-  object HChain {
-    val nil: HEmpty = Empty
-    def one[A](x: A): HSingleton[A] = Singleton(x)
+    case _         => HAppend[HSingleton[A], B]
   }
 }

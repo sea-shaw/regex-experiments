@@ -13,13 +13,21 @@ object tuples {
     |
     |object tidy {
     |  trait Tidy extends AST {
-    |    override protected def tconsBuildFunction[t0: Type](tail: Types)(using Quotes): BuildFunction[LCons[t0, tail.ToLeaves], ?] = {
-    |      type ToLeaves = LCons[t0, tail.ToLeaves]
-    |      tail match {
-    |        case TNil => new BuildFunction[ToLeaves, t0] {
-    |          override def apply(leaves: ToLeaves)(using Quotes): Expr[t0] = leaves.head
+    |    override protected def buildFunction[L <: Leaves](types: Types[L])(using Quotes): BuildFunction[L, ?] = {
+    |      types match {
+    |        case TNil => new BuildFunction[LNil, Unit] {
+    |          override def apply(leaves: LNil)(using Quotes): Expr[Unit] = {
+    |            '{ () }
+    |          }
     |        }
-    |${ tconsCase(minSize).indent(4 * indentSize).stripLineEnd }
+    |        case TCons(given Type[t0], tail0) => tail0 match {
+    |          case TNil => new BuildFunction[LCons[t0, LNil], t0] {
+    |            override def apply(leaves: LCons[t0, LNil])(using Quotes): Expr[t0] = {
+    |              leaves.head
+    |            }
+    |          }
+    |${ tconsCase(minSize).indent(5 * indentSize).stripLineEnd }
+    |        }
     |      }
     |    }
     |  }
@@ -37,14 +45,14 @@ object tuples {
   private def tconsCase(n: Int): String = {
     if (n <= maxSize) {
       val indices = (0 until n)
-      val tupleType = indices.reverse.map(i => s"t$i").mkString("(", ", ", ")")
-      val tupleExpr = indices.reverse.map(i => s"$$e$i").mkString("'{ (", ", ", ") }")
+      val tupleType = indices.reverse.map(i => s"t$i").mkString(s"Tuple$n[", ", ", "]")
+      val tupleExpr = indices.reverse.map(i => s"$$e$i").mkString(s"'{ Tuple$n(", ", ", ") }")
       val leavesPattern = indices.map(i => s"LCons(e$i, ").mkString("", "", s"LNil${")" * n}")
       val leavesType = indices.map(i => s"LCons[t$i, ").mkString("", "", s"LNil${"]" * n}")
       s"""|case TCons(given Type[t${n - 1}], tail${n - 1}) => tail${n - 1} match {
-          |  case TNil => new BuildFunction[ToLeaves, $tupleType] {
-          |    override def apply(leaves: ToLeaves)(using Quotes): Expr[$tupleType] = {
-          |      val $leavesPattern = leaves.asInstanceOf[$leavesType]
+          |  case TNil => new BuildFunction[$leavesType, $tupleType] {
+          |    override def apply(leaves: $leavesType)(using Quotes): Expr[$tupleType] = {
+          |      val $leavesPattern = leaves
           |      $tupleExpr
           |    }
           |  }

@@ -143,7 +143,7 @@ object ast {
   type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[A, B]]
 
   private def empty(using Quotes): SanitiseExpr[HEmpty] = {
-    '{ Applicative[[A] =>> SanitisedT[Option, A]].pure(HChain.nil) }
+    '{ Applicative[[A] =>> SanitisedT[Option, A]].pure(HEmpty) }
   }
 
   private def liftSanitised[A <: HChain: Type, B <: HChain: Type](ev: Expr[A =:= B])(using Quotes): Expr[SanitisedT[Option, A] =:= SanitisedT[Option, B]] = {
@@ -155,21 +155,17 @@ object ast {
     protected def inclusiveOrType(using Quotes): Type[InclusiveOr]
     protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]]
     protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
-    protected def tconsBuildFunction[A: Type](tail: Types)(using Quotes): BuildFunction[LCons[A, tail.ToLeaves], ?]
+    protected def buildFunction[L <: Leaves](types: Types[L])(using Quotes): BuildFunction[L, ?]
 
-    private sealed trait Nodes {
-      type ToChains <: Chains
-
-      def flattenFunction(types: Types)(using Quotes): FlattenFunction[ToChains, types.ToLeaves, ?]
+    private sealed trait Nodes[C <: Chains] {
+      private [AST] def flattenFunction[L <: Leaves](types: Types[L])(using Quotes): FlattenFunction[C, L, ?]
     }
 
-    private case object NNil extends Nodes {
-      type ToChains = CNil
-
-      override def flattenFunction(types: Types)(using Quotes): FlattenFunction[CNil, types.ToLeaves, ?] = {
-        types.buildFunction match {
-          case build @ BuildFunction(given Type[a]) => new FlattenFunction[CNil, types.ToLeaves, a] {
-            override def apply(chains: CNil, leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+    private case object NNil extends Nodes[CNil] {
+      override private [AST] def flattenFunction[L <: Leaves](types: Types[L])(using Quotes): FlattenFunction[CNil, L, ?] = {
+        buildFunction(types) match {
+          case build @ BuildFunction(given Type[a]) => new FlattenFunction[CNil, L, a] {
+            override def apply(chains: CNil, leaves: L)(using Quotes): Expr[a] = {
               build(leaves)
             }
           }
@@ -177,11 +173,9 @@ object ast {
       }
     }
 
-    private case class NCons[F[_ <: Rep] <: HChain, R <: Rep: Type, N <: Nodes & Singleton](head: Regex[F], tail: N) extends Nodes {
-      type ToChains = CCons[F[R], tail.ToChains]
-
-      override def flattenFunction(types: Types)(using Quotes): FlattenFunction[CCons[F[R], tail.ToChains], types.ToLeaves, ?] = {
-        head.flattenFunction[R](tail, types)
+    private case class NCons[F[_ <: Rep] <: HChain, R <: Rep: Type, C <: Chains](head: Regex[F], tail: Nodes[C]) extends Nodes[CCons[F[R], C]] {
+      override private [AST] def flattenFunction[L <: Leaves](types: Types[L])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
+        head.flattenFunction(tail, types)
       }
     }
 
@@ -190,26 +184,9 @@ object ast {
     private case object CNil extends Chains
     private case class CCons[A <: HChain, C <: Chains](head: Expr[A], tail: C) extends Chains
 
-    protected sealed trait Types {
-      type ToLeaves <: Leaves
-      def buildFunction(using Quotes): BuildFunction[ToLeaves, ?]
-    }
-
-    protected case object TNil extends Types {
-      type ToLeaves = LNil
-
-      override def buildFunction(using Quotes): BuildFunction[LNil, ?] = new BuildFunction[LNil, Unit] {
-        override def apply(leaves: LNil)(using Quotes): Expr[Unit] = '{ () }
-      }
-    }
-
-    protected case class TCons[A, T <: Types & Singleton](head: Type[A], tail: T) extends Types {
-      type ToLeaves = LCons[A, tail.ToLeaves]
-      override def buildFunction(using Quotes): BuildFunction[ToLeaves, ?] = {
-        given Type[A] = head
-        tconsBuildFunction(tail)
-      }
-    }
+    protected sealed trait Types[L <: Leaves]
+    protected case object TNil extends Types[LNil]
+    protected case class TCons[A, L <: Leaves](head: Type[A], tail: Types[L]) extends Types[LCons[A, L]]
 
     protected sealed trait Leaves
     protected type LNil = LNil.type
@@ -246,7 +223,7 @@ object ast {
       def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]]
 
       final def tidyFunction[R <: Rep: Type](using Quotes): TidyFunction[F[R], ?] = {
-        flattenFunction[R](NNil, TNil) match {
+        flattenFunction(NNil, TNil) match {
           case flatten @ FlattenFunction(given Type[a]) => new TidyFunction[F[R], a] {
             override def apply(xs: Expr[F[R]])(using Quotes): Expr[a] = {
               flatten(CCons(xs, CNil), LNil)
@@ -255,7 +232,7 @@ object ast {
         }
       }
 
-      private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[F[R], nodes.ToChains], types.ToLeaves, ?]
+      private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?]
     }
 
     type BaseType = Const[HEmpty]
@@ -264,10 +241,10 @@ object ast {
         State.pure(empty)
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[HEmpty, nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[HEmpty, C], L, ?] = {
         nodes.flattenFunction(types) match {
-          case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HEmpty, nodes.ToChains], types.ToLeaves, a] {
-            override def apply(chains: CCons[HEmpty, nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+          case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HEmpty, C], L, a] {
+            override def apply(chains: CCons[HEmpty, C], leaves: L)(using Quotes): Expr[a] = {
               flatten(chains.tail, leaves)
             }
           }
@@ -305,43 +282,46 @@ object ast {
           val idx = Expr(i)
           val expr = '{
             val sanitised = $groups($idx).map { s =>
-              Sanitised(HChain.one(s), true)
+              Sanitised(HSingleton(s), true)
             }
             SanitisedT(sanitised)
           }
           (i + 1, expr)
         }
 
-        Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
+        val sanitised = Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
           capture.map(liftSanitised(ev)(_))
-        } getOrElse {
+        } orElse Expr.summon[HAppend[HSingleton[String], F[R]] =:= CaptureType[F][R]].map { ev =>
           (capture, inner.sanitiseCode(groups)).mapN { case (sanitisedCapture, sanitisedInner) =>
-            '{
-              for {
-                capture <- $sanitisedCapture
-                inner <- $sanitisedInner
-              } yield capture ++ inner
+            liftSanitised(ev) {
+              '{
+                for {
+                  capture <- $sanitisedCapture
+                  inner <- $sanitisedInner
+                } yield HAppend(capture, inner)
+              }
             }
           }
         }
+        sanitised.get
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[CaptureType[F][R], C], L, ?] = {
         given Type[F] = inner.tpe
 
         val flatten = Expr.summon[CaptureType[F][R] =:= HSingleton[String]].map { ev =>
           nodes.flattenFunction(TCons(Type.of[String], types)) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, a] {
-              override def apply(chains: CCons[CaptureType[F][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CaptureType[F][R], C], L, a] {
+              override def apply(chains: CCons[CaptureType[F][R], C], leaves: L)(using Quotes): Expr[a] = {
                 val capture = '{ ${ ev(chains.head) }.value }
                 flatten(chains.tail, LCons(capture, leaves))
               }
             }
           }
         } orElse Expr.summon[CaptureType[F][R] =:= HAppend[HSingleton[String], F[R]]].map { ev =>
-          inner.flattenFunction[R](nodes, TCons(Type.of[String], types)) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CaptureType[F][R], nodes.ToChains], types.ToLeaves, a] {
-              override def apply(chains: CCons[CaptureType[F][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+          inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CaptureType[F][R], C], L, a] {
+              override def apply(chains: CCons[CaptureType[F][R], C], leaves: L)(using Quotes): Expr[a] = {
                 '{
                   val node = ${ ev(chains.head) }
                   ${ flatten(CCons('{ node.right }, chains.tail), LCons('{ node.left.value }, leaves)) }
@@ -369,8 +349,8 @@ object ast {
         inner.sanitiseCode(groups)
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[F[R], nodes.ToChains], types.ToLeaves, ?] = {
-        inner.flattenFunction[R](nodes, types)
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
+        inner.flattenFunction(nodes, types)
       }
     }
 
@@ -387,7 +367,7 @@ object ast {
             liftSanitised(ev) {
               '{
                 val innerCaps = $sanitisedInner
-                SanitisedT(Some(innerCaps.value.sequence.map(HChain.one)))
+                SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
               }
             }
           }
@@ -395,12 +375,12 @@ object ast {
         sanitised.get
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[OptCapture[F[R]], C], L, ?] = {
         given Type[F] = inner.tpe
         val flatten = Expr.summon[OptType[F][R] =:= HEmpty].map { _ =>
           nodes.flattenFunction(types) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, a] {
-              override def apply(chains: CCons[OptCapture[F[R]], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[OptCapture[F[R]], C], L, a] {
+              override def apply(chains: CCons[OptCapture[F[R]], C], leaves: L)(using Quotes): Expr[a] = {
                 flatten(chains.tail, leaves)
               }
             }
@@ -408,8 +388,8 @@ object ast {
         } orElse Expr.summon[OptType[F][R] =:= HSingleton[Option[F[R]]]].map { ev =>
           inner.tidyFunction[R] match {
             case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
-              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[OptCapture[F[R]], nodes.ToChains], types.ToLeaves, b] {
-                override def apply(chains: CCons[OptCapture[F[R]], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[b] = {
+              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[OptCapture[F[R]], C], L, b] {
+                override def apply(chains: CCons[OptCapture[F[R]], C], leaves: L)(using Quotes): Expr[b] = {
                   val opt = '{
                     ${ ev(chains.head) }.value.map { value =>
                       ${ tidy('value) }
@@ -439,46 +419,50 @@ object ast {
         given Type[F] = left.tpe
         given Type[G] = right.tpe
 
-        Expr.summon[F[R] =:= CatType[F, G][R]].map { ev =>
+        val sanitised = Expr.summon[F[R] =:= CatType[F, G][R]].map { ev =>
           left.sanitiseCode(groups).map(liftSanitised(ev)(_))
         } orElse Expr.summon[G[R] =:= CatType[F, G][R]].map { ev =>
           right.sanitiseCode(groups).map(liftSanitised(ev)(_))
-        } getOrElse {
+        } orElse Expr.summon[HAppend[F[R], G[R]] =:= CatType[F, G][R]].map { ev =>
           (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
-            '{
-              for {
-                left <- $sanitisedLeft
-                right <- $sanitisedRight
-              } yield left ++ right
+            liftSanitised(ev) {
+              '{
+                for {
+                  left <- $sanitisedLeft
+                  right <- $sanitisedRight
+                } yield HAppend(left, right)
+              }
             }
           }
         }
+
+        sanitised.get
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[CatType[F, G][R], C], L, ?] = {
         given Type[F] = left.tpe
         given Type[G] = right.tpe
 
         val flatten = Expr.summon[CatType[F, G][R] =:= F[R]].map { ev =>
-          left.flattenFunction[R](nodes, types) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, a] {
-              override def apply(chains: CCons[CatType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+          left.flattenFunction(nodes, types) match {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CatType[F, G][R], C], L, a] {
+              override def apply(chains: CCons[CatType[F, G][R], C], leaves: L)(using Quotes): Expr[a] = {
                 flatten(CCons(ev(chains.head), chains.tail), leaves)
               }
             }
           }
         } orElse Expr.summon[CatType[F, G][R] =:= G[R]].map { ev =>
-          right.flattenFunction[R](nodes, types) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, a] {
-              override def apply(chains: CCons[CatType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+          right.flattenFunction(nodes, types) match {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CatType[F, G][R], C], L, a] {
+              override def apply(chains: CCons[CatType[F, G][R], C], leaves: L)(using Quotes): Expr[a] = {
                 flatten(CCons(ev(chains.head), chains.tail), leaves)
               }
             }
           }
         } orElse Expr.summon[CatType[F, G][R] =:= HAppend[F[R], G[R]]].map { ev =>
           left.flattenFunction(NCons(right, nodes), types) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CatType[F, G][R], nodes.ToChains], types.ToLeaves, a] {
-              override def apply(chains: CCons[CatType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CatType[F, G][R], C], L, a] {
+              override def apply(chains: CCons[CatType[F, G][R], C], leaves: L)(using Quotes): Expr[a] = {
                 '{
                   val node = ${ ev(chains.head) }
                   ${ flatten(CCons('{ node.left }, CCons('{ node.right }, chains.tail)), leaves) }
@@ -515,7 +499,7 @@ object ast {
               '{
                 val left = $sanitisedLeft.map(_.asLeft[G[R]])
                 val right = $sanitisedRight.map(_.asRight[F[R]])
-                (left max right).map(HChain.one)
+                (left max right).map(HSingleton(_))
               }
             }
           }
@@ -526,7 +510,7 @@ object ast {
                 val left = $sanitisedLeft.value.sequence
                 val right = $sanitisedRight.value.sequence
                 val caps = (left, right).mapN((l, r) => ${ fromOptions('l, 'r) })
-                SanitisedT(caps.traverse(_.map(HChain.one)))
+                SanitisedT(caps.traverse(_.map(HSingleton(_))))
               }
             }
           }
@@ -535,15 +519,15 @@ object ast {
         sanitised.get
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[AltType[F, G][R], C], L, ?] = {
         given Type[F] = left.tpe
         given Type[G] = right.tpe
         given Type[InclusiveOr] = inclusiveOrType
 
         val flatten = Expr.summon[AltType[F, G][R] =:= HEmpty].map { _ =>
           nodes.flattenFunction(types) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, a] {
-              override def apply(chains: CCons[AltType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[a] = {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[AltType[F, G][R], C], L, a] {
+              override def apply(chains: CCons[AltType[F, G][R], C], leaves: L)(using Quotes): Expr[a] = {
                 flatten(chains.tail, leaves)
               }
             }
@@ -551,8 +535,8 @@ object ast {
         } orElse Expr.summon[AltType[F, G][R] =:= SingletonWith[Either, F[R], G[R]]].map { ev =>
           (left.tidyFunction[R], right.tidyFunction[R]) match {
             case (tidyLeft @ TidyFunction(given Type[a]), tidyRight @ TidyFunction(given Type[b])) => nodes.flattenFunction(TCons(Type.of[Either[a, b]], types)) match {
-              case flatten @ FlattenFunction(given Type[c]) => new FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, c] {
-                override def apply(chains: CCons[AltType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[c] = {
+              case flatten @ FlattenFunction(given Type[c]) => new FlattenFunction[CCons[AltType[F, G][R], C], L, c] {
+                override def apply(chains: CCons[AltType[F, G][R], C], leaves: L)(using Quotes): Expr[c] = {
                   val alt = '{
                     ${ ev(chains.head) }.value.bimap(
                       left => ${ tidyLeft('left) },
@@ -567,8 +551,8 @@ object ast {
         } orElse Expr.summon[AltType[F, G][R] =:= SingletonWith[InclusiveOr, F[R], G[R]]].map { ev =>
           (left.tidyFunction[R], right.tidyFunction[R]) match {
             case (tidyLeft @ TidyFunction(given Type[a]), tidyRight @ TidyFunction(given Type[b])) => nodes.flattenFunction(TCons(Type.of[InclusiveOr[a, b]], types)) match {
-              case flatten @ FlattenFunction(given Type[c]) => new FlattenFunction[CCons[AltType[F, G][R], nodes.ToChains], types.ToLeaves, c] {
-                override def apply(chains: CCons[AltType[F, G][R], nodes.ToChains], leaves: types.ToLeaves)(using Quotes): Expr[c] = {
+              case flatten @ FlattenFunction(given Type[c]) => new FlattenFunction[CCons[AltType[F, G][R], C], L, c] {
+                override def apply(chains: CCons[AltType[F, G][R], C], leaves: L)(using Quotes): Expr[c] = {
                   summon[Type[F[R]]]
                   val alt = '{
                     val alt = ${ ev(chains.head) }.value
@@ -604,8 +588,8 @@ object ast {
         inner.sanitiseCode(groups)
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type](nodes: Nodes, types: Types)(using Quotes): FlattenFunction[CCons[F[true], nodes.ToChains], types.ToLeaves, ?] = {
-        inner.flattenFunction[true](nodes, types)
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[F[true], C], L, ?] = {
+        inner.flattenFunction(nodes, types)
       }
     }
 
