@@ -45,8 +45,8 @@ object tuples {
   private def tconsCase(n: Int): String = {
     if (n <= maxSize) {
       val indices = (0 until n)
-      val tupleType = indices.reverse.map(i => s"t$i").mkString("(", ", ", ")")
-      val tupleExpr = indices.reverse.map(i => s"$$e$i").mkString("'{ (", ", ", ") }")
+      val tupleType = indices.reverse.map(i => s"t$i").mkString(s"Tuple$n[", ", ", "]")
+      val tupleExpr = indices.reverse.map(i => s"$$e$i").mkString(s"'{ Tuple$n(", ", ", ") }")
       val leavesPattern = indices.map(i => s"LCons(e$i, ").mkString("", "", s"LNil${")" * n}")
       val leavesType = indices.map(i => s"LCons[t$i, ").mkString("", "", s"LNil${"]" * n}")
       s"""|case TCons(given Type[t${n - 1}], tail${n - 1}) => tail${n - 1} match {
