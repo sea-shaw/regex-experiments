@@ -12,6 +12,7 @@ lazy val root = project
       "com.github.j-mie6" %% "golden-scalatest" % "0.1.0-M2",
       "com.github.j-mie6" %% "parsley" % "5.0.0-M19",
       "com.github.j-mie6" %% "parsley-cats" % "1.5.0",
+      "com.lihaoyi" %% "os-lib" % "0.11.7",
       "org.scalactic" %% "scalactic" % "3.2.20",
       "org.scalatest" %% "scalatest" % "3.2.20" % "test",
       "org.typelevel" %% "cats-core" % "2.13.0",

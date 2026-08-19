@@ -1,0 +1,21 @@
+{
+  final class $anon() extends experiments.macros.regex.Regex[java.lang.String] {
+    private[this] val pattern: java.util.regex.Pattern = java.util.regex.Pattern.compile("(a)")
+    override def unapply(s: java.lang.String): scala.Option[java.lang.String] = {
+      val m: (java.util.regex.Matcher)? = $anon.this.pattern.matcher(s)
+      if (m.matches()) {
+        val groups: scala.Array[scala.Option[(java.lang.String)?]] = scala.Array.tabulate[scala.Option[(java.lang.String)?]](m.groupCount())(((i: scala.Int) => scala.Option.apply[(java.lang.String)?](m.group(i.+(1)))))(scala.reflect.ClassTag.apply[scala.Option[(java.lang.String)?]](classOf[scala.Option]))
+        val sanitised: experiments.macros.ast.SanitisedT[[A >: scala.Nothing <: scala.Any] =>> scala.Option[A], experiments.macros.hcollections.hchain.HCons[java.lang.String, experiments.macros.hcollections.hchain.HEmpty]] = {
+          val `sanitised₂`: scala.Option[experiments.macros.ast.Sanitised[experiments.macros.hcollections.hchain.HSingleton[java.lang.String]]] = groups.apply(0).map[experiments.macros.ast.Sanitised[experiments.macros.hcollections.hchain.HSingleton[java.lang.String]]](((`s₂`: java.lang.String) => experiments.macros.ast.Sanitised.apply[experiments.macros.hcollections.hchain.HSingleton[java.lang.String]](experiments.macros.hcollections.hchain.HSingleton.apply[java.lang.String](`s₂`), true)))
+          experiments.macros.ast.SanitisedT.apply[scala.Option, experiments.macros.hcollections.hchain.HSingleton[java.lang.String]](`sanitised₂`)
+        }
+        sanitised.value.map[java.lang.String](((x$1: experiments.macros.ast.Sanitised[experiments.macros.hcollections.hchain.HCons[java.lang.String, experiments.macros.hcollections.hchain.HEmpty]]) => x$1 match {
+          case experiments.macros.ast.Sanitised(captures, _) =>
+            captures.value
+        }))
+      } else scala.None
+    }
+  }
+
+  (new $anon(): experiments.macros.regex.Regex[java.lang.String])
+}
