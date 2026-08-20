@@ -13,21 +13,6 @@ object bridges {
 
   type ToRegex = (ast: AST, q: Quotes) ?=> ast.Regex[?]
 
-  object Alt extends PureParserBridge2[ToRegex, ToRegex, ToRegex] {
-    override def apply(left: ToRegex, right: ToRegex): ToRegex = ast.Alt(left, right)
-  }
-
-  object Capture extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ast.Capture(inner)
-  }
-
-  object Cat extends PureParserBridge1[NonEmptyList[ToRegex], ToRegex] {
-    override def apply(regexes: NonEmptyList[ToRegex]): ToRegex = {
-      val NonEmptyList(head, tail) = regexes
-      tail.foldLeft(head)(ast.Cat(_, _))
-    }
-  }
-
   object Dot extends ParserSingletonBridge[ToRegex] {
     override protected def singleton: Parsley[ToRegex] = pure(ast.Dot())
   }
@@ -40,8 +25,31 @@ object bridges {
     override def apply(cs: Diet[Int]): ToRegex = ast.Class(cs)
   }
 
+  object LineStart extends ParserSingletonBridge[ToRegex] {
+    override protected def singleton: Parsley[ToRegex] = pure(ast.LineStart())
+  }
+
+  object LineEnd extends ParserSingletonBridge[ToRegex] {
+    override protected def singleton: Parsley[ToRegex] = pure(ast.LineEnd())
+  }
+
+  object Capture extends PureParserBridge1[ToRegex, ToRegex] {
+    override def apply(inner: ToRegex): ToRegex = ast.Capture(inner)
+  }
+
   object NonCapture extends PureParserBridge1[ToRegex, ToRegex] {
     override def apply(inner: ToRegex): ToRegex = ast.NonCapture(inner)
+  }
+
+  object Cat extends PureParserBridge1[NonEmptyList[ToRegex], ToRegex] {
+    override def apply(regexes: NonEmptyList[ToRegex]): ToRegex = {
+      val NonEmptyList(head, tail) = regexes
+      tail.foldLeft(head)(ast.Cat(_, _))
+    }
+  }
+
+  object Alt extends PureParserBridge2[ToRegex, ToRegex, ToRegex] {
+    override def apply(left: ToRegex, right: ToRegex): ToRegex = ast.Alt(left, right)
   }
 
   object Opt extends PureParserBridge1[ToRegex, ToRegex] {
