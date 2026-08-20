@@ -134,10 +134,14 @@ class QT3TSTests extends AnyFlatSpec {
     // val r63 = r"(foo|fool|[zx].|money|parted)+$" // "fool" should matchPattern { case r63(g0) => assert((g0) == ("fool")) }
     // val r64 = r"(foo|fool|money|parted)$" // "fool" should matchPattern { case r64(g0) => assert((g0) == ("fool")) }
     // val r65 = r"(foo|fool|x.|money|parted)$" // "fool" should matchPattern { case r65(g0) => assert((g0) == ("fool")) }
-    // val r66 = r"(q1|.)*(q2|.)*(x(a|bc)*y){2,3}" // "xayxay" should matchPattern { case r66(None, None, g2, Some(g3)) => assert((null, null, g2, g3) == (null, null, "xay", "a")) }
-    // val r67 = r"(q1|.)*(q2|.)*(x(a|bc)*y){2,}" // "xayxay" should matchPattern { case r67(None, None, g2, Some(g3)) => assert((null, null, g2, g3) == (null, null, "xay", "a")) }
+    val r66 = r"(q1|.)*(q2|.)*(x(a|bc)*y){2,3}"
+    "xayxay" should matchPattern { case r66(None, None, "xay", Some("a")) => }
 
-    // val r68 = r"(q1|z)*(q2|z)*z{15}-.*?(x(a|bc)*y){2,3}Z" // "zzzzzzzzzzzzzzzz-xayxayxayxayZ" should matchPattern { case r68(Some(g0), None, g2, Some(g3)) => assert((g0, null, g2, g3) == ("z", null, "xay", "a")) }
+    val r67 = r"(q1|.)*(q2|.)*(x(a|bc)*y){2,}"
+    "xayxay" should matchPattern { case r67(None, None, "xay", Some("a")) => }
+
+    val r68 = r"(q1|z)*(q2|z)*z{15}-.*?(x(a|bc)*y){2,3}Z"
+    "zzzzzzzzzzzzzzzz-xayxayxayxayZ" should matchPattern { case r68(Some("z"), None, "xay", Some("a")) => }
 
     val r69 = r"(WORDS|WORD)S"
     "WORDS" should matchPattern { case r69("WORD") => }
@@ -256,12 +260,24 @@ class QT3TSTests extends AnyFlatSpec {
     val r162 = r"a(?:b|c|d)+?(.)"
     "ace" should matchPattern { case r162("e") => }
 
-    // val r163 = r"a(?:b|c|d){5,6}(.)" // "acdbcdbe" should matchPattern { case r163(g0) => assert((g0) == ("e")) }
-    // val r164 = r"a(?:b|c|d){5,6}?(.)" // "acdbcdbe" should matchPattern { case r164(g0) => assert((g0) == ("e")) }
-    // val r165 = r"a(?:b|c|d){5,7}(.)" // "acdbcdbe" should matchPattern { case r165(g0) => assert((g0) == ("e")) }
-    // val r166 = r"a(?:b|c|d){5,7}?(.)" // "acdbcdbe" should matchPattern { case r166(g0) => assert((g0) == ("e")) }
-    // val r167 = r"a(?:b|c|d){6,7}(.)" // "acdbcdbe" should matchPattern { case r167(g0) => assert((g0) == ("e")) }
-    // val r168 = r"a(?:b|c|d){6,7}?(.)" // "acdbcdbe" should matchPattern { case r168(g0) => assert((g0) == ("e")) }
+    val r163 = r"a(?:b|c|d){5,6}(.)"
+    "acdbcdbe" should matchPattern { case r163("e") => }
+
+    val r164 = r"a(?:b|c|d){5,6}?(.)"
+    "acdbcdbe" should matchPattern { case r164("e") => }
+
+    val r165 = r"a(?:b|c|d){5,7}(.)"
+    "acdbcdbe" should matchPattern { case r165("e") => }
+
+    val r166 = r"a(?:b|c|d){5,7}?(.)"
+    "acdbcdbe" should matchPattern { case r166("e") => }
+
+    val r167 = r"a(?:b|c|d){6,7}(.)"
+    "acdbcdbe" should matchPattern { case r167("e") => }
+
+    val r168 = r"a(?:b|c|d){6,7}?(.)"
+    "acdbcdbe" should matchPattern { case r168("e") => }
+
     // val r169 = r"a([bc]*)(c*d)" // "abcd" should matchPattern { case r169(g0, g1) => assert((g0, g1) == ("bc", "d")) }
     // val r170 = r"a([bc]*)(c+d)" // "abcd" should matchPattern { case r170(g0, g1) => assert((g0, g1) == ("b", "cd")) }
     // val r171 = r"a([bc]*)c*" // "abc" should matchPattern { case r171(g0) => assert((g0) == ("bc")) }
