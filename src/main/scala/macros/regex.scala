@@ -27,7 +27,12 @@ object regex {
   def code(exprStr: Expr[String], ast: AST)(using Quotes): Expr[String] = {
     exprStr match {
       case Expr(s) => parser.parse(s, ast) match {
-        case Success(regex) => Expr(regexCode(exprStr, ast)(regex).show)
+        case Success(regex) => {
+          import quotes.reflect.{Printer, asTerm}
+          val codeExpr = regexCode(exprStr, ast)(regex)
+          val codeStr = codeExpr.asTerm.show(using Printer.TreeShortCode)
+          Expr(codeStr)
+        }
         case Failure(err)   => Expr(err)
       }
     }
