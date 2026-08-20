@@ -168,10 +168,10 @@ class QT3TSTests extends AnyFlatSpec {
   //   "one:" should matchPattern { case r32("one:") => }
   // }
 
-  it should "pass test 33: (^|a)b" in pending // {
-  //   val r33 = r"(^|a)b"
-  //   "ab" should matchPattern { case r33("a") => }
-  // }
+  it should "pass test 33: (^|a)b" in {
+    val r33 = r"(^|a)b"
+    "ab" should matchPattern { case r33("a") => }
+  }
 
   it should "pass test 34: (a)?(a)+" in {
     val r34 = r"(a)?(a)+"
@@ -428,35 +428,35 @@ class QT3TSTests extends AnyFlatSpec {
   //   "aaaaX5" should matchPattern { case r84("aaaa", Some("5"), None) => }
   // }
 
-  it should "pass test 85: ^((a|b)+)*ax" in pending // {
-  //   val r85 = r"^((a|b)+)*ax"
-  //   "aax" should matchPattern { case r85(Some("a"), Some("a")) => }
-  // }
+  it should "pass test 85: ^((a|b)+)*ax" in {
+    val r85 = r"^((a|b)+)*ax"
+    "aax" should matchPattern { case r85(Some("a", "a")) => }
+  }
 
-  it should "pass test 86: ^((a|bc)+)*ax" in pending // {
-  //   val r86 = r"^((a|bc)+)*ax"
-  //   "aax" should matchPattern { case r86(Some("a"), Some("a")) => }
-  // }
+  it should "pass test 86: ^((a|bc)+)*ax" in {
+    val r86 = r"^((a|bc)+)*ax"
+    "aax" should matchPattern { case r86(Some("a", "a")) => }
+  }
 
   it should "pass test 87: ^(.*?)\\s*\\|\\s*(?:\\/\\s*|)\'(.+)\'$" in pending // {
   //   val r87 = r"^(.*?)\\s*\\|\\s*(?:\\/\\s*|)\'(.+)\'$"
   //   "text|\'sec\'" should matchPattern { case r87("text", "sec") => }
   // }
 
-  it should "pass test 88: ^(.+)?B" in pending // {
-  //   val r88 = r"^(.+)?B"
-  //   "AB" should matchPattern { case r88(Some("A")) => }
-  // }
+  it should "pass test 88: ^(.+)?B" in {
+    val r88 = r"^(.+)?B"
+    "AB" should matchPattern { case r88(Some("A")) => }
+  }
 
-  it should "pass test 89: ^(.,){2}c" in pending // {
-  //   val r89 = r"^(.,){2}c"
-  //   "a,b,c" should matchPattern { case r89("b,") => }
-  // }
+  it should "pass test 89: ^(.,){2}c" in {
+    val r89 = r"^(.,){2}c"
+    "a,b,c" should matchPattern { case r89("b,") => }
+  }
 
-  it should "pass test 90: ^(0+)?(?:x(1))?" in pending // {
-  //   val r90 = r"^(0+)?(?:x(1))?"
-  //   "x1" should matchPattern { case r90(None, Some("1")) => }
-  // }
+  it should "pass test 90: ^(0+)?(?:x(1))?" in {
+    val r90 = r"^(0+)?(?:x(1))?"
+    "x1" should matchPattern { case r90(None, Some("1")) => }
+  }
 
   it should "pass test 91: ^(?:(\\d)x)?\\d$" in pending // {
   //   val r91 = r"^(?:(\\d)x)?\\d$"
@@ -638,20 +638,20 @@ class QT3TSTests extends AnyFlatSpec {
   //   "ZEQQQX:" should matchPattern { case r126("ZEQQQX") => }
   // }
 
-  it should "pass test 127: ^(a(b)?)+$" in pending // {
-  //   val r127 = r"^(a(b)?)+$"
-  //   "aba" should matchPattern { case r127("a", Some("b")) => }
-  // }
+  it should "pass test 127: ^(a(b)?)+$" in {
+    val r127 = r"^(a(b)?)+$$"
+    "aba" should matchPattern { case r127("a", Some("b")) => }
+  }
 
-  it should "pass test 128: ^(a)?a$" in pending // {
-  //   val r128 = r"^(a)?a$"
-  //   "a" should matchPattern { case r128(None) => }
-  // }
+  it should "pass test 128: ^(a)?a$" in {
+    val r128 = r"^(a)?a$$"
+    "a" should matchPattern { case r128(None) => }
+  }
 
-  it should "pass test 129: ^(a+)*ax" in pending // {
-  //   val r129 = r"^(a+)*ax"
-  //   "aax" should matchPattern { case r129(Some("a")) => }
-  // }
+  it should "pass test 129: ^(a+)*ax" in {
+    val r129 = r"^(a+)*ax"
+    "aax" should matchPattern { case r129(Some("a")) => }
+  }
 
   it should "pass test 130: ^(a\\1?)(a\\1?)(a\\2?)(a\\3?)$" in pending // {
   //   val r130 = r"^(a\\1?)(a\\1?)(a\\2?)(a\\3?)$"
@@ -668,10 +668,10 @@ class QT3TSTests extends AnyFlatSpec {
   //   "aaaaaaaaaa" should matchPattern { case r132("aaaa") => }
   // }
 
-  it should "pass test 133: ^(aa(bb)?)+$" in pending // {
-  //   val r133 = r"^(aa(bb)?)+$"
-  //   "aabbaa" should matchPattern { case r133("aa", Some("bb")) => }
-  // }
+  it should "pass test 133: ^(aa(bb)?)+$" in {
+    val r133 = r"^(aa(bb)?)+$$"
+    "aabbaa" should matchPattern { case r133("aa", Some("bb")) => }
+  }
 
   it should "pass test 134: ^(b+?|a){1,2}c" in pending // {
   //   val r134 = r"^(b+?|a){1,2}c"
@@ -918,8 +918,8 @@ class QT3TSTests extends AnyFlatSpec {
   //   "Xab" should matchPattern { case r182(None, Some("ab")) => }
   // }
 
-  it should "pass test 183: x(~~)*(?:(?:F)?)?" in pending // {
-  //   val r183 = r"x(~~)*(?:(?:F)?)?"
-  //   "x~~" should matchPattern { case r183(Some("~~")) => }
-  // }
+  it should "pass test 183: x(~~)*(?:(?:F)?)?" in {
+    val r183 = r"x(~~)*(?:(?:F)?)?"
+    "x~~" should matchPattern { case r183(Some("~~")) => }
+  }
 }
