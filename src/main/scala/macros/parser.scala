@@ -3,6 +3,7 @@ package experiments.macros
 import experiments.macros.ast.AST
 import experiments.macros.bridges.{Alt, Capture, Cat, Dot, Lit, NonCapture, Opt, Rep0, Rep1, ToRegex}
 import parsley.{Parsley, Result}
+import parsley.combinator.option
 import parsley.cats.combinator.some
 import parsley.expr.chain
 import parsley.quick.{atomic, eof, noneOf}
@@ -16,7 +17,10 @@ object parser {
   private lazy val regex = expr <~ eof
   private lazy val expr: Parsley[ToRegex] = chain.right1(term)(Alt from '|')
   private lazy val term = Cat(some(atomWithPostfix))
-  private lazy val atomWithPostfix = chain.postfix(atom)(postfixOps)
+  private lazy val atomWithPostfix: Parsley[ToRegex] = atom <~> option(postfixOps) map {
+    case (regex, None)          => regex
+    case (regex, Some(postfix)) => postfix(regex)
+  }
   private lazy val atom = nonCapture | capture | lit | dot
 
   private lazy val nonCapture = NonCapture(atomic("(?:") ~> expr <~ ')')
