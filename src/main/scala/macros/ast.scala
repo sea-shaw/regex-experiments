@@ -236,7 +236,7 @@ object ast {
     }
 
     type BaseType = Const[HEmpty]
-    sealed abstract class Base extends Regex[BaseType] {
+    sealed abstract class Base protected (using override val tpe: Type[BaseType]) extends Regex[BaseType] {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[HEmpty]] = {
         State.pure(empty)
       }
@@ -252,24 +252,38 @@ object ast {
       }
     }
 
-    case class Dot private ()(using override val tpe: Type[BaseType]) extends Base
+    case class Dot private ()(using Type[BaseType]) extends Base
     object Dot {
       def apply()(using Quotes): Dot = {
         new Dot()
       }
     }
 
-    case class Lit private (c: Int)(using override val tpe: Type[BaseType]) extends Base
+    case class Lit private (c: Int)(using Type[BaseType]) extends Base
     object Lit {
       def apply(c: Int)(using Quotes): Lit = {
         new Lit(c)
       }
     }
 
-    case class Class private (cs: Diet[Int])(using override val tpe: Type[BaseType]) extends Base
+    case class Class private (cs: Diet[Int])(using Type[BaseType]) extends Base
     object Class {
       def apply(cs: Diet[Int])(using Quotes): Class = {
         new Class(cs)
+      }
+    }
+
+    case class LineStart private ()(using Type[BaseType]) extends Base
+    object LineStart {
+      def apply()(using Quotes): LineStart = {
+        new LineStart()
+      }
+    }
+
+    case class LineEnd private ()(using Type[BaseType]) extends Base
+    object LineEnd {
+      def apply()(using Quotes): LineEnd = {
+        new LineEnd()
       }
     }
 
