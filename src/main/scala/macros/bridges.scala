@@ -6,6 +6,7 @@ import experiments.macros.ast.AST
 import parsley.Parsley
 import parsley.Parsley.pure
 import parsley.bridges.ParserSingletonBridge
+import parsley.errors.combinator.*
 import parsley.templates.{PureParserBridge1, PureParserBridge2}
 import scala.quoted.Quotes
 
@@ -62,6 +63,18 @@ object bridges {
 
   object Plus extends PureParserBridge1[ToRegex, ToRegex] {
     override def apply(inner: ToRegex): ToRegex = ast.Plus(inner)
+  }
+
+  object NumericalQuantifier {
+    def apply(range: Parsley[(Int, Option[Option[Int]])]): Parsley[ToRegex => ToRegex] = range.mapFilterMsg {
+      case (0, None | Some(Some(0))) => Left(Seq("Quanitifer cannot be 0"))
+      case (1, None | Some(Some(1))) => Right(identity)
+      case (n, None)                 => Right(ast.Exactly(_, n))
+      case (0, Some(None))           => Right(ast.Star(_))
+      case (n, Some(None))           => Right(ast.AtLeast(_, n))
+      case (0, Some(Some(m)))        => Right(ast.AtMost(_, m))
+      case (n, Some(Some(m)))        => if n <= m then Right(ast.Between(_, n, m)) else Left(Seq("Upper bound cannot be less than lower bound"))
+    }
   }
 
   private inline def ast(using ast: AST): ast.type = ast

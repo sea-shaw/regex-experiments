@@ -1,7 +1,7 @@
 package experiments.macros
 
 import experiments.macros.ast.AST
-import experiments.macros.bridges.{Alt, Capture, Cat, Dot, LineEnd, LineStart, Lit, NonCapture, Opt, Star, Plus, ToRegex}
+import experiments.macros.bridges.{Alt, Capture, Cat, Dot, LineEnd, LineStart, Lit, NonCapture, NumericalQuantifier, Opt, Star, Plus, ToRegex}
 import parsley.{Parsley, Result}
 import parsley.cats.combinator.some
 import parsley.combinator.option
@@ -48,17 +48,7 @@ object parser {
 
   private lazy val postfixOps = (Opt from '?') | (Star from '*') | (Plus from '+') | numericalQuantifier
 
-  private lazy val numericalQuantifier: Parsley[ToRegex => ToRegex] = braces.mapFilterMsg {
-    case (0, None | Some(Some(0))) => Left(Seq("Quanitifer cannot be 0"))
-    case (1, None | Some(Some(1))) => Right(identity)
-    case (n, None)                 => Right(ast.Exactly(_, n))
-    case (0, Some(None))           => Right(ast.Star(_))
-    case (n, Some(None))           => Right(ast.AtLeast(_, n))
-    case (0, Some(Some(m)))        => Right(ast.AtMost(_, m))
-    case (n, Some(Some(m)))        => if n <= m then Right(ast.Between(_, n, m)) else Left(Seq("Upper bound cannot be less than lower bound"))
-  }
+  private lazy val numericalQuantifier: Parsley[ToRegex => ToRegex] = NumericalQuantifier(braces)
   private lazy val braces = '{' ~> int <~> option(',' ~> option(int)) <~ '}'
   private lazy val int = lexer.lexeme.natural.decimal32[Int]
-
-  private inline def ast(using ast: AST): ast.type = ast
 }
