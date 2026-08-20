@@ -354,65 +354,6 @@ object ast {
       }
     }
 
-    type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> OptCapture[F[R]] 
-
-    case class Opt[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[OptType[F]]) extends Regex[OptType[F]] {
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[OptType[F][R]]] = {
-        given Type[F] = inner.tpe
-
-        val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
-          State.pure(liftSanitised(ev)(empty))
-        } orElse Expr.summon[HSingleton[Option[F[R]]] =:= OptType[F][R]].map { ev =>
-          inner.sanitiseCode(groups).map { sanitisedInner =>
-            liftSanitised(ev) {
-              '{
-                val innerCaps = $sanitisedInner
-                SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
-              }
-            }
-          }
-        }
-        sanitised.get
-      }
-
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[OptCapture[F[R]], C], L, ?] = {
-        given Type[F] = inner.tpe
-        val flatten = Expr.summon[OptType[F][R] =:= HEmpty].map { _ =>
-          nodes.flattenFunction(types) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[OptCapture[F[R]], C], L, a] {
-              override def apply(chains: CCons[OptCapture[F[R]], C], leaves: L)(using Quotes): Expr[a] = {
-                flatten(chains.tail, leaves)
-              }
-            }
-          }
-        } orElse Expr.summon[OptType[F][R] =:= HSingleton[Option[F[R]]]].map { ev =>
-          inner.tidyFunction[R] match {
-            case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
-              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[OptCapture[F[R]], C], L, b] {
-                override def apply(chains: CCons[OptCapture[F[R]], C], leaves: L)(using Quotes): Expr[b] = {
-                  val opt = '{
-                    ${ ev(chains.head) }.value.map { value =>
-                      ${ tidy('value) }
-                    }
-                  }
-                  flatten(chains.tail, LCons(opt, leaves))
-                }
-              }
-            }
-          }
-        }
-
-        flatten.get
-      }
-    }
-
-    object Opt {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Opt[F] = {
-        given Type[F] = inner.tpe
-        new Opt(inner)
-      }
-    }
-
     type CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> HConcat[F[R], G[R]]
     case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(using override val tpe: Type[CatType[F, G]]) extends Regex[CatType[F, G]] {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CatType[F, G][R]]] = {
@@ -575,6 +516,64 @@ object ast {
         given Type[G] = right.tpe
         given Type[InclusiveOr] = inclusiveOrType
         new Alt(left, right)
+      }
+    }
+
+    type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> OptCapture[F[R]] 
+    case class Opt[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[OptType[F]]) extends Regex[OptType[F]] {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[OptType[F][R]]] = {
+        given Type[F] = inner.tpe
+
+        val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
+          State.pure(liftSanitised(ev)(empty))
+        } orElse Expr.summon[HSingleton[Option[F[R]]] =:= OptType[F][R]].map { ev =>
+          inner.sanitiseCode(groups).map { sanitisedInner =>
+            liftSanitised(ev) {
+              '{
+                val innerCaps = $sanitisedInner
+                SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
+              }
+            }
+          }
+        }
+        sanitised.get
+      }
+
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[OptCapture[F[R]], C], L, ?] = {
+        given Type[F] = inner.tpe
+        val flatten = Expr.summon[OptType[F][R] =:= HEmpty].map { _ =>
+          nodes.flattenFunction(types) match {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[OptCapture[F[R]], C], L, a] {
+              override def apply(chains: CCons[OptCapture[F[R]], C], leaves: L)(using Quotes): Expr[a] = {
+                flatten(chains.tail, leaves)
+              }
+            }
+          }
+        } orElse Expr.summon[OptType[F][R] =:= HSingleton[Option[F[R]]]].map { ev =>
+          inner.tidyFunction[R] match {
+            case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
+              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[OptCapture[F[R]], C], L, b] {
+                override def apply(chains: CCons[OptCapture[F[R]], C], leaves: L)(using Quotes): Expr[b] = {
+                  val opt = '{
+                    ${ ev(chains.head) }.value.map { value =>
+                      ${ tidy('value) }
+                    }
+                  }
+                  flatten(chains.tail, LCons(opt, leaves))
+                }
+              }
+            }
+          }
+        }
+
+        flatten.get
+      }
+    }
+
+    object Opt {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Opt[F] = {
+        given Type[F] = inner.tpe
+        new Opt(inner)
       }
     }
 
