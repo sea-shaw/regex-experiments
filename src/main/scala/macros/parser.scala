@@ -3,7 +3,6 @@ package experiments.macros
 import experiments.macros.ast.AST
 import experiments.macros.bridges.{Alt, Capture, Cat, Dot, Lit, NonCapture, Opt, Star, Plus, ToRegex}
 import parsley.{Parsley, Result}
-import parsley.combinator.option
 import parsley.cats.combinator.some
 import parsley.combinator.option
 import parsley.errors.combinator.*
