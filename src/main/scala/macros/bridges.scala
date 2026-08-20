@@ -48,12 +48,12 @@ object bridges {
     override def apply(inner: ToRegex): ToRegex = ast.Opt(inner)
   }
 
-  object Rep0 extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ast.Rep0(inner)
+  object Star extends PureParserBridge1[ToRegex, ToRegex] {
+    override def apply(inner: ToRegex): ToRegex = ast.Star(inner)
   }
 
-  object Rep1 extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ast.Rep1(inner)
+  object Plus extends PureParserBridge1[ToRegex, ToRegex] {
+    override def apply(inner: ToRegex): ToRegex = ast.Plus(inner)
   }
 
   private inline def ast(using ast: AST): ast.type = ast
