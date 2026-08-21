@@ -7,6 +7,10 @@ import java.util.regex.Pattern
 import parsley.{Failure, Success}
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
+import experiments.macros.parsing.errors.PosErrorBuilder
+import parsley.errors.ErrorBuilder
+import experiments.macros.parsing.errors.PosError
+import experiments.macros.parsing.errors.Pos
 
 object regex {
   sealed trait Regex[A] {
@@ -14,14 +18,22 @@ object regex {
   }
 
   def isInlineable(sc: Expr[StringContext], ast: AST)(using Quotes): Expr[Regex[?]] = {
-    import quotes.reflect.report
+    import quotes.reflect.{asTerm, report}
+    given ErrorBuilder[PosError] = PosErrorBuilder
     sc match {
       case '{ StringContext(${ strExpr @ Expr(s) }) } => parser.parse(s, ast) match {
         case Success(regex) => regexCode(strExpr, ast)(regex)
-        case Failure(err)  => report.errorAndAbort(err, strExpr)
+        case Failure(err)  => report.errorAndAbort(err.msg, pos(strExpr.asTerm.pos, err.pos.offset, err.pos.width))
       }
       case _       => report.errorAndAbort("Regex string must be compile-time constant.", sc)
     }
+  }
+
+  private def pos(using q: Quotes)(pos: q.reflect.Position, offset: Int, width: Int): q.reflect.Position = {
+    import quotes.reflect.Position
+    val start = pos.start + offset
+    val end = start + width
+    Position(pos.sourceFile, start, end)
   }
 
   def code(exprStr: Expr[String], ast: AST)(using Quotes): Expr[String] = {

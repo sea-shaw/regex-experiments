@@ -1,10 +1,11 @@
 package experiments.macros.parsing
 
 import experiments.macros.ast.AST
-import bridges.{Alt, Capture, Cat, Dot, LineEnd, LineStart, Lit, NonCapture, NumericalQuantifier, Opt, Star, Plus, ToRegex}
+import experiments.macros.parsing.bridges.{Alt, Capture, Cat, Dot, LineEnd, LineStart, Lit, NonCapture, NumericalQuantifier, Opt, Star, Plus, ToRegex}
 import parsley.{Parsley, Result}
 import parsley.cats.combinator.some
 import parsley.combinator.option
+import parsley.errors.ErrorBuilder
 import parsley.expr.chain
 import parsley.quick.{atomic, eof, noneOf}
 import parsley.syntax.character.{charLift, stringLift}
@@ -14,7 +15,9 @@ import scala.quoted.Quotes
 
 object parser {
 
-  def parse(s: String, ast: AST)(using q: Quotes): Result[String, ast.Regex[?]] = regex.parse(s).map(_(using ast, q))
+  def parse[Err: ErrorBuilder](s: String, ast: AST)(using q: Quotes): Result[Err, ast.Regex[?]] = {
+    regex.parse(s).map(_(using ast, q))
+  }
 
   private val regexDesc = LexicalDesc.plain.copy(
     numericDesc = NumericDesc.plain.copy(
