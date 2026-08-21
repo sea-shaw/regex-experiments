@@ -2,15 +2,13 @@ package experiments.macros
 
 import experiments.macros.ast.{AST, Rep, Sanitised}
 import experiments.macros.hcollections.hchain.HChain
-import experiments.macros.parsing.parser
+import experiments.macros.parsing.errors.{Pos, PosError, PosErrorBuilder}
+import experiments.macros.parsing.parser.parse
 import java.util.regex.Pattern
 import parsley.{Failure, Success}
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
-import experiments.macros.parsing.errors.PosErrorBuilder
 import parsley.errors.ErrorBuilder
-import experiments.macros.parsing.errors.PosError
-import experiments.macros.parsing.errors.Pos
 
 object regex {
   sealed trait Regex[A] {
@@ -18,27 +16,31 @@ object regex {
   }
 
   def isInlineable(sc: Expr[StringContext], ast: AST)(using Quotes): Expr[Regex[?]] = {
-    import quotes.reflect.{asTerm, report}
+    import quotes.reflect.report
+
     given ErrorBuilder[PosError] = PosErrorBuilder
+
     sc match {
-      case '{ StringContext(${ strExpr @ Expr(s) }) } => parser.parse(s, ast) match {
+      case '{ StringContext(${ strExpr @ Expr(s) }) } => parse(s, ast) match {
         case Success(regex) => regexCode(strExpr, ast)(regex)
-        case Failure(err)  => report.errorAndAbort(err.msg, pos(strExpr.asTerm.pos, err.pos.offset, err.pos.width))
+        case Failure(PosError(msg, pos))   => report.errorAndAbort(msg, errPos(strExpr, pos))
       }
-      case _       => report.errorAndAbort("Regex string must be compile-time constant.", sc)
+      case _ => report.errorAndAbort("Regex string must be compile-time constant.", sc)
     }
   }
 
-  private def pos(using q: Quotes)(pos: q.reflect.Position, offset: Int, width: Int): q.reflect.Position = {
-    import quotes.reflect.Position
-    val start = pos.start + offset
-    val end = start + width
-    Position(pos.sourceFile, start, end)
+  private def errPos(expr: Expr[?], pos: Pos)(using q: Quotes): q.reflect.Position = {
+    import quotes.reflect.{Position, asTerm}
+
+    val exprPos = expr.asTerm.pos
+    val start = exprPos.start + pos.offset
+    val end = start + pos.width
+    Position(exprPos.sourceFile, start, end)
   }
 
   def code(exprStr: Expr[String], ast: AST)(using Quotes): Expr[String] = {
     exprStr match {
-      case Expr(s) => parser.parse(s, ast) match {
+      case Expr(s) => parse(s, ast) match {
         case Success(regex) => {
           import quotes.reflect.{Printer, asTerm}
           val codeExpr = regexCode(exprStr, ast)(regex)

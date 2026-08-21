@@ -4,13 +4,14 @@ import parsley.errors.{DefaultErrorBuilder, ErrorBuilder}
 import parsley.errors.tokenextractors.TillNextWhitespace
 
 object errors {
-  case class Pos(offset: Int, width: Int)
-  case class PosError(pos: Pos, msg: String)
+  case class Pos(line: Int, offset: Int, width: Int)
+  case class PosError(msg: String, pos: Pos)
+  case class PosErrorInfoLines(lines: Seq[String], pos: Pos)
 
   object PosErrorBuilder extends ErrorBuilder[PosError] with TillNextWhitespace {
 
     override def build(pos: Position, source: Source, lines: ErrorInfoLines): PosError = {
-      PosError(lines.pos, lines.lines.mkString("\n"))
+      PosError(lines.lines.mkString("\n"), lines.pos)
     }
 
     type Position = Unit
@@ -21,13 +22,13 @@ object errors {
 
     override def source(sourceName: Option[String]): Source = ()
 
-    type ErrorInfoLines = (lines: Seq[String], pos: Pos)
+    type ErrorInfoLines = PosErrorInfoLines
 
     override def vanillaError(unexpected: UnexpectedLine, expected: ExpectedLine, reasons: Messages, line: LineInfo): ErrorInfoLines = {
-      (Seq.concat(unexpected, expected, reasons), line)
+      PosErrorInfoLines(Seq.concat(unexpected, expected, reasons), line)
     }
 
-    override def specializedError(msgs: Messages, line: LineInfo): ErrorInfoLines = (msgs, line)
+    override def specializedError(msgs: Messages, line: LineInfo): ErrorInfoLines = PosErrorInfoLines(msgs, line)
 
     type ExpectedItems = Option[String]
     type Messages = Seq[Message]
@@ -50,7 +51,7 @@ object errors {
     override def message(msg: String): Message = DefaultErrorBuilder.message(msg)
 
     override def lineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], lineNum: Int, errorPointsAt: Int, errorWidth: Int): LineInfo = {
-      Pos(errorPointsAt, errorWidth)
+      Pos(lineNum, errorPointsAt, errorWidth)
     }
 
     override val numLinesBefore: Int = 0
