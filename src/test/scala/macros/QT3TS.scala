@@ -93,21 +93,25 @@ class QT3TSTests extends AnyFlatSpec {
   //   "-" should matchPattern { case r17("-") => }
   // }
 
+  // TODO: Parser bug
   it should "pass test 18: ([\\d-\\s]+)" in pending // {
   //   val r18 = r"([\\d-\\s]+)"
   //   "-" should matchPattern { case r18("-") => }
   // }
 
+  // TODO: Parser bug
   it should "pass test 19: ([\\d-z]+)" in pending // {
   //   val r19 = r"([\\d-z]+)"
   //   "-" should matchPattern { case r19("-") => }
   // }
 
+  // TODO: Parser bug
   it should "pass test 20: ([\\w:]+::)?(\\w+)$" in pending // {
   //   val r20 = r"([\w:]+::)?(\w+)$$"
   //   "abcd" should matchPattern { case r20(None, "abcd") => }
   // }
 
+  // TODO: Parser bug
   it should "pass test 21: ([\\w:]+::)?(\\w+)$" in pending // {
   //   val r21 = r"([\w:]+::)?(\w+)$$"
   //   "xy:z:::abcd" should matchPattern { case r21(Some("xy:z:::"), "abcd") => }
@@ -418,15 +422,15 @@ class QT3TSTests extends AnyFlatSpec {
   //   "2" should matchPattern { case r82(Some("")) => }
   // }
 
-  it should "pass test 83: \\((.*), (.*)\\)" in pending // {
-  //   val r83 = r"\\((.*), (.*)\\)"
-  //   "(a, b)" should matchPattern { case r83("a", "b") => }
-  // }
+  it should "pass test 83: \\((.*), (.*)\\)" in {
+    val r83 = r"\((.*), (.*)\)"
+    "(a, b)" should matchPattern { case r83("a", "b") => }
+  }
 
-  it should "pass test 84: ^((?:aa)*)(?:X+((?:\\d+|-)(?:X+(.+))?))?$" in pending // {
-  //   val r84 = r"^((?:aa)*)(?:X+((?:\\d+|-)(?:X+(.+))?))?$"
-  //   "aaaaX5" should matchPattern { case r84("aaaa", Some("5"), None) => }
-  // }
+  it should "pass test 84: ^((?:aa)*)(?:X+((?:\\d+|-)(?:X+(.+))?))?$" in {
+    val r84 = r"^((?:aa)*)(?:X+((?:\d+|-)(?:X+(.+))?))?$$"
+    "aaaaX5" should matchPattern { case r84("aaaa", Some("5", None)) => }
+  }
 
   it should "pass test 85: ^((a|b)+)*ax" in {
     val r85 = r"^((a|b)+)*ax"
@@ -583,10 +587,10 @@ class QT3TSTests extends AnyFlatSpec {
     "aaa,b,c,d" should matchPattern { case r115("c,") => }
   }
 
-  it should "pass test 116: ^([^a-z])|(\\^)$" in pending // {
-  //   val r116 = r"^([^a-z])|(\\^)$"
-  //   "." should matchPattern { case r116(Some("."), None) => }
-  // }
+  it should "pass test 116: ^([^a-z])|(\\^)$" in {
+    val r116 = r"^([^a-z])|(\^)$$"
+    "." should matchPattern { case r116(Left(".")) => }
+  }
 
   it should "pass test 117: ^([a]{1})*$" in {
     val r117 = r"^([a]{1})*$$"

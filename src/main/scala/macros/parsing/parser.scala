@@ -70,6 +70,7 @@ object parser {
     val numeric = 'x' ~> hexCodeEscX | '0' ~> octCode | 'u' ~> hexFixedEscU
     // `\cx`: the control character corresponding to x (@-?) -- space is somehow valid for this, but don't know what to
     val control = 'c' ~> empty
+    // TODO: Use `keyChars` to define this
     val single = choice(
       't' as 0x00009,
       'n' as 0x0000a,
@@ -78,6 +79,9 @@ object parser {
       'a' as 0x00007,
       'e' as 0x0001b,
       '.' as '.'.toInt,
+      '(' as '('.toInt,
+      ')' as ')'.toInt,
+      '^' as '^'.toInt,
     ) // probably a nicer way of escaping dot
     atomic('\\' ~> (single | numeric | control | '\\'.map(_.toInt)))
   }
@@ -105,7 +109,7 @@ object parser {
     Class(clsSet)
   }
 
-  lazy val predefinedEsc: Parsley[ToRegex] = atomic('\\' ~> predefined)
+  lazy val predefinedEsc = atomic('\\' ~> predefined)
   lazy val predefined = Class(
     choice(
       'd' as Diet.fromRange(Range('0'.toInt, '9'.toInt)),
@@ -121,7 +125,7 @@ object parser {
 
   private lazy val postfixOps = (Opt from '?') | (Star from '*') | (Plus from '+') | numericalQuantifier
 
-  private lazy val numericalQuantifier: Parsley[ToRegex => ToRegex] = NumericalQuantifier(braces)
+  private lazy val numericalQuantifier = NumericalQuantifier(braces)
   private lazy val braces = '{' ~> int <~> option(',' ~> option(int)) <~ '}'
   private lazy val int = lexer.lexeme.natural.decimal32[Int]
 
