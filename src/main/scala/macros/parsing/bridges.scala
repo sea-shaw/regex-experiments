@@ -1,4 +1,4 @@
-package experiments.macros
+package experiments.macros.parsing
 
 import cats.collections.Diet
 import cats.data.NonEmptyList

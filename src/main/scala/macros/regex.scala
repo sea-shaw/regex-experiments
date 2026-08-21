@@ -2,7 +2,7 @@ package experiments.macros
 
 import experiments.macros.ast.{AST, Rep, Sanitised}
 import experiments.macros.hcollections.hchain.HChain
-import experiments.macros.parser
+import experiments.macros.parsing.parser
 import java.util.regex.Pattern
 import parsley.{Failure, Success}
 import scala.quoted.{Expr, Quotes, quotes}

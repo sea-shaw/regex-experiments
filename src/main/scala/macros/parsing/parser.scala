@@ -1,11 +1,10 @@
-package experiments.macros
+package experiments.macros.parsing
 
 import experiments.macros.ast.AST
-import experiments.macros.bridges.{Alt, Capture, Cat, Dot, LineEnd, LineStart, Lit, NonCapture, NumericalQuantifier, Opt, Star, Plus, ToRegex}
+import bridges.{Alt, Capture, Cat, Dot, LineEnd, LineStart, Lit, NonCapture, NumericalQuantifier, Opt, Star, Plus, ToRegex}
 import parsley.{Parsley, Result}
 import parsley.cats.combinator.some
 import parsley.combinator.option
-import parsley.errors.combinator.*
 import parsley.expr.chain
 import parsley.quick.{atomic, eof, noneOf}
 import parsley.syntax.character.{charLift, stringLift}
