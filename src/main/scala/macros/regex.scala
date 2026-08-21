@@ -16,26 +16,36 @@ object regex {
   }
 
   def isInlineable(sc: Expr[StringContext], ast: AST)(using Quotes): Expr[Regex[?]] = {
-    import quotes.reflect.report
+    import quotes.reflect.report.errorAndAbort
 
     given ErrorBuilder[PosError] = PosErrorBuilder
 
     sc match {
       case '{ StringContext(${ strExpr @ Expr(s) }) } => parse(s, ast) match {
-        case Success(regex) => regexCode(strExpr, ast)(regex)
-        case Failure(PosError(msg, pos))   => report.errorAndAbort(msg, errPos(strExpr, pos))
+        case Success(regex)              => regexCode(strExpr, ast)(regex)
+        case Failure(PosError(msg, pos)) => errorAndAbort(msg, errPos(strExpr, s, pos))
       }
-      case _ => report.errorAndAbort("Regex string must be compile-time constant.", sc)
+      case _ => errorAndAbort("Regex string must be compile-time constant.", sc)
     }
   }
 
-  private def errPos(expr: Expr[?], pos: Pos)(using q: Quotes): q.reflect.Position = {
+  private def errPos(expr: Expr[String], s: String, pos: Pos)(using q: Quotes): q.reflect.Position = {
     import quotes.reflect.{Position, asTerm}
 
+    // TODO: Support multi-line regex?
+    val (before, after) = s.splitAt(pos.offset)
+
     val exprPos = expr.asTerm.pos
-    val start = exprPos.start + pos.offset
-    val end = start + pos.width
+    val start = exprPos.start + exprWidth(before)
+    val end = start + exprWidth(after.take(pos.width))
     Position(exprPos.sourceFile, start, end)
+  }
+
+  private def exprWidth(s: String): Int = {
+    s.foldLeft(0) {
+      case (acc, '$' | '\\') => acc + 2
+      case (acc, _)          => acc + 1
+    }
   }
 
   def code(exprStr: Expr[String], ast: AST)(using Quotes): Expr[String] = {
