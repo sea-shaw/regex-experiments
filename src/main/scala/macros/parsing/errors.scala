@@ -51,7 +51,7 @@ object errors {
     override def message(msg: String): Message = DefaultErrorBuilder.message(msg)
 
     override def lineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], lineNum: Int, errorPointsAt: Int, errorWidth: Int): LineInfo = {
-      Pos(lineNum, errorPointsAt, errorWidth)
+      Pos(lineNum - 1, errorPointsAt, errorWidth)
     }
 
     override val numLinesBefore: Int = 0

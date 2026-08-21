@@ -6,9 +6,9 @@ import experiments.macros.parsing.errors.{Pos, PosError, PosErrorBuilder}
 import experiments.macros.parsing.parser.parse
 import java.util.regex.Pattern
 import parsley.{Failure, Success}
+import parsley.errors.ErrorBuilder
 import scala.quoted.{Expr, Quotes, quotes}
 import scala.quoted.Type
-import parsley.errors.ErrorBuilder
 
 object regex {
   sealed trait Regex[A] {
@@ -34,7 +34,6 @@ object regex {
 
     // TODO: Support multi-line regex?
     val (before, after) = s.splitAt(pos.offset)
-
     val exprPos = expr.asTerm.pos
     val start = exprPos.start + exprWidth(before)
     val end = start + exprWidth(after.take(pos.width))
