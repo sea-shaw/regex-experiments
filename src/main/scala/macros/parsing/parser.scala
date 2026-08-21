@@ -43,7 +43,7 @@ object parser {
     case (regex, None)          => regex
     case (regex, Some(postfix)) => postfix(regex)
   }
-  private lazy val quantifiable = nonCapture | capture | lit | dot | cls
+  private lazy val quantifiable = nonCapture | capture | lit | dot | predefinedEsc | cls
 
   private lazy val nonCapture = NonCapture(atomic("(?:") ~> expr <~ ')')
   private lazy val capture = Capture('(' ~> expr <~ ')')

@@ -42,8 +42,8 @@ object regex {
 
   private def exprWidth(s: String): Int = {
     s.foldLeft(0) {
-      case (acc, '$' | '\\') => acc + 2
-      case (acc, _)          => acc + 1
+      case (acc, '$') => acc + 2
+      case (acc, _)   => acc + 1
     }
   }
 
