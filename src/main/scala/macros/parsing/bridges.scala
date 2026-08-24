@@ -66,8 +66,8 @@ object bridges {
   }
 
   object NumericalQuantifier {
-    def apply(range: Parsley[(Int, Option[Option[Int]])]): Parsley[ToRegex => ToRegex] = range.mapFilterMsg {
-      case (0, None | Some(Some(0))) => Left(Seq("Quanitifer cannot be 0"))
+    def apply(start: Parsley[Int], end: Parsley[Option[Option[Int]]]): Parsley[ToRegex => ToRegex] = (start <~> end).mapFilterMsg {
+      case (0, None | Some(Some(0))) => Right(ast.Zero(_))
       case (1, None | Some(Some(1))) => Right(identity)
       case (n, None)                 => Right(ast.Exactly(_, n))
       case (0, Some(None))           => Right(ast.Star(_))

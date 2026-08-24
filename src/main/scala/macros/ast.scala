@@ -287,6 +287,15 @@ object ast {
       }
     }
 
+    // TODO: Should this be allowed?
+    /* {0} or {0,0} */
+    case class Zero[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using Type[BaseType]) extends Base
+    object Zero {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Zero[F] = {
+        new Zero(inner)
+      }
+    }
+
     type CaptureType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HCons[String, F[R]]
     case class Capture[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[CaptureType[F]]) extends Regex[CaptureType[F]] {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CaptureType[F][R]]] = {

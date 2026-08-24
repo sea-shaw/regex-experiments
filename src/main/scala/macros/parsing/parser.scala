@@ -125,8 +125,7 @@ object parser {
 
   private lazy val postfixOps = (Opt from '?') | (Star from '*') | (Plus from '+') | numericalQuantifier
 
-  private lazy val numericalQuantifier = NumericalQuantifier(braces)
-  private lazy val braces = '{' ~> int <~> option(',' ~> option(int)) <~ '}'
+  private lazy val numericalQuantifier = NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
   private lazy val int = lexer.lexeme.natural.decimal32[Int]
 
   private val allSet = Diet.fromRange(Range(0x00000, 0x1ffff))
