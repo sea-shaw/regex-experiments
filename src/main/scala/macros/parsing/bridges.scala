@@ -34,12 +34,40 @@ object bridges {
     override protected def singleton: Parsley[ToRegex] = pure(ast.LineEnd())
   }
 
+  object NegativeLookahead extends PureParserBridge1[ToRegex, ToRegex] {
+    override def apply(inner: ToRegex): ToRegex = ast.NegativeLookahead(inner)
+  }
+
+  object NegativeLookbehind extends PureParserBridge1[ToRegex, ToRegex] {
+    override def apply(inner: ToRegex): ToRegex = ast.NegativeLookbehind(inner)
+  }
+
+  object Flags extends PureParserBridge2[String, String, ToRegex] {
+    override def apply(on: String, off: String): ToRegex = ast.Flags(on, off)
+  }
+
   object Capture extends PureParserBridge1[ToRegex, ToRegex] {
     override def apply(inner: ToRegex): ToRegex = ast.Capture(inner)
   }
 
+  object NamedCapture extends PureParserBridge2[String, ToRegex, ToRegex] {
+    override def apply(name: String, inner: ToRegex): ToRegex = ast.NamedCapture(name, inner)
+  }
+
   object NonCapture extends PureParserBridge1[ToRegex, ToRegex] {
     override def apply(inner: ToRegex): ToRegex = ast.NonCapture(inner)
+  }
+
+  object PositiveLookahead extends PureParserBridge1[ToRegex, ToRegex] {
+    override def apply(inner: ToRegex): ToRegex = ast.PositiveLookahead(inner)
+  }
+
+  object PositiveLookbehind extends PureParserBridge1[ToRegex, ToRegex] {
+    override def apply(inner: ToRegex): ToRegex = ast.PositiveLookbehind(inner)
+  }
+
+  object Independent extends PureParserBridge1[ToRegex, ToRegex] {
+    override def apply(inner: ToRegex): ToRegex = ast.Independent(inner)
   }
 
   object Cat extends PureParserBridge1[NonEmptyList[ToRegex], ToRegex] {

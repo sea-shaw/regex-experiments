@@ -235,8 +235,8 @@ object ast {
       private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?]
     }
 
-    type BaseType = Const[HEmpty]
-    sealed abstract class Base protected (using override val tpe: Type[BaseType]) extends Regex[BaseType] {
+    type EmptyType = Const[HEmpty]
+    sealed abstract class Empty protected (using override val tpe: Type[EmptyType]) extends Regex[EmptyType] {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[HEmpty]] = {
         State.pure(empty)
       }
@@ -252,35 +252,35 @@ object ast {
       }
     }
 
-    case class Dot private ()(using Type[BaseType]) extends Base
+    case class Dot private ()(using Type[EmptyType]) extends Empty
     object Dot {
       def apply()(using Quotes): Dot = {
         new Dot()
       }
     }
 
-    case class Lit private (c: Int)(using Type[BaseType]) extends Base
+    case class Lit private (c: Int)(using Type[EmptyType]) extends Empty
     object Lit {
       def apply(c: Int)(using Quotes): Lit = {
         new Lit(c)
       }
     }
 
-    case class Class private (cs: Diet[Int])(using Type[BaseType]) extends Base
+    case class Class private (cs: Diet[Int])(using Type[EmptyType]) extends Empty
     object Class {
       def apply(cs: Diet[Int])(using Quotes): Class = {
         new Class(cs)
       }
     }
 
-    case class LineStart private ()(using Type[BaseType]) extends Base
+    case class LineStart private ()(using Type[EmptyType]) extends Empty
     object LineStart {
       def apply()(using Quotes): LineStart = {
         new LineStart()
       }
     }
 
-    case class LineEnd private ()(using Type[BaseType]) extends Base
+    case class LineEnd private ()(using Type[EmptyType]) extends Empty
     object LineEnd {
       def apply()(using Quotes): LineEnd = {
         new LineEnd()
@@ -289,16 +289,37 @@ object ast {
 
     // TODO: Should this be allowed?
     /* {0} or {0,0} */
-    case class Zero[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using Type[BaseType]) extends Base
+    case class Zero[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using Type[EmptyType]) extends Empty
     object Zero {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Zero[F] = {
         new Zero(inner)
       }
     }
 
-    type CaptureType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HCons[String, F[R]]
-    case class Capture[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[CaptureType[F]]) extends Regex[CaptureType[F]] {
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CaptureType[F][R]]] = {
+    case class NegativeLookahead[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using Type[EmptyType]) extends Empty
+    object NegativeLookahead {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): NegativeLookahead[F] = {
+        new NegativeLookahead(inner)
+      }
+    }
+
+    case class NegativeLookbehind[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using Type[EmptyType]) extends Empty
+    object NegativeLookbehind {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): NegativeLookbehind[F] = {
+        new NegativeLookbehind(inner)
+      }
+    }
+
+    case class Flags private (on: String, off: String)(using Type[EmptyType]) extends Empty
+    object Flags {
+      def apply(on: String, off: String)(using Quotes): Flags = {
+        new Flags(on, off)
+      }
+    }
+
+    type CapturingType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> HCons[String, F[R]]
+    sealed abstract class Capturing[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using override final val tpe: Type[CapturingType[F]]) extends Regex[CapturingType[F]] {
+      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CapturingType[F][R]]] = {
         given Type[F] = inner.tpe
 
         val capture = State { (i: Int) =>
@@ -312,9 +333,9 @@ object ast {
           (i + 1, expr)
         }
 
-        val sanitised = Expr.summon[HSingleton[String] =:= CaptureType[F][R]].map { ev =>
+        val sanitised = Expr.summon[HSingleton[String] =:= CapturingType[F][R]].map { ev =>
           capture.map(liftSanitised(ev)(_))
-        } orElse Expr.summon[HAppend[HSingleton[String], F[R]] =:= CaptureType[F][R]].map { ev =>
+        } orElse Expr.summon[HAppend[HSingleton[String], F[R]] =:= CapturingType[F][R]].map { ev =>
           (capture, inner.sanitiseCode(groups)).mapN { case (sanitisedCapture, sanitisedInner) =>
             liftSanitised(ev) {
               '{
@@ -329,22 +350,22 @@ object ast {
         sanitised.get
       }
 
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[CaptureType[F][R], C], L, ?] = {
+      override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[CapturingType[F][R], C], L, ?] = {
         given Type[F] = inner.tpe
 
-        val flatten = Expr.summon[CaptureType[F][R] =:= HSingleton[String]].map { ev =>
+        val flatten = Expr.summon[CapturingType[F][R] =:= HSingleton[String]].map { ev =>
           nodes.flattenFunction(TCons(Type.of[String], types)) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CaptureType[F][R], C], L, a] {
-              override def apply(chains: CCons[CaptureType[F][R], C], leaves: L)(using Quotes): Expr[a] = {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CapturingType[F][R], C], L, a] {
+              override def apply(chains: CCons[CapturingType[F][R], C], leaves: L)(using Quotes): Expr[a] = {
                 val capture = '{ ${ ev(chains.head) }.value }
                 flatten(chains.tail, LCons(capture, leaves))
               }
             }
           }
-        } orElse Expr.summon[CaptureType[F][R] =:= HAppend[HSingleton[String], F[R]]].map { ev =>
+        } orElse Expr.summon[CapturingType[F][R] =:= HAppend[HSingleton[String], F[R]]].map { ev =>
           inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CaptureType[F][R], C], L, a] {
-              override def apply(chains: CCons[CaptureType[F][R], C], leaves: L)(using Quotes): Expr[a] = {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CapturingType[F][R], C], L, a] {
+              override def apply(chains: CCons[CapturingType[F][R], C], leaves: L)(using Quotes): Expr[a] = {
                 '{
                   val node = ${ ev(chains.head) }
                   ${ flatten(CCons('{ node.right }, chains.tail), LCons('{ node.left.value }, leaves)) }
@@ -358,6 +379,7 @@ object ast {
       }
     }
 
+    case class Capture[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using Type[CapturingType[F]]) extends Capturing[F](inner)
     object Capture {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Capture[F] = {
         given Type[F] = inner.tpe
@@ -365,17 +387,31 @@ object ast {
       }
     }
 
-    case class NonCapture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Regex[F] {
-      override val tpe: Type[F] = inner.tpe
+    case class NamedCapture[F[_ <: Rep] <: HChain] private (name: String, inner: Regex[F])(using Type[CapturingType[F]]) extends Capturing[F](inner)
+    object NamedCapture {
+      def apply[F[_ <: Rep] <: HChain](name: String, inner: Regex[F])(using Quotes): NamedCapture[F] = {
+        given Type[F] = inner.tpe
+        new NamedCapture(name, inner)
+      }
+    }
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]] = {
+    sealed abstract class Wrapper[F[_ <: Rep] <: HChain] protected (inner: Regex[F]) extends Regex[F] {
+      override final val tpe: Type[F] = inner.tpe
+
+      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]] = {
         inner.sanitiseCode(groups)
       }
 
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
+      override final private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
         inner.flattenFunction(nodes, types)
       }
     }
+
+    case class NonCapture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
+    case class NonCaptureWithFlags[F[_ <: Rep] <: HChain](on: String, off: String, inner: Regex[F]) extends Wrapper[F](inner) // TODO: Type of `on` and `off`.
+    case class PositiveLookahead[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
+    case class PositiveLookbehind[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
+    case class Independent[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
 
     type CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] = [R <: Rep] =>> HConcat[F[R], G[R]]
     case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(using override val tpe: Type[CatType[F, G]]) extends Regex[CatType[F, G]] {

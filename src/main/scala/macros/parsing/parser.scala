@@ -2,7 +2,7 @@ package experiments.macros.parsing
 
 import cats.collections.{Diet, Range}
 import experiments.macros.ast.AST
-import experiments.macros.parsing.bridges.{Alt, Capture, Cat, Class, Dot, LineEnd, LineStart, Lit, NonCapture, NumericalQuantifier, Opt, Star, Plus, ToRegex}
+import experiments.macros.parsing.bridges.*
 import parsley.{Parsley, Result}
 import parsley.cats.combinator.some
 import parsley.character.{hexDigit, octDigit}
