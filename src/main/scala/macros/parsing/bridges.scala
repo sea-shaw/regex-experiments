@@ -7,7 +7,7 @@ import parsley.Parsley
 import parsley.Parsley.pure
 import parsley.bridges.ParserSingletonBridge
 import parsley.errors.combinator.*
-import parsley.templates.{PureParserBridge1, PureParserBridge2}
+import parsley.templates.{PureParserBridge1, PureParserBridge2, PureParserBridge3}
 import scala.quoted.Quotes
 
 object bridges {
@@ -54,8 +54,12 @@ object bridges {
     override def apply(name: String, inner: ToRegex): ToRegex = ast.NamedCapture(name, inner)
   }
 
-  object NonCapture extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ast.NonCapture(inner)
+  object NonCapture extends PureParserBridge3[List[Char], Option[NonEmptyList[Char]], ToRegex, ToRegex] {
+    override def apply(flagsOn: List[Char], flagsOff: Option[NonEmptyList[Char]], inner: ToRegex): ToRegex = {
+      val onSet = flagsOn.toSet
+      val offSet = flagsOff.fold(Nil)(_.toList).toSet
+      ast.NonCapture(onSet -- offSet, offSet, inner)
+    }
   }
 
   object PositiveLookahead extends PureParserBridge1[ToRegex, ToRegex] {

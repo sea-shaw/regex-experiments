@@ -10,7 +10,7 @@ import parsley.combinator.{choice, option, range, sepBy1}
 import parsley.errors.ErrorBuilder
 import parsley.errors.combinator.*
 import parsley.expr.chain
-import parsley.quick.{atomic, empty, eof, noneOf, notFollowedBy}
+import parsley.quick.{atomic, empty, eof, many, noneOf, oneOf, notFollowedBy}
 import parsley.syntax.character.{charLift, stringLift}
 import parsley.syntax.all.*
 import parsley.token.Lexer
@@ -45,7 +45,8 @@ object parser {
   }
   private lazy val quantifiable = choice(nonCapture, positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, capture, lit, dot, predefinedEsc, cls)
 
-  private lazy val nonCapture = NonCapture(atomic("(?:") ~> expr <~ ')')
+  private lazy val nonCapture = NonCapture(atomic("(?:") ~> many(nonCaptureFlag), option('-' ~> some(nonCaptureFlag)), expr <~ ')')
+  private lazy val nonCaptureFlag = oneOf('i', 'd', 'm', 's', 'u', 'x')
   private lazy val positiveLookahead = PositiveLookahead(atomic("(=") ~> expr <~ ')')
   private lazy val negativeLookahead = NegativeLookahead(atomic("(!" ~> expr <~ ')'))
   private lazy val positiveLookbehind = PositiveLookbehind(atomic("(<=") ~> expr <~ ')')
@@ -53,7 +54,7 @@ object parser {
   private lazy val independent = Independent(atomic("(>") ~> expr <~ ')')
   private lazy val capture = Capture('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars).map(_.toInt) | charEsc)
-  private lazy val dot = (Dot from '.')
+  private lazy val dot = Dot from '.'
 
   private lazy val charEsc: Parsley[Int] = {
     // corresponds with \x{ ... }

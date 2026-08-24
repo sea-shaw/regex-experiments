@@ -407,8 +407,7 @@ object ast {
       }
     }
 
-    case class NonCapture[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
-    case class NonCaptureWithFlags[F[_ <: Rep] <: HChain](on: String, off: String, inner: Regex[F]) extends Wrapper[F](inner) // TODO: Type of `on` and `off`.
+    case class NonCapture[F[_ <: Rep] <: HChain](flagsOn: Set[Char], flagsOff: Set[Char], inner: Regex[F]) extends Wrapper[F](inner) // TOOD: Type of flags
     case class PositiveLookahead[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
     case class PositiveLookbehind[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
     case class Independent[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
