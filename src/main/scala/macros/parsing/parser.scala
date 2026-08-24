@@ -43,10 +43,9 @@ object parser {
     case (regex, None)          => regex
     case (regex, Some(postfix)) => postfix(regex)
   }
-  private lazy val quantifiable = choice(nonCapture, positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, capture, lit, dot, predefinedEsc, cls)
+  private lazy val quantifiable = choice(withFlags, positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, capture, lit, dot, predefinedEsc, cls)
 
-  private lazy val nonCapture = NonCapture(atomic("(?:") ~> many(nonCaptureFlag), option('-' ~> some(nonCaptureFlag)), expr <~ ')')
-  private lazy val nonCaptureFlag = oneOf('i', 'd', 'm', 's', 'u', 'x')
+  private lazy val withFlags = WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(expr) <~ ')')
   private lazy val positiveLookahead = PositiveLookahead(atomic("(=") ~> expr <~ ')')
   private lazy val negativeLookahead = NegativeLookahead(atomic("(!" ~> expr <~ ')'))
   private lazy val positiveLookbehind = PositiveLookbehind(atomic("(<=") ~> expr <~ ')')
@@ -55,6 +54,8 @@ object parser {
   private lazy val capture = Capture('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars).map(_.toInt) | charEsc)
   private lazy val dot = Dot from '.'
+
+  private lazy val flag = oneOf('i', 'd', 'm', 's', 'u', 'x', 'U') // TODO: U is not allowed for non-capturing groups
 
   private lazy val charEsc: Parsley[Int] = {
     // corresponds with \x{ ... }

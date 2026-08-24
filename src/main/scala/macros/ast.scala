@@ -310,9 +310,9 @@ object ast {
       }
     }
 
-    case class Flags private (on: String, off: String)(using Type[EmptyType]) extends Empty
+    case class Flags private (on: Set[Char], off: Set[Char])(using Type[EmptyType]) extends Empty
     object Flags {
-      def apply(on: String, off: String)(using Quotes): Flags = {
+      def apply(on: Set[Char], off: Set[Char])(using Quotes): Flags = {
         new Flags(on, off)
       }
     }

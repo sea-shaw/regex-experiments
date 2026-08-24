@@ -42,24 +42,12 @@ object bridges {
     override def apply(inner: ToRegex): ToRegex = ast.NegativeLookbehind(inner)
   }
 
-  object Flags extends PureParserBridge2[String, String, ToRegex] {
-    override def apply(on: String, off: String): ToRegex = ast.Flags(on, off)
-  }
-
   object Capture extends PureParserBridge1[ToRegex, ToRegex] {
     override def apply(inner: ToRegex): ToRegex = ast.Capture(inner)
   }
 
   object NamedCapture extends PureParserBridge2[String, ToRegex, ToRegex] {
     override def apply(name: String, inner: ToRegex): ToRegex = ast.NamedCapture(name, inner)
-  }
-
-  object NonCapture extends PureParserBridge3[List[Char], Option[NonEmptyList[Char]], ToRegex, ToRegex] {
-    override def apply(flagsOn: List[Char], flagsOff: Option[NonEmptyList[Char]], inner: ToRegex): ToRegex = {
-      val onSet = flagsOn.toSet
-      val offSet = flagsOff.fold(Nil)(_.toList).toSet
-      ast.NonCapture(onSet -- offSet, offSet, inner)
-    }
   }
 
   object PositiveLookahead extends PureParserBridge1[ToRegex, ToRegex] {
@@ -109,5 +97,21 @@ object bridges {
     }
   }
 
+  object WithFlags extends PureParserBridge3[List[Char], Option[NonEmptyList[Char]], Option[ToRegex], ToRegex] {
+    override def apply(on: List[Char], off: Option[NonEmptyList[Char]], mInner: Option[ToRegex]): ToRegex = {
+      val (onSet, offSet) = flags(on, off)
+      mInner match {
+        case None        => ast.Flags(onSet, offSet)
+        case Some(inner) => ast.NonCapture(onSet, offSet, inner)
+      }
+    }
+  }
+
   private inline def ast(using ast: AST): ast.type = ast
+
+  private def flags(on: List[Char], off: Option[NonEmptyList[Char]]): (Set[Char], Set[Char]) = {
+    val onSet = on.toSet
+    val offSet = off.fold(Nil)(_.toList).toSet
+    (onSet -- offSet, offSet)
+  }
 }

@@ -5,8 +5,8 @@
       val m: (Matcher)? = $anon.this.pattern.matcher(s)
       if (m.matches()) {
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
-        val sanitised: SanitisedT[[A >: Nothing <: Any] =>> Option[A], HEmpty] = Applicative.apply[[A] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A]](given_Applicative_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).pure[HEmpty.type](HEmpty)
-        sanitised.value.map[Unit](((x$1: Sanitised[HEmpty]) => x$1 match {
+        val sanitised: SanitisedT[[A >: Nothing <: Any] =>> Option[A], HConcat[HEmpty, HEmpty]] = Applicative.apply[[A] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A]](given_Applicative_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).pure[HEmpty.type](HEmpty)
+        sanitised.value.map[Unit](((x$1: Sanitised[HConcat[HEmpty, HEmpty]]) => x$1 match {
           case Sanitised(captures, _) =>
             ()
         }))
