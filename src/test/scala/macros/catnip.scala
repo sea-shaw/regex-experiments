@@ -153,4 +153,9 @@ class CatnipUnitTests extends AnyFlatSpec {
     "ab" should matchPattern { case r(Some("b", IBoth("a", "b"))) => }
     "" should matchPattern { case r(None) => }
   }
+
+  it should "allow capturing groups in negative lookahead" in {
+    val r = r"(?!(a))(a)|(b)"
+    "b" should matchPattern { case r(Right("b")) => }
+  }
 }
