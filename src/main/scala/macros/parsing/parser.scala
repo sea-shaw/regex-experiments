@@ -89,6 +89,8 @@ object parser {
       '(' as '('.toInt,
       ')' as ')'.toInt,
       '^' as '^'.toInt,
+      '|' as '|'.toInt,
+      '/' as '/'.toInt, // TODO: This isn't a metacharacter but it can be escaped? '/' is also valid without '\'?
     ) // probably a nicer way of escaping dot
     atomic('\\' ~> (single | numeric | control | '\\'.map(_.toInt)))
   }

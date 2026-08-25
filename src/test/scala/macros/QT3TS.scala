@@ -1,7 +1,7 @@
 package experiments.macros
 
 import experiments.macros.catnip.r
-import cats.data.Ior.Both
+import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 
@@ -53,15 +53,15 @@ class QT3TSTests extends AnyFlatSpec {
     "Ab" should matchPattern { case r9("A") => }
   }
 
-  it should "pass test 10: (([a-c])b*?\\2)*" in pending // {
-  //   val r10 = r"(([a-c])b*?\2)*"
-  //   "ababbbcbc" should matchPattern { case r10(Some("cbc"), Some("c")) => }
-  // }
+  it should "pass test 10: (([a-c])b*?\\2)*" in {
+    val r10 = r"(([a-c])b*?\2)*"
+    "ababbbcbc" should matchPattern { case r10(Some("cbc", "c")) => }
+  }
 
-  it should "pass test 11: (([a-c])b*?\\2){3}" in pending // {
-  //   val r11 = r"(([a-c])b*?\2){3}"
-  //   "ababbbcbc" should matchPattern { case r11("cbc", "c") => }
-  // }
+  it should "pass test 11: (([a-c])b*?\\2){3}" in {
+    val r11 = r"(([a-c])b*?\2){3}"
+    "ababbbcbc" should matchPattern { case r11("cbc", "c") => }
+  }
 
   it should "pass test 12: ((a)(b)c)(d)" in {
     val r12 = r"((a)(b)c)(d)"
@@ -70,7 +70,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   it should "pass test 13: ((foo)|(bar))*" in {
     val r13 = r"((foo)|(bar))*"
-    "foobar" should matchPattern { case r13(Some("bar", Both("foo", "bar"))) => }
+    "foobar" should matchPattern { case r13(Some("bar", IBoth("foo", "bar"))) => }
   }
 
   it should "pass test 14: (.*)c(.*)" in {
@@ -80,7 +80,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   it should "pass test 15: (?:(f)(o)(o)|(b)(a)(r))*" in {
     val r15 = r"(?:(f)(o)(o)|(b)(a)(r))*"
-    "foobar" should matchPattern { case r15(Some(Both(("f", "o", "o"), ("b", "a", "r")))) => }
+    "foobar" should matchPattern { case r15(Some(IBoth(("f", "o", "o"), ("b", "a", "r")))) => }
   }
 
   it should "pass test 16: ([[:digit:]-[:alpha:]]+)" in pending // {
@@ -217,45 +217,45 @@ class QT3TSTests extends AnyFlatSpec {
     "ab" should matchPattern { case r41("b") => }
   }
 
-  it should "pass test 42: (aA)*+b" in pending // {
-  //   val r42 = r"(aA)*+b"
-  //   "aAaAaAaAaAb" should matchPattern { case r42(Some("aA")) => }
-  // }
+  it should "pass test 42: (aA)*+b" in {
+    val r42 = r"(aA)*+b"
+    "aAaAaAaAaAb" should matchPattern { case r42(Some("aA")) => }
+  }
 
-  it should "pass test 43: (aA)++b" in pending // {
-  //   val r43 = r"(aA)++b"
-  //   "aAaAaAaAaAb" should matchPattern { case r43("aA") => }
-  // }
+  it should "pass test 43: (aA)++b" in {
+    val r43 = r"(aA)++b"
+    "aAaAaAaAaAb" should matchPattern { case r43("aA") => }
+  }
 
-  it should "pass test 44: (aA)?+b" in pending // {
-  //   val r44 = r"(aA)?+b"
-  //   "aAb" should matchPattern { case r44(Some("aA")) => }
-  // }
+  it should "pass test 44: (aA)?+b" in {
+    val r44 = r"(aA)?+b"
+    "aAb" should matchPattern { case r44(Some("aA")) => }
+  }
 
-  it should "pass test 45: (aA){1,5}+b" in pending // {
-  //   val r45 = r"(aA){1,5}+b"
-  //   "aAaAaAaAaAb" should matchPattern { case r45("aA") => }
-  // }
+  it should "pass test 45: (aA){1,5}+b" in {
+    val r45 = r"(aA){1,5}+b"
+    "aAaAaAaAaAb" should matchPattern { case r45("aA") => }
+  }
 
-  it should "pass test 46: (aA|bB)*+b" in pending // {
-  //   val r46 = r"(aA|bB)*+b"
-  //   "bBbBbBbBbBb" should matchPattern { case r46(Some("bB")) => }
-  // }
+  it should "pass test 46: (aA|bB)*+b" in {
+    val r46 = r"(aA|bB)*+b"
+    "bBbBbBbBbBb" should matchPattern { case r46(Some("bB")) => }
+  }
 
-  it should "pass test 47: (aA|bB)++b" in pending // {
-  //   val r47 = r"(aA|bB)++b"
-  //   "aAbBaAaAbBb" should matchPattern { case r47("bB") => }
-  // }
+  it should "pass test 47: (aA|bB)++b" in {
+    val r47 = r"(aA|bB)++b"
+    "aAbBaAaAbBb" should matchPattern { case r47("bB") => }
+  }
 
-  it should "pass test 48: (aA|bB)?+b" in pending // {
-  //   val r48 = r"(aA|bB)?+b"
-  //   "bBb" should matchPattern { case r48(Some("bB")) => }
-  // }
+  it should "pass test 48: (aA|bB)?+b" in {
+    val r48 = r"(aA|bB)?+b"
+    "bBb" should matchPattern { case r48(Some("bB")) => }
+  }
 
-  it should "pass test 49: (aA|bB){1,5}+b" in pending // {
-  //   val r49 = r"(aA|bB){1,5}+b"
-  //   "bBaAbBaAbBb" should matchPattern { case r49("bB") => }
-  // }
+  it should "pass test 49: (aA|bB){1,5}+b" in {
+    val r49 = r"(aA|bB){1,5}+b"
+    "bBaAbBaAbBb" should matchPattern { case r49("bB") => }
+  }
 
   it should "pass test 50: (ab)?(ab)+" in {
     val r50 = r"(ab)?(ab)+"
@@ -282,15 +282,15 @@ class QT3TSTests extends AnyFlatSpec {
     "abc" should matchPattern { case r54("a") => }
   }
 
-  it should "pass test 55: (a|(bc)){0,0}+xyz" in pending // {
-  //   val r55 = r"(a|(bc)){0,0}+xyz"
-  //   "xyz" should matchPattern { case r55(None, None) => }
-  // }
+  it should "pass test 55: (a|(bc)){0,0}+xyz" in {
+    val r55 = r"(a|(bc)){0,0}+xyz"
+    "xyz" should matchPattern { case r55(()) => }
+  }
 
-  it should "pass test 56: (a|(bc)){0,0}?xyz" in pending // {
-  //   val r56 = r"(a|(bc)){0,0}?xyz"
-  //   "xyz" should matchPattern { case r56(None, None) => }
-  // }
+  it should "pass test 56: (a|(bc)){0,0}?xyz" in {
+    val r56 = r"(a|(bc)){0,0}?xyz"
+    "xyz" should matchPattern { case r56(()) => }
+  }
 
   it should "pass test 57: (a|b|c|d|e)f" in {
     val r57 = r"(a|b|c|d|e)f"
@@ -347,10 +347,10 @@ class QT3TSTests extends AnyFlatSpec {
     "xayxay" should matchPattern { case r67(None, None, "xay", Some("a")) => }
   }
 
-  it should "pass test 68: (q1|z)*(q2|z)*z{15}-.*?(x(a|bc)*y){2,3}Z" in pending // {
-  //   val r68 = r"(q1|z)*(q2|z)*z{15}-.*?(x(a|bc)*y){2,3}Z"
-  //   "zzzzzzzzzzzzzzzz-xayxayxayxayZ" should matchPattern { case r68(Some("z"), None, "xay", Some("a")) => }
-  // }
+  it should "pass test 68: (q1|z)*(q2|z)*z{15}-.*?(x(a|bc)*y){2,3}Z" in {
+    val r68 = r"(q1|z)*(q2|z)*z{15}-.*?(x(a|bc)*y){2,3}Z"
+    "zzzzzzzzzzzzzzzz-xayxayxayxayZ" should matchPattern { case r68(Some("z"), None, "xay", Some("a")) => }
+  }
 
   it should "pass test 69: (WORDS|WORD)S" in {
     val r69 = r"(WORDS|WORD)S"
@@ -387,35 +387,35 @@ class QT3TSTests extends AnyFlatSpec {
     "xyzQzWlongishoverblownW" should matchPattern { case r75(Some("zW"), Some("overblownW")) => }
   }
 
-  it should "pass test 76: (x|y|z[QW])*+(longish|loquatious|excessive|overblown[QW])*+" in pending // {
-  //   val r76 = r"(x|y|z[QW])*+(longish|loquatious|excessive|overblown[QW])*+"
-  //   "xyzQzWlongishoverblownW" should matchPattern { case r76(Some("zW"), Some("overblownW")) => }
-  // }
+  it should "pass test 76: (x|y|z[QW])*+(longish|loquatious|excessive|overblown[QW])*+" in {
+    val r76 = r"(x|y|z[QW])*+(longish|loquatious|excessive|overblown[QW])*+"
+    "xyzQzWlongishoverblownW" should matchPattern { case r76(Some("zW"), Some("overblownW")) => }
+  }
 
   it should "pass test 77: (x|y|z[QW])+(longish|loquatious|excessive|overblown[QW])+" in {
     val r77 = r"(x|y|z[QW])+(longish|loquatious|excessive|overblown[QW])+"
     "xyzQzWlongishoverblownW" should matchPattern { case r77("zW", "overblownW") => }
   }
 
-  it should "pass test 78: (x|y|z[QW])++(longish|loquatious|excessive|overblown[QW])++" in pending // {
-  //   val r78 = r"(x|y|z[QW])++(longish|loquatious|excessive|overblown[QW])++"
-  //   "xyzQzWlongishoverblownW" should matchPattern { case r78("zW", "overblownW") => }
-  // }
+  it should "pass test 78: (x|y|z[QW])++(longish|loquatious|excessive|overblown[QW])++" in {
+    val r78 = r"(x|y|z[QW])++(longish|loquatious|excessive|overblown[QW])++"
+    "xyzQzWlongishoverblownW" should matchPattern { case r78("zW", "overblownW") => }
+  }
 
   it should "pass test 79: (x|y|z[QW]){1,5}(longish|loquatious|excessive|overblown[QW]){1,5}" in {
     val r79 = r"(x|y|z[QW]){1,5}(longish|loquatious|excessive|overblown[QW]){1,5}"
     "xyzQzWlongishoverblownW" should matchPattern { case r79("zW", "overblownW") => }
   }
 
-  it should "pass test 80: (x|y|z[QW]){1,5}+(longish|loquatious|excessive|overblown[QW]){1,5}+" in pending // {
-  //   val r80 = r"(x|y|z[QW]){1,5}+(longish|loquatious|excessive|overblown[QW]){1,5}+"
-  //   "xyzQzWlongishoverblownW" should matchPattern { case r80("zW", "overblownW") => }
-  // }
+  it should "pass test 80: (x|y|z[QW]){1,5}+(longish|loquatious|excessive|overblown[QW]){1,5}+" in {
+    val r80 = r"(x|y|z[QW]){1,5}+(longish|loquatious|excessive|overblown[QW]){1,5}+"
+    "xyzQzWlongishoverblownW" should matchPattern { case r80("zW", "overblownW") => }
+  }
 
-  it should "pass test 81: .*?(?:(\\w)|(\\w))x" in pending // {
-  //   val r81 = r".*?(?:(\\w)|(\\w))x"
-  //   "abx" should matchPattern { case r81(Some("b"), None) => }
-  // }
+  it should "pass test 81: .*?(?:(\\w)|(\\w))x" in {
+    val r81 = r".*?(?:(\w)|(\w))x"
+    "abx" should matchPattern { case r81(Left("b")) => }
+  }
 
   it should "pass test 82: 2(]*)?$\\1" in {
     val r82 = r"2(]*)?$$\1"
@@ -443,7 +443,7 @@ class QT3TSTests extends AnyFlatSpec {
   }
 
   it should "pass test 87: ^(.*?)\\s*\\|\\s*(?:\\/\\s*|)\'(.+)\'$" in pending // {
-  //   val r87 = r"^(.*?)\\s*\\|\\s*(?:\\/\\s*|)\'(.+)\'$"
+  //   val r87 = r"^(.*?)\s*\|\s*(?:\/\s*|)'(.+)'$$"
   //   "text|\'sec\'" should matchPattern { case r87("text", "sec") => }
   // }
 
@@ -477,45 +477,45 @@ class QT3TSTests extends AnyFlatSpec {
     "XX12" should matchPattern { case r93(Right(Some("XX"), "12")) => }
   }
 
-  it should "pass test 94: ^(?:f|o|b){2,3}?((?:b|a|r)+)\\1$" in pending // {
-  //   val r94 = r"^(?:f|o|b){2,3}?((?:b|a|r)+)\1$"
-  //   "foobarbar" should matchPattern { case r94("bar") => }
-  // }
+  it should "pass test 94: ^(?:f|o|b){2,3}?((?:b|a|r)+)\\1$" in {
+    val r94 = r"^(?:f|o|b){2,3}?((?:b|a|r)+)\1$$"
+    "foobarbar" should matchPattern { case r94("bar") => }
+  }
 
-  it should "pass test 95: ^(?:f|o|b){2,3}?((?:b|a|r)+?)\\1$" in pending // {
-  //   val r95 = r"^(?:f|o|b){2,3}?((?:b|a|r)+?)\1$"
-  //   "foobarbar" should matchPattern { case r95("bar") => }
-  // }
+  it should "pass test 95: ^(?:f|o|b){2,3}?((?:b|a|r)+?)\\1$" in {
+    val r95 = r"^(?:f|o|b){2,3}?((?:b|a|r)+?)\1$$"
+    "foobarbar" should matchPattern { case r95("bar") => }
+  }
 
-  it should "pass test 96: ^(?:f|o|b){2,3}?(.+)\\1$" in pending // {
-  //   val r96 = r"^(?:f|o|b){2,3}?(.+)\1$"
-  //   "foobarbar" should matchPattern { case r96("bar") => }
-  // }
+  it should "pass test 96: ^(?:f|o|b){2,3}?(.+)\\1$" in {
+    val r96 = r"^(?:f|o|b){2,3}?(.+)\1$$"
+    "foobarbar" should matchPattern { case r96("bar") => }
+  }
 
-  it should "pass test 97: ^(?:f|o|b){2,3}?(.+?)\\1$" in pending // {
-  //   val r97 = r"^(?:f|o|b){2,3}?(.+?)\1$"
-  //   "foobarbar" should matchPattern { case r97("bar") => }
-  // }
+  it should "pass test 97: ^(?:f|o|b){2,3}?(.+?)\\1$" in {
+    val r97 = r"^(?:f|o|b){2,3}?(.+?)\1$$"
+    "foobarbar" should matchPattern { case r97("bar") => }
+  }
 
-  it should "pass test 98: ^(?:f|o|b){3,4}((?:b|a|r)+)\\1$" in pending // {
-  //   val r98 = r"^(?:f|o|b){3,4}((?:b|a|r)+)\1$"
-  //   "foobarbar" should matchPattern { case r98("bar") => }
-  // }
+  it should "pass test 98: ^(?:f|o|b){3,4}((?:b|a|r)+)\\1$" in {
+    val r98 = r"^(?:f|o|b){3,4}((?:b|a|r)+)\1$$"
+    "foobarbar" should matchPattern { case r98("bar") => }
+  }
 
-  it should "pass test 99: ^(?:f|o|b){3,4}((?:b|a|r)+?)\\1$" in pending // {
-  //   val r99 = r"^(?:f|o|b){3,4}((?:b|a|r)+?)\1$"
-  //   "foobarbar" should matchPattern { case r99("bar") => }
-  // }
+  it should "pass test 99: ^(?:f|o|b){3,4}((?:b|a|r)+?)\\1$" in {
+    val r99 = r"^(?:f|o|b){3,4}((?:b|a|r)+?)\1$$"
+    "foobarbar" should matchPattern { case r99("bar") => }
+  }
 
   it should "pass test 100: ^(?:f|o|b){3,4}(.+)\\1$" in {
     val r100 = r"^(?:f|o|b){3,4}(.+)\1$$"
     "foobarbar" should matchPattern { case r100("bar") => }
   }
 
-  it should "pass test 101: ^(?:f|o|b){3,4}(.+?)\\1$" in pending // {
-  //   val r101 = r"^(?:f|o|b){3,4}(.+?)\1$"
-  //   "foobarbar" should matchPattern { case r101("bar") => }
-  // }
+  it should "pass test 101: ^(?:f|o|b){3,4}(.+?)\\1$" in {
+    val r101 = r"^(?:f|o|b){3,4}(.+?)\1$$"
+    "foobarbar" should matchPattern { case r101("bar") => }
+  }
 
   it should "pass test 102: ^([0-9a-fA-F]+)(?:x([0-9a-fA-F]+)?)(?:x([0-9a-fA-F]+))?" in {
     val r102 = r"^([0-9a-fA-F]+)(?:x([0-9a-fA-F]+)?)(?:x([0-9a-fA-F]+))?"
@@ -597,10 +597,10 @@ class QT3TSTests extends AnyFlatSpec {
     "aa" should matchPattern { case r117(Some("a")) => }
   }
 
-  it should "pass test 118: ^([ab]*?)(b)?(c)$" in pending // {
-  //   val r118 = r"^([ab]*?)(b)?(c)$"
-  //   "abac" should matchPattern { case r118("aba", None, "c") => }
-  // }
+  it should "pass test 118: ^([ab]*?)(b)?(c)$" in {
+    val r118 = r"^([ab]*?)(b)?(c)$$"
+    "abac" should matchPattern { case r118("aba", None, "c") => }
+  }
 
   it should "pass test 119: ^([TUV]+|XXXXXXXXXX|YYYYYYYYYY|Z.Q*X|Z[TE]Q*P):" in {
     val r119 = r"^([TUV]+|XXXXXXXXXX|YYYYYYYYYY|Z.Q*X|Z[TE]Q*P):"
@@ -677,15 +677,15 @@ class QT3TSTests extends AnyFlatSpec {
     "aabbaa" should matchPattern { case r133("aa", Some("bb")) => }
   }
 
-  it should "pass test 134: ^(b+?|a){1,2}c" in pending // {
-  //   val r134 = r"^(b+?|a){1,2}c"
-  //   "bbbac" should matchPattern { case r134("a") => }
-  // }
+  it should "pass test 134: ^(b+?|a){1,2}c" in {
+    val r134 = r"^(b+?|a){1,2}c"
+    "bbbac" should matchPattern { case r134("a") => }
+  }
 
-  it should "pass test 135: ^(b+?|a){1,2}c" in pending // {
-  //   val r135 = r"^(b+?|a){1,2}c"
-  //   "bbbbac" should matchPattern { case r135("a") => }
-  // }
+  it should "pass test 135: ^(b+?|a){1,2}c" in {
+    val r135 = r"^(b+?|a){1,2}c"
+    "bbbbac" should matchPattern { case r135("a") => }
+  }
 
   it should "pass test 136: ^(foo|)bar$" in pending // {
   //   val r136 = r"^(foo|)bar$"
@@ -727,45 +727,45 @@ class QT3TSTests extends AnyFlatSpec {
     "ZEQQQX:" should matchPattern { case r143("ZEQQQX") => }
   }
 
-  it should "pass test 144: ^.{2,3}?((?:b|a|r)+)\\1$" in pending // {
-  //   val r144 = r"^.{2,3}?((?:b|a|r)+)\1$"
-  //   "foobarbar" should matchPattern { case r144("bar") => }
-  // }
+  it should "pass test 144: ^.{2,3}?((?:b|a|r)+)\\1$" in {
+    val r144 = r"^.{2,3}?((?:b|a|r)+)\1$$"
+    "foobarbar" should matchPattern { case r144("bar") => }
+  }
 
-  it should "pass test 145: ^.{2,3}?((?:b|a|r)+?)\\1$" in pending // {
-  //   val r145 = r"^.{2,3}?((?:b|a|r)+?)\1$"
-  //   "foobarbar" should matchPattern { case r145("bar") => }
-  // }
+  it should "pass test 145: ^.{2,3}?((?:b|a|r)+?)\\1$" in {
+    val r145 = r"^.{2,3}?((?:b|a|r)+?)\1$$"
+    "foobarbar" should matchPattern { case r145("bar") => }
+  }
 
-  it should "pass test 146: ^.{2,3}?(.+)\\1$" in pending // {
-  //   val r146 = r"^.{2,3}?(.+)\1$"
-  //   "foobarbar" should matchPattern { case r146("bar") => }
-  // }
+  it should "pass test 146: ^.{2,3}?(.+)\\1$" in {
+    val r146 = r"^.{2,3}?(.+)\1$$"
+    "foobarbar" should matchPattern { case r146("bar") => }
+  }
 
-  it should "pass test 147: ^.{2,3}?(.+?)\\1$" in pending // {
-  //   val r147 = r"^.{2,3}?(.+?)\1$"
-  //   "foobarbar" should matchPattern { case r147("bar") => }
-  // }
+  it should "pass test 147: ^.{2,3}?(.+?)\\1$" in {
+    val r147 = r"^.{2,3}?(.+?)\1$$"
+    "foobarbar" should matchPattern { case r147("bar") => }
+  }
 
   it should "pass test 148: ^.{3,4}((?:b|a|r)+)\\1$" in {
     val r148 = r"^.{3,4}((?:b|a|r)+)\1$$"
     "foobarbar" should matchPattern { case r148("bar") => }
   }
 
-  it should "pass test 149: ^.{3,4}((?:b|a|r)+?)\\1$" in pending // {
-  //   val r149 = r"^.{3,4}((?:b|a|r)+?)\1$"
-  //   "foobarbar" should matchPattern { case r149("bar") => }
-  // }
+  it should "pass test 149: ^.{3,4}((?:b|a|r)+?)\\1$" in {
+    val r149 = r"^.{3,4}((?:b|a|r)+?)\1$$"
+    "foobarbar" should matchPattern { case r149("bar") => }
+  }
 
   it should "pass test 150: ^.{3,4}(.+)\\1$" in {
     val r150 = r"^.{3,4}(.+)\1$$"
     "foobarbar" should matchPattern { case r150("bar") => }
   }
 
-  it should "pass test 151: ^.{3,4}(.+?)\\1$" in pending // {
-  //   val r151 = r"^.{3,4}(.+?)\1$"
-  //   "foobarbar" should matchPattern { case r151("bar") => }
-  // }
+  it should "pass test 151: ^.{3,4}(.+?)\\1$" in {
+    val r151 = r"^.{3,4}(.+?)\1$$"
+    "foobarbar" should matchPattern { case r151("bar") => }
+  }
 
   it should "pass test 152: ^m?(\\d)(.*)\\1$" in {
     val r152 = r"^m?(\d)(.*)\1$$"
@@ -792,10 +792,10 @@ class QT3TSTests extends AnyFlatSpec {
     "aba" should matchPattern { case r156("a", "b") => }
   }
 
-  it should "pass test 157: a(?:b|(c|e){1,2}?|d)+?(.)" in pending // {
-  //   val r157 = r"a(?:b|(c|e){1,2}?|d)+?(.)"
-  //   "ace" should matchPattern { case r157(Some("c"), "e") => }
-  // }
+  ignore should "pass test 157: a(?:b|(c|e){1,2}?|d)+?(.)" in {
+    val r157 = r"a(?:b|(c|e){1,2}?|d)+?(.)"
+    "ace" should matchPattern { case r157(IRight(ILeft("c")), "e") => }
+  }
 
   it should "pass test 158: a(?:b|c|d)(.)" in {
     val r158 = r"a(?:b|c|d)(.)"
@@ -812,45 +812,45 @@ class QT3TSTests extends AnyFlatSpec {
     "acdbcdbe" should matchPattern { case r160("e") => }
   }
 
-  it should "pass test 161: a(?:b|c|d)+?(.)" in pending // {
-  //   val r161 = r"a(?:b|c|d)+?(.)"
-  //   "acdbcdbe" should matchPattern { case r161("e") => }
-  // }
+  it should "pass test 161: a(?:b|c|d)+?(.)" in {
+    val r161 = r"a(?:b|c|d)+?(.)"
+    "acdbcdbe" should matchPattern { case r161("e") => }
+  }
 
-  it should "pass test 162: a(?:b|c|d)+?(.)" in pending // {
-  //   val r162 = r"a(?:b|c|d)+?(.)"
-  //   "ace" should matchPattern { case r162("e") => }
-  // }
+  it should "pass test 162: a(?:b|c|d)+?(.)" in {
+    val r162 = r"a(?:b|c|d)+?(.)"
+    "ace" should matchPattern { case r162("e") => }
+  }
 
   it should "pass test 163: a(?:b|c|d){5,6}(.)" in {
     val r163 = r"a(?:b|c|d){5,6}(.)"
     "acdbcdbe" should matchPattern { case r163("e") => }
   }
 
-  it should "pass test 164: a(?:b|c|d){5,6}?(.)" in pending // {
-  //   val r164 = r"a(?:b|c|d){5,6}?(.)"
-  //   "acdbcdbe" should matchPattern { case r164("e") => }
-  // }
+  it should "pass test 164: a(?:b|c|d){5,6}?(.)" in {
+    val r164 = r"a(?:b|c|d){5,6}?(.)"
+    "acdbcdbe" should matchPattern { case r164("e") => }
+  }
 
   it should "pass test 165: a(?:b|c|d){5,7}(.)" in {
     val r165 = r"a(?:b|c|d){5,7}(.)"
     "acdbcdbe" should matchPattern { case r165("e") => }
   }
 
-  it should "pass test 166: a(?:b|c|d){5,7}?(.)" in pending // {
-  //   val r166 = r"a(?:b|c|d){5,7}?(.)"
-  //   "acdbcdbe" should matchPattern { case r166("e") => }
-  // }
+  it should "pass test 166: a(?:b|c|d){5,7}?(.)" in {
+    val r166 = r"a(?:b|c|d){5,7}?(.)"
+    "acdbcdbe" should matchPattern { case r166("e") => }
+  }
 
   it should "pass test 167: a(?:b|c|d){6,7}(.)" in {
     val r167 = r"a(?:b|c|d){6,7}(.)"
     "acdbcdbe" should matchPattern { case r167("e") => }
   }
 
-  it should "pass test 168: a(?:b|c|d){6,7}?(.)" in pending // {
-  //   val r168 = r"a(?:b|c|d){6,7}?(.)"
-  //   "acdbcdbe" should matchPattern { case r168("e") => }
-  // }
+  it should "pass test 168: a(?:b|c|d){6,7}?(.)" in {
+    val r168 = r"a(?:b|c|d){6,7}?(.)"
+    "acdbcdbe" should matchPattern { case r168("e") => }
+  }
 
   it should "pass test 169: a([bc]*)(c*d)" in {
     val r169 = r"a([bc]*)(c*d)"
@@ -877,45 +877,45 @@ class QT3TSTests extends AnyFlatSpec {
     "abcd" should matchPattern { case r173("bc") => }
   }
 
-  it should "pass test 174: foo(aA)*+b" in pending // {
-  //   val r174 = r"foo(aA)*+b"
-  //   "fooaAaAaAaAaAb" should matchPattern { case r174(Some("aA")) => }
-  // }
+  it should "pass test 174: foo(aA)*+b" in {
+    val r174 = r"foo(aA)*+b"
+    "fooaAaAaAaAaAb" should matchPattern { case r174(Some("aA")) => }
+  }
 
-  it should "pass test 175: foo(aA)++b" in pending // {
-  //   val r175 = r"foo(aA)++b"
-  //   "fooaAaAaAaAaAb" should matchPattern { case r175("aA") => }
-  // }
+  it should "pass test 175: foo(aA)++b" in {
+    val r175 = r"foo(aA)++b"
+    "fooaAaAaAaAaAb" should matchPattern { case r175("aA") => }
+  }
 
-  it should "pass test 176: foo(aA)?+b" in pending // {
-  //   val r176 = r"foo(aA)?+b"
-  //   "fooaAb" should matchPattern { case r176(Some("aA")) => }
-  // }
+  it should "pass test 176: foo(aA)?+b" in {
+    val r176 = r"foo(aA)?+b"
+    "fooaAb" should matchPattern { case r176(Some("aA")) => }
+  }
 
-  it should "pass test 177: foo(aA){1,5}+b" in pending // {
-  //   val r177 = r"foo(aA){1,5}+b"
-  //   "fooaAaAaAaAaAb" should matchPattern { case r177("aA") => }
-  // }
+  it should "pass test 177: foo(aA){1,5}+b" in {
+    val r177 = r"foo(aA){1,5}+b"
+    "fooaAaAaAaAaAb" should matchPattern { case r177("aA") => }
+  }
 
-  it should "pass test 178: foo(aA|bB)*+b" in pending // {
-  //   val r178 = r"foo(aA|bB)*+b"
-  //   "foobBbBaAaAaAb" should matchPattern { case r178(Some("aA")) => }
-  // }
+  it should "pass test 178: foo(aA|bB)*+b" in {
+    val r178 = r"foo(aA|bB)*+b"
+    "foobBbBaAaAaAb" should matchPattern { case r178(Some("aA")) => }
+  }
 
-  it should "pass test 179: foo(aA|bB)++b" in pending // {
-  //   val r179 = r"foo(aA|bB)++b"
-  //   "foobBaAbBaAbBb" should matchPattern { case r179("bB") => }
-  // }
+  it should "pass test 179: foo(aA|bB)++b" in {
+    val r179 = r"foo(aA|bB)++b"
+    "foobBaAbBaAbBb" should matchPattern { case r179("bB") => }
+  }
 
-  it should "pass test 180: foo(aA|bB)?+b" in pending // {
-  //   val r180 = r"foo(aA|bB)?+b"
-  //   "foobBb" should matchPattern { case r180(Some("bB")) => }
-  // }
+  it should "pass test 180: foo(aA|bB)?+b" in {
+    val r180 = r"foo(aA|bB)?+b"
+    "foobBb" should matchPattern { case r180(Some("bB")) => }
+  }
 
-  it should "pass test 181: foo(aA|bB){1,5}+b" in pending // {
-  //   val r181 = r"foo(aA|bB){1,5}+b"
-  //   "foobBaAaAaAaAb" should matchPattern { case r181("aA") => }
-  // }
+  it should "pass test 181: foo(aA|bB){1,5}+b" in {
+    val r181 = r"foo(aA|bB){1,5}+b"
+    "foobBaAaAaAaAb" should matchPattern { case r181("aA") => }
+  }
 
   it should "pass test 182: X(\\w+)(?=\\s)|X(\\w+)" in {
     val r182 = r"X(\w+)(?=\s)|X(\w+)"
