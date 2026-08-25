@@ -43,7 +43,7 @@ object parser {
     case (regex, None)          => regex
     case (regex, Some(postfix)) => postfix(regex)
   }
-  private lazy val quantifiable = choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls)
+  private lazy val quantifiable = choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
 
   private lazy val positiveLookahead = PositiveLookahead(atomic("(?=") ~> expr <~ ')')
   private lazy val negativeLookahead = NegativeLookahead(atomic("(?!" ~> expr <~ ')'))
@@ -116,8 +116,8 @@ object parser {
     Class(clsSet)
   }
 
-  lazy val predefinedEsc = atomic('\\' ~> predefined)
-  lazy val predefined = Class(
+  private lazy val predefinedEsc = atomic('\\' ~> predefined)
+  private lazy val predefined = Class(
     choice(
       'd' as Diet.fromRange(Range('0'.toInt, '9'.toInt)),
       'D' as allSet -- Diet.fromRange(Range('0'.toInt, '9'.toInt)),
@@ -127,6 +127,8 @@ object parser {
       'S' as allSet -- (Diet.one(' '.toInt) | Diet.one('\t'.toInt) | Diet.one('\n'.toInt) | Diet.one('\u000B'.toInt) | Diet.one('\r'.toInt) | Diet.one('\f'.toInt)),
     )
   )
+
+  private lazy val backreference = Backreference(atomic('\\' ~> int))
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 

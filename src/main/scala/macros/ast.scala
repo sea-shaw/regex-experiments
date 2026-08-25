@@ -299,6 +299,13 @@ object ast {
       }
     }
 
+    case class Backreference private (group: Int)(using Type[EmptyType]) extends EmptyLeaf
+    object Backreference {
+      def apply(group: Int)(using Quotes): Backreference = {
+        new Backreference(group)
+      }
+    }
+
     sealed abstract class EmptyWithInner[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using Type[EmptyType]) extends Empty {
       override final val numCaptures: Int = inner.numCaptures      
     }

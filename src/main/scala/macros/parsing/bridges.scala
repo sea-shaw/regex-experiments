@@ -42,6 +42,10 @@ object bridges {
     override def apply(inner: ToRegex): ToRegex = ast.NegativeLookbehind(inner)
   }
 
+  object Backreference extends PureParserBridge1[Int, ToRegex] {
+    override def apply(group: Int): ToRegex = ast.Backreference(group)
+  }
+
   object Capture extends PureParserBridge1[ToRegex, ToRegex] {
     override def apply(inner: ToRegex): ToRegex = ast.Capture(inner)
   }
