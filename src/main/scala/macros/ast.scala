@@ -2,7 +2,6 @@ package experiments.macros
 
 import cats.{Applicative, Eval, Functor, Monad, Traverse}
 import cats.collections.Diet
-import cats.data.State
 import cats.kernel.Order
 import cats.syntax.all.*
 import experiments.macros.evidence.{apply, liftCo}
@@ -107,14 +106,14 @@ object ast {
       }
 
       override def tailRecM[A, B](a: A)(f: A => SanitisedT[F, Either[A, B]]): SanitisedT[F, B] = {
-        SanitisedT {
+        SanitisedT(
           Monad[F].tailRecM((a, false)) { (x, any) =>
             f(x).value.map {
               case Sanitised(Left(left), leftAny) => Left(left, any || leftAny)
               case Sanitised(Right(right), rightAny) => Right(Sanitised(right, any || rightAny))
             }
           }
-        }
+        )
       }
     }
 
@@ -222,7 +221,7 @@ object ast {
 
       val numCaptures: Int
 
-      def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]]
+      def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[F[R]]
 
       final def tidyFunction[R <: Rep: Type](using Quotes): TidyFunction[F[R], ?] = {
         flattenFunction(NNil, TNil) match {
@@ -239,6 +238,10 @@ object ast {
 
     type EmptyType = Const[HEmpty]
     sealed abstract class Empty protected (using override val tpe: Type[EmptyType]) extends Regex[EmptyType] {
+      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[EmptyType[R]] = {
+        empty
+      }
+
       override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[HEmpty, C], L, ?] = {
         nodes.flattenFunction(types) match {
           case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HEmpty, C], L, a] {
@@ -252,10 +255,6 @@ object ast {
 
     sealed abstract class EmptyLeaf protected ()(using Type[EmptyType]) extends Empty {
       override final val numCaptures: Int = 0
-
-      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[HEmpty]] = {
-        State.pure(empty)
-      }
     }
 
     case class Dot private ()(using Type[EmptyType]) extends EmptyLeaf
@@ -302,10 +301,6 @@ object ast {
 
     sealed abstract class EmptyWithInner[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using Type[EmptyType]) extends Empty {
       override final val numCaptures: Int = inner.numCaptures      
-
-      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[EmptyType[R]]] = {
-        State(s => (s + numCaptures, empty))
-      }
     }
 
     // TODO: Should this be allowed?
@@ -335,31 +330,26 @@ object ast {
     sealed abstract class Capturing[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using override final val tpe: Type[CapturingType[F]]) extends Regex[CapturingType[F]] {
       override final val numCaptures: Int = inner.numCaptures + 1
 
-      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CapturingType[F][R]]] = {
+      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[CapturingType[F][R]] = {
         given Type[F] = inner.tpe
 
-        val capture = State { (i: Int) =>
-          val idx = Expr(i)
-          val expr = '{
-            val sanitised = $groups($idx).map { s =>
-              Sanitised(HSingleton(s), true)
-            }
-            SanitisedT(sanitised)
+        val sanitisedCapture = '{
+          val sanitised = $groups(${ Expr(i) }).map { s =>
+            Sanitised(HSingleton(s), true)
           }
-          (i + 1, expr)
+          SanitisedT(sanitised)
         }
 
         val sanitised = Expr.summon[HSingleton[String] =:= CapturingType[F][R]].map { ev =>
-          capture.bimap(_ + inner.numCaptures, liftSanitised(ev)(_))
+          liftSanitised(ev)(sanitisedCapture)
         } orElse Expr.summon[HAppend[HSingleton[String], F[R]] =:= CapturingType[F][R]].map { ev =>
-          (capture, inner.sanitiseCode(groups)).mapN { case (sanitisedCapture, sanitisedInner) =>
-            liftSanitised(ev) {
-              '{
-                for {
-                  capture <- $sanitisedCapture
-                  inner <- $sanitisedInner
-                } yield HAppend(capture, inner)
-              }
+          val sanitisedInner = inner.sanitiseCode(groups, i + 1)
+          liftSanitised(ev) {
+            '{
+              for {
+                capture <- $sanitisedCapture
+                inner <- $sanitisedInner
+              } yield HAppend(capture, inner)
             }
           }
         }
@@ -416,8 +406,8 @@ object ast {
 
       override final val numCaptures: Int = inner.numCaptures
 
-      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[F[R]]] = {
-        inner.sanitiseCode(groups)
+      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[F[R]] = {
+        inner.sanitiseCode(groups, i)
       }
 
       override final private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
@@ -434,23 +424,23 @@ object ast {
     case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(using override val tpe: Type[CatType[F, G]]) extends Regex[CatType[F, G]] {
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[CatType[F, G][R]]] = {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[CatType[F, G][R]] = {
         given Type[F] = left.tpe
         given Type[G] = right.tpe
 
         val sanitised = Expr.summon[F[R] =:= CatType[F, G][R]].map { ev =>
-          left.sanitiseCode(groups).bimap(_ + right.numCaptures, liftSanitised(ev)(_))
+          liftSanitised(ev)(left.sanitiseCode(groups, i))
         } orElse Expr.summon[G[R] =:= CatType[F, G][R]].map { ev =>
-          right.sanitiseCode(groups).contramap((_: Int) + left.numCaptures).map(liftSanitised(ev)(_))
+          liftSanitised(ev)(right.sanitiseCode(groups, i + left.numCaptures))
         } orElse Expr.summon[HAppend[F[R], G[R]] =:= CatType[F, G][R]].map { ev =>
-          (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
-            liftSanitised(ev) {
-              '{
-                for {
-                  left <- $sanitisedLeft
-                  right <- $sanitisedRight
-                } yield HAppend(left, right)
-              }
+          val sanitisedLeft = left.sanitiseCode(groups, i)
+          val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
+          liftSanitised(ev) {
+            '{
+              for {
+                left <- $sanitisedLeft
+                right <- $sanitisedRight
+              } yield HAppend(left, right)
             }
           }
         }
@@ -507,32 +497,32 @@ object ast {
     case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(using override val tpe: Type[AltType[F, G]]) extends Regex[AltType[F, G]] {
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[AltType[F, G][R]]] = {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[AltType[F, G][R]] = {
         given Type[F] = left.tpe
         given Type[G] = right.tpe
         given Type[InclusiveOr] = inclusiveOrType
 
         val sanitised = Expr.summon[HEmpty =:= AltType[F, G][R]].map { ev =>
-          State((i: Int) => (i + left.numCaptures + right.numCaptures, liftSanitised(ev)(empty)))
+          liftSanitised(ev)(empty)
         } orElse Expr.summon[SingletonWith[Either, F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-          (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
-            liftSanitised(ev) {
-              '{
-                val left = $sanitisedLeft.map(_.asLeft[G[R]])
-                val right = $sanitisedRight.map(_.asRight[F[R]])
-                (left max right).map(HSingleton(_))
-              }
+          val sanitisedLeft = left.sanitiseCode(groups, i)
+          val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
+          liftSanitised(ev) {
+            '{
+              val left = $sanitisedLeft.map(_.asLeft[G[R]])
+              val right = $sanitisedRight.map(_.asRight[F[R]])
+              (left max right).map(HSingleton(_))
             }
           }
         } orElse Expr.summon[SingletonWith[InclusiveOr, F[R], G[R]] =:= AltType[F, G][R]].map { ev =>
-          (left.sanitiseCode(groups), right.sanitiseCode(groups)).mapN { case (sanitisedLeft, sanitisedRight) =>
-            liftSanitised(ev) {
-              '{
-                val left = $sanitisedLeft.value.sequence
-                val right = $sanitisedRight.value.sequence
-                val caps = (left, right).mapN((l, r) => ${ fromOptions('l, 'r) })
-                SanitisedT(caps.traverse(_.map(HSingleton(_))))
-              }
+          val sanitisedLeft = left.sanitiseCode(groups, i)
+          val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
+          liftSanitised(ev) {
+            '{
+              val left = $sanitisedLeft.value.sequence
+              val right = $sanitisedRight.value.sequence
+              val caps = (left, right).mapN((l, r) => ${ fromOptions('l, 'r) })
+              SanitisedT(caps.traverse(_.map(HSingleton(_))))
             }
           }
         }
@@ -603,18 +593,17 @@ object ast {
     case class Opt[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[OptType[F]]) extends Regex[OptType[F]] {
       override val numCaptures: Int = inner.numCaptures
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[OptType[F][R]]] = {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[OptType[F][R]] = {
         given Type[F] = inner.tpe
 
         val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
-          State((i: Int) => (i + inner.numCaptures, liftSanitised(ev)(empty)))
+          liftSanitised(ev)(empty)
         } orElse Expr.summon[HSingleton[Option[F[R]]] =:= OptType[F][R]].map { ev =>
-          inner.sanitiseCode(groups).map { sanitisedInner =>
-            liftSanitised(ev) {
-              '{
-                val innerCaps = $sanitisedInner
-                SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
-              }
+          val sanitisedInner = inner.sanitiseCode(groups, i)
+          liftSanitised(ev) {
+            '{
+              val innerCaps = $sanitisedInner
+              SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
             }
           }
         }
@@ -663,8 +652,8 @@ object ast {
     sealed abstract class Rep1[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using override val tpe: Type[Rep1Type[F]]) extends Regex[Rep1Type[F]] {
       override final val numCaptures: Int = inner.numCaptures
 
-      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep1Type[F][R]]] = {
-        inner.sanitiseCode(groups)
+      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[Rep1Type[F][R]] = {
+        inner.sanitiseCode(groups, i)
       }
 
       override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[Rep1Type[F][R], C], L, ?] = {
@@ -711,8 +700,8 @@ object ast {
     sealed abstract class Rep0[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using override val tpe: Type[Rep0Type[F]]) extends Regex[Rep0Type[F]] {
       override final val numCaptures: Int = inner.numCaptures     
 
-      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups])(using Quotes): State[Int, SanitiseExpr[Rep0Type[F][R]]] = {
-        Opt(Plus(inner)).sanitiseCode(groups) // TODO
+      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[Rep0Type[F][R]] = {
+        Opt(Plus(inner)).sanitiseCode(groups, i) // TODO
       }
 
       override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[Rep0Type[F][R], C], L, ?] = {

@@ -75,7 +75,7 @@ object regex {
               val groups = Array.tabulate(m.groupCount) {i =>
                 Option(m.group(i + 1))
               }
-              val sanitised = ${ regex.sanitiseCode[false]('groups).runA(0).value }
+              val sanitised = ${ regex.sanitiseCode[false]('groups, 0) }
               sanitised.value.map { case Sanitised(captures, _) =>
                 ${ tidy('captures) }
               }
