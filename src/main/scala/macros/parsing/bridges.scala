@@ -2,7 +2,7 @@ package experiments.macros.parsing
 
 import cats.collections.Diet
 import cats.data.NonEmptyList
-import experiments.macros.ast.AST
+import experiments.macros.ast.{AST, QuantifierType}
 import parsley.Parsley
 import parsley.Parsley.pure
 import parsley.bridges.ParserSingletonBridge
@@ -77,27 +77,27 @@ object bridges {
     override def apply(left: ToRegex, right: ToRegex): ToRegex = ast.Alt(left, right)
   }
 
-  object Opt extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ast.Opt(inner)
+  object Opt extends PureParserBridge2[ToRegex, QuantifierType, ToRegex] {
+    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex = ast.Opt(inner, quantifierType)
   }
 
-  object Star extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ast.Star(inner)
+  object Star extends PureParserBridge2[ToRegex, QuantifierType, ToRegex] {
+    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex = ast.Star(inner, quantifierType)
   }
 
-  object Plus extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ast.Plus(inner)
+  object Plus extends PureParserBridge2[ToRegex, QuantifierType, ToRegex] {
+    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex = ast.Plus(inner, quantifierType)
   }
 
   object NumericalQuantifier {
-    def apply(start: Parsley[Int], end: Parsley[Option[Option[Int]]]): Parsley[ToRegex => ToRegex] = (start <~> end).mapFilterMsg {
-      case (0, None | Some(Some(0))) => Right(ast.Zero(_))
-      case (1, None | Some(Some(1))) => Right(identity)
-      case (n, None)                 => Right(ast.Exactly(_, n))
-      case (0, Some(None))           => Right(ast.Star(_))
-      case (n, Some(None))           => Right(ast.AtLeast(_, n))
-      case (0, Some(Some(m)))        => Right(ast.AtMost(_, m))
-      case (n, Some(Some(m)))        => if n <= m then Right(ast.Between(_, n, m)) else Left(Seq("Upper bound cannot be less than lower bound"))
+    def apply(start: Parsley[Int], end: Parsley[Option[Option[Int]]]): Parsley[(ToRegex, QuantifierType) => ToRegex] = (start <~> end).mapFilterMsg {
+      case (0, None | Some(Some(0))) => Right((toRegex, _) => ast.Zero(toRegex))
+      case (1, None | Some(Some(1))) => Right((toRegex, _) => toRegex)
+      case (n, None)                 => Right(ast.Exactly(_, n, _))
+      case (0, Some(None))           => Right(ast.Star(_, _))
+      case (n, Some(None))           => Right(ast.AtLeast(_, n, _))
+      case (0, Some(Some(m)))        => Right(ast.AtMost(_, m, _))
+      case (n, Some(Some(m)))        => if n <= m then Right(ast.Between(_, n, m, _)) else Left(Seq("Upper bound cannot be less than lower bound"))
     }
   }
 

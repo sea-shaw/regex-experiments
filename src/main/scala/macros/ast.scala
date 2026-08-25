@@ -141,6 +141,11 @@ object ast {
 
   type SingletonWith[F[_, _], A <: HChain, B <: HChain] = HSingleton[F[A, B]]
 
+  sealed trait QuantifierType
+  case object Greedy extends QuantifierType
+  case object Reluctant extends QuantifierType
+  case object Possessive extends QuantifierType
+
   private def empty(using Quotes): SanitiseExpr[HEmpty] = {
     '{ Applicative[[A] =>> SanitisedT[Option, A]].pure(HEmpty) }
   }
@@ -597,7 +602,7 @@ object ast {
     }
 
     type OptType[F[_ <: Rep] <: HChain] = [R <: Rep] =>> OptCapture[F[R]] 
-    case class Opt[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using override val tpe: Type[OptType[F]]) extends Regex[OptType[F]] {
+    case class Opt[F[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(using override val tpe: Type[OptType[F]]) extends Regex[OptType[F]] {
       override val numCaptures: Int = inner.numCaptures
 
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[OptType[F][R]] = {
@@ -649,9 +654,9 @@ object ast {
     }
 
     object Opt {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Opt[F] = {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes): Opt[F] = {
         given Type[F] = inner.tpe
-        new Opt(inner)
+        new Opt(inner, quantifierType)
       }
     }
 
@@ -668,38 +673,38 @@ object ast {
       }
     }
 
-    case class Plus[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using Type[Rep1Type[F]]) extends Rep1[F](inner)
+    case class Plus[F[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(using Type[Rep1Type[F]]) extends Rep1[F](inner)
     object Plus {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Plus[F] = {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes): Plus[F] = {
         given Type[F] = inner.tpe
-        new Plus(inner)
+        new Plus(inner, quantifierType)
       }
     }
 
     /* {n} for n >= 2. */
-    case class Exactly[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int)(using Type[Rep1Type[F]]) extends Rep1[F](inner)
+    case class Exactly[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Type[Rep1Type[F]]) extends Rep1[F](inner)
     object Exactly {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int)(using Quotes): Exactly[F] = {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes): Exactly[F] = {
         given Type[F] = inner.tpe
-        new Exactly(inner, n)
+        new Exactly(inner, n, quantifierType)
       }
     }
 
     /* {n,} for n >= 1. Use `Star` for {0,} */
-    case class AtLeast[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int)(using Type[Rep1Type[F]]) extends Rep1[F](inner)
+    case class AtLeast[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Type[Rep1Type[F]]) extends Rep1[F](inner)
     object AtLeast {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int)(using Quotes): AtLeast[F] = {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes): AtLeast[F] = {
         given Type[F] = inner.tpe
-        new AtLeast(inner, n)
+        new AtLeast(inner, n, quantifierType)
       }
     }
 
     /* {n, m} for m > n >= 1. */
-    case class Between[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, m: Int)(using Type[Rep1Type[F]]) extends Rep1[F](inner)
+    case class Between[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, m: Int, quantifierType: QuantifierType)(using Type[Rep1Type[F]]) extends Rep1[F](inner)
     object Between {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, m: Int)(using Quotes): Between[F] = {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, m: Int, quantifierType: QuantifierType)(using Quotes): Between[F] = {
         given Type[F] = inner.tpe
-        new Between(inner, n, m)
+        new Between(inner, n, m, quantifierType)
       }
     }
 
@@ -708,28 +713,28 @@ object ast {
       override final val numCaptures: Int = inner.numCaptures     
 
       override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[Rep0Type[F][R]] = {
-        Opt(Plus(inner)).sanitiseCode(groups, i) // TODO
+        Opt(Plus(inner, Greedy), Greedy).sanitiseCode(groups, i) // TODO
       }
 
       override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[Rep0Type[F][R], C], L, ?] = {
-        Opt(Plus(inner)).flattenFunction(nodes,types) // TODO
+        Opt(Plus(inner, Greedy), Greedy).flattenFunction(nodes,types) // TODO
       }
     }
 
-    case class Star[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using Type[Rep0Type[F]]) extends Rep0[F](inner)
+    case class Star[F[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(using Type[Rep0Type[F]]) extends Rep0[F](inner)
     object Star {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes) = {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes) = {
         given Type[F] = inner.tpe
-        new Star(inner)
+        new Star(inner, quantifierType)
       }
     }
 
     /* {0, m} for m >= 2. Use `Opt` for {0, 1}. */
-    case class AtMost[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int)(using Type[Rep0Type[F]]) extends Rep0[F](inner)
+    case class AtMost[F[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Type[Rep0Type[F]]) extends Rep0[F](inner)
     object AtMost {
-      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int)(using Quotes) = {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes) = {
         given Type[F] = inner.tpe
-        new AtMost(inner, n)
+        new AtMost(inner, n, quantifierType)
       }
     }
   }

@@ -1,7 +1,7 @@
 package experiments.macros.parsing
 
 import cats.collections.{Diet, Range}
-import experiments.macros.ast.AST
+import experiments.macros.ast.{AST, Greedy, Reluctant, Possessive}
 import experiments.macros.parsing.bridges.*
 import parsley.{Parsley, Result}
 import parsley.cats.combinator.some
@@ -10,7 +10,7 @@ import parsley.combinator.{choice, option, range, sepBy1}
 import parsley.errors.ErrorBuilder
 import parsley.errors.combinator.*
 import parsley.expr.chain
-import parsley.quick.{atomic, empty, eof, many, noneOf, oneOf, notFollowedBy}
+import parsley.quick.{atomic, empty, eof, many, noneOf, oneOf, notFollowedBy, pure}
 import parsley.syntax.character.{charLift, stringLift}
 import parsley.syntax.all.*
 import parsley.token.Lexer
@@ -39,9 +39,9 @@ object parser {
 
   private lazy val boundary = (LineStart from '^') | (LineEnd from '$')
 
-  private lazy val quantified: Parsley[ToRegex] = quantifiable <~> option(postfixOps) map {
+  private lazy val quantified: Parsley[ToRegex] = quantifiable <~> option(postfixOps <~> quantifierType) map {
     case (regex, None)          => regex
-    case (regex, Some(postfix)) => postfix(regex)
+    case (regex, Some(postfix, qType)) => postfix(regex, qType)
   }
   private lazy val quantifiable = choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
 
@@ -133,6 +133,7 @@ object parser {
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 
   private lazy val postfixOps = (Opt from '?') | (Star from '*') | (Plus from '+') | numericalQuantifier
+  private lazy val quantifierType = ('?' as Reluctant) | ('+' as Possessive) | pure(Greedy)
 
   private lazy val numericalQuantifier = NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
   private lazy val int = lexer.lexeme.natural.decimal32[Int]
