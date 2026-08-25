@@ -50,7 +50,7 @@ object parser {
   private lazy val positiveLookbehind = PositiveLookbehind(atomic("(?<=") ~> expr <~ ')')
   private lazy val negativeLookbehind = NegativeLookbehind(atomic("(?<!" ~> expr <~ ')'))
   private lazy val independent = Independent(atomic("(?>") ~> expr <~ ')')
-  private lazy val withFlags = WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(expr) <~ ')')
+  private lazy val withFlags = WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(':' ~> expr) <~ ')')
   private lazy val capture = Capture('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars).map(_.toInt) | charEsc)
   private lazy val dot = Dot from '.'

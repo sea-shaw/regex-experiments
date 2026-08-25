@@ -16,16 +16,19 @@ object regex {
   }
 
   def isInlineable(sc: Expr[StringContext], ast: AST)(using Quotes): Expr[Regex[?]] = {
-    import quotes.reflect.report.errorAndAbort
+    import quotes.reflect.report
 
     given ErrorBuilder[PosError] = PosErrorBuilder
 
     sc match {
       case '{ StringContext(${ strExpr @ Expr(s) }) } => parse(s, ast) match {
-        case Success(regex)              => regexCode(strExpr, ast)(regex)
-        case Failure(PosError(msg, pos)) => errorAndAbort(msg, errPos(strExpr, s, pos))
+        case Success(regex)              => {
+          // report.info(regex.toString, strExpr)
+          regexCode(strExpr, ast)(regex)
+        }
+        case Failure(PosError(msg, pos)) => report.errorAndAbort(msg, errPos(strExpr, s, pos))
       }
-      case _ => errorAndAbort("Regex string must be compile-time constant.", sc)
+      case _ => report.errorAndAbort("Regex string must be compile-time constant.", sc)
     }
   }
 
