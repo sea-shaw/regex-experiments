@@ -442,10 +442,10 @@ class QT3TSTests extends AnyFlatSpec {
     "aax" should matchPattern { case r86(Some("a", "a")) => }
   }
 
-  ignore should "pass test 87: ^(.*?)\\s*\\|\\s*(?:\\/\\s*|)\'(.+)\'$" in {
+  it should "pass test 87: ^(.*?)\\s*\\|\\s*(?:\\/\\s*|)\'(.+)\'$" in pending // {
   //   val r87 = r"^(.*?)\s*\|\s*(?:\/\s*|)'(.+)'$$"
   //   "text|\'sec\'" should matchPattern { case r87("text", "sec") => }
-  }
+  // }
 
   it should "pass test 88: ^(.+)?B" in {
     val r88 = r"^(.+)?B"
