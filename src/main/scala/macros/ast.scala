@@ -127,8 +127,9 @@ object ast {
   // For some reason these can't be inside the trait
   // It says it needs a `Type[AST.this.OptCapture]`
   type OptCapture[A <: HChain] <: HChain = A match {
-    case HEmpty => HEmpty
-    case _      => HSingleton[Option[A]]
+    case HEmpty                => HEmpty
+    case HSingleton[Option[a]] => A
+    case _                     => HSingleton[Option[A]]
   }
 
   type AltCapture[A <: HChain, B <: HChain, R <: Rep, InclusiveOr[+_, +_]] <: HChain = (A, B) match {
@@ -610,6 +611,8 @@ object ast {
 
         val sanitised = Expr.summon[HEmpty =:= OptType[F][R]].map { ev =>
           liftSanitised(ev)(empty)
+        } orElse Expr.summon[F[R] =:= OptType[F][R]].map { ev =>
+          liftSanitised(ev)(inner.sanitiseCode(groups, i))
         } orElse Expr.summon[HSingleton[Option[F[R]]] =:= OptType[F][R]].map { ev =>
           val sanitisedInner = inner.sanitiseCode(groups, i)
           liftSanitised(ev) {
@@ -630,6 +633,14 @@ object ast {
               override def apply(chains: CCons[OptCapture[F[R]], C], leaves: L)(using Quotes): Expr[a] = {
                 flatten(chains.tail, leaves)
               }
+            }
+          }
+        } orElse Expr.summon[OptType[F][R] =:= F[R]].map { ev =>
+          inner.flattenFunction[C, L, R](nodes, types) match {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[OptCapture[F[R]], C], L, a] {
+              override def apply(chains: CCons[OptCapture[F[R]], C], leaves: L)(using Quotes): Expr[a] = {
+                flatten(CCons(ev(chains.head), chains.tail), leaves)
+              } 
             }
           }
         } orElse Expr.summon[OptType[F][R] =:= HSingleton[Option[F[R]]]].map { ev =>
