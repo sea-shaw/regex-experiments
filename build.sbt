@@ -30,13 +30,11 @@ lazy val macros = project
     libraryDependencies ++= Seq(
       "com.github.j-mie6" %% "golden-scalatest" % "0.1.0-M2",
       "com.github.j-mie6" %% "parsley" % "5.0.0-M19",
-      "com.github.j-mie6" %% "parsley-cats" % "1.5.0",
+      // "com.github.j-mie6" %% "parsley-cats" % "1.5.0",
       "org.scalatest" %% "scalatest" % "3.2.20" % "test",
       "org.typelevel" %% "cats-core" % "2.13.0",
       "org.typelevel" %% "cats-collections-core" % "0.9.10",
     ),
-
-    libraryDependencySchemes += "com.github.j-mie6" %% "parsley" % VersionScheme.Always,
   )
 
 lazy val matchtypes = project
@@ -47,4 +45,17 @@ lazy val matchtypes = project
       "org.scalatest" %% "scalatest" % "3.2.20" % "test",
       "org.typelevel" %% "cats-core" % "2.13.0",
     ),
+  )
+
+lazy val benchmark = project
+  .in(file("benchmark"))
+  .dependsOn(macros)
+  .enablePlugins(JmhPlugin)
+  .settings(
+    name := "benchmark",
+
+    libraryDependencies ++= Seq(
+      "org.openjdk.jmh" % "jmh-core" % "1.37",
+      "org.openjdk.jmh" % "jmh-generator-annprocess" % "1.37",
+    )
   )
