@@ -1,12 +1,15 @@
 val scala3Version = "3.8.4"
 
+ThisBuild / scalaVersion := scala3Version
+
 lazy val root = project
   .in(file("."))
+  .aggregate(experiments)
+
+lazy val experiments = project
+  .in(file("experiments"))
   .settings(
     name := "experiments",
-    version := "0.1.0-SNAPSHOT",
-
-    scalaVersion := scala3Version,
 
     libraryDependencies ++= Seq(
       "com.github.j-mie6" %% "golden-scalatest" % "0.1.0-M2",
@@ -34,6 +37,4 @@ lazy val root = project
       "-explain-cyclic",
       // "-Vprint:postInlining", // Enable and use `console` to better see generated code
     ),
-
-    Compile / sourceGenerators += (Compile / sourceManaged).map(tuples.gen).taskValue
   )

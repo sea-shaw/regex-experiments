@@ -6,7 +6,7 @@ import org.scalatest.golden.GoldenMatchers
 import org.scalatest.matchers.should.Matchers.should
 
 class GoldenTests extends AnyFlatSpec with GoldenMatchers {
-  val dir = "src/test/resources"
+  val dir = "experiments/src/test/resources"
 
   behavior of "Catnip regex macro"
 

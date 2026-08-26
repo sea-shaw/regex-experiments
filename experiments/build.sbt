@@ -1,0 +1,1 @@
+Compile / sourceGenerators += (Compile / sourceManaged).map(tuples.gen).taskValue
