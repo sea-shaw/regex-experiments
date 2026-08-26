@@ -99,7 +99,6 @@ object ast2 {
       private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[A, C], L, ?]
     }
 
-
     sealed trait CaptureType[A <: HChain, B <: HChain] extends NodeType[B]
     case class CaptureSingleton()(using Type[HSingleton[String]]) extends CaptureType[HEmpty, HSingleton[String]] with NonEmptyType[HSingleton[String]]
     case class CaptureAppend[A <: HChain](inner: Type[A])(using Type[HAppend[HSingleton[String], A]]) extends CaptureType[A, HAppend[HSingleton[String], A]] with NonEmptyType[ HAppend[HSingleton[String], A]]
@@ -219,6 +218,25 @@ object ast2 {
               }
             }
           }
+        }
+      }
+    }
+
+    object Cat {
+      def apply[Left <: HChain, Right <: HChain](left: Regex[Left], right: Regex[Right])(using Quotes): Cat[Left, Right, ?] = (left.nodeType, right.nodeType) match {
+        case (_: EmptyType, _: EmptyType) => new Cat(left, right)(CatEmpty())
+        case (leftType: NonEmptyType[Left], _: EmptyType) => {
+          given Type[Left] = leftType.tpe
+          new Cat(left, right)(CatLeft(leftType.tpe))
+        }
+        case (_: EmptyType, rightType: NonEmptyType[Right]) => {
+          given Type[Right] = rightType.tpe
+          new Cat(left, right)(CatRight(rightType.tpe))
+        }
+        case (leftType: NonEmptyType[Left], rightType: NonEmptyType[Right]) => {
+          given Type[Left] = leftType.tpe
+          given Type[Right] = rightType.tpe
+          new Cat(left, right)(CatBoth(leftType.tpe, rightType.tpe))
         }
       }
     }
