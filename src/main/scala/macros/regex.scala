@@ -1,9 +1,10 @@
 package experiments.macros
 
-import experiments.macros.ast.{AST, Rep, Sanitised}
+import experiments.macros.ast.{AST, Rep}
 import experiments.macros.hcollections.hchain.HChain
 import experiments.macros.parsing.errors.{Pos, PosError, PosErrorBuilder}
 import experiments.macros.parsing.parser.parse
+import experiments.macros.sanitised.Sanitised
 import java.util.regex.Pattern
 import parsley.{Failure, Success}
 import parsley.errors.ErrorBuilder
