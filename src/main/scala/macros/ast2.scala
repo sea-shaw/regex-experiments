@@ -1,6 +1,5 @@
 package experiments.macros
 
-import cats.data.Ior
 import cats.syntax.all.*
 import experiments.macros.hcollections.hchain.*
 import experiments.macros.sanitised.{SanitiseExpr, Sanitised, SanitisedT}
@@ -174,6 +173,56 @@ object ast2 {
     case class CatRight[B <: HChain](right: Type[B])(using Type[B]) extends CatType[HEmpty, B, B] with NonEmptyType[B]
     case class CatBoth[A <: HChain, B <: HChain](left: Type[A], right: Type[B])(using Type[HAppend[A, B]]) extends CatType[A, B, HAppend[A, B]] with AppendType[A, B]
 
+    case class Cat[Left <: HChain, Right <: HChain, A <: HChain] private (left: Regex[Left], right: Regex[Right])(override val nodeType: CatType[Left, Right, A]) extends Regex[A] {
+      override val numCaptures: Int = left.numCaptures + right.numCaptures
+
+      override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[A] = {
+        given Type[A] = nodeType.tpe
+
+        nodeType match {
+          case CatEmpty()  => '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
+          case CatLeft(_)  => left.sanitiseCode(groups, i)
+          case CatRight(_) => right.sanitiseCode(groups, i + left.numCaptures)
+          case CatBoth(given Type[Left], given Type[Right]) => {
+            val sanitisedLeft = left.sanitiseCode(groups, i)
+            val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
+            '{
+              for {
+                left <- $sanitisedLeft
+                right <- $sanitisedRight
+              } yield HAppend(left, right)
+            }
+          }
+        }
+      }
+
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[A, C], L, ?] = {
+        given Type[A] = nodeType.tpe
+
+        nodeType match {
+          case CatEmpty() => nodes.flattenFunction(types) match {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[A, C], L, a] {
+              override def apply(chains: CCons[A, C], leaves: L)(using Quotes): Expr[a] = {
+                flatten(chains.tail, leaves)
+              }
+            }
+          }
+          case CatLeft(_)  => left.flattenFunction(nodes, types)
+          case CatRight(_) => right.flattenFunction(nodes, types)
+          case CatBoth(given Type[Left], given Type[Right]) => left.flattenFunction(NCons(right, nodes), types) match {
+            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[A, C], L, a] {
+              override def apply(chains: CCons[A, C], leaves: L)(using Quotes): Expr[a] = {
+                '{
+                  val node = ${ chains.head }
+                  ${ flatten(CCons('{ node.left }, CCons('{ node.right }, chains.tail)), leaves) }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     sealed trait OptType[A <: HChain, B <: HChain] extends NodeType[B]
     case class OptEmpty()(using Type[HEmpty]) extends OptType[HEmpty, HEmpty] with EmptyType
     case class OptNested[A <: HChain](inner: Type[A])(using Type[HSingleton[Option[A]]]) extends OptType[HSingleton[Option[A]], HSingleton[Option[A]]] with SingletonType[Option[A]]
@@ -182,6 +231,6 @@ object ast2 {
     sealed trait AltType[A <: HChain, B <: HChain, C <: HChain] extends NodeType[C]
     case class AltEmpty()(using Type[HEmpty]) extends AltType[HEmpty, HEmpty, HEmpty] with EmptyType
     case class AltSingletonEither[A <: HChain, B <: HChain](left: Type[A], right: Type[B])(using Type[HSingleton[Either[A, B]]]) extends AltType[A, B, HSingleton[Either[A, B]]] with SingletonType[Either[A, B]]
-    case class AltSingletonIor[A <: HChain, B <: HChain](left: Type[A], right: Type[B])(using Type[HSingleton[Ior[A, B]]]) extends AltType[A, B, HSingleton[Ior[A, B]]] with SingletonType[Ior[A, B]]
+    case class AltSingletonIor[A <: HChain, B <: HChain](left: Type[A], right: Type[B])(using Type[HSingleton[InclusiveOr[A, B]]]) extends AltType[A, B, HSingleton[InclusiveOr[A, B]]] with SingletonType[InclusiveOr[A, B]]
   }
 }
