@@ -1,10 +1,10 @@
 package experiments.macros.parsing
 
 import cats.collections.{Diet, Range}
+import cats.data.NonEmptyList
 import experiments.macros.ast.{AST, Greedy, Reluctant, Possessive}
 import experiments.macros.parsing.bridges.*
 import parsley.{Parsley, Result}
-import parsley.cats.combinator.some
 import parsley.character.{hexDigit, octDigit}
 import parsley.combinator.{choice, option, range, sepBy1}
 import parsley.errors.ErrorBuilder
@@ -22,6 +22,8 @@ object parser {
   def parse[Err: ErrorBuilder](s: String, ast: AST)(using q: Quotes): Result[Err, ast.Regex[?]] = {
     regex.parse(s).map(_(using ast, q))
   }
+
+  private def some[A](p: Parsley[A]): Parsley[NonEmptyList[A]] = (p, many(p)).zipped(NonEmptyList(_, _))
 
   private val regexDesc = LexicalDesc.plain.copy(
     numericDesc = NumericDesc.plain.copy(
