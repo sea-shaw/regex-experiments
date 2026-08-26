@@ -79,7 +79,7 @@ object ast2 {
 
     sealed trait EmptyType extends NodeType[HEmpty]
     object EmptyType {
-      def unapply(emptyType: EmptyType): EmptyTuple = EmptyTuple
+      def unapply(emptyType: EmptyType): true = true
     }
 
     sealed trait NonEmptyType[A <: HChain] extends NodeType[A]
@@ -206,7 +206,7 @@ object ast2 {
               }
             }
           }
-          case CatLeft(_)  => left.flattenFunction(nodes, types)
+          case CatLeft(_) => left.flattenFunction(nodes, types)
           case CatRight(_) => right.flattenFunction(nodes, types)
           case CatBoth(given Type[Left], given Type[Right]) => left.flattenFunction(NCons(right, nodes), types) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[A, C], L, a] {
@@ -245,6 +245,28 @@ object ast2 {
     case class OptEmpty()(using Type[HEmpty]) extends OptType[HEmpty, HEmpty] with EmptyType
     case class OptNested[A <: HChain](inner: Type[A])(using Type[HSingleton[Option[A]]]) extends OptType[HSingleton[Option[A]], HSingleton[Option[A]]] with SingletonType[Option[A]]
     case class OptSingleton[A <: HChain](inner: Type[A])(using Type[HSingleton[Option[A]]]) extends OptType[A, HSingleton[Option[A]]] with SingletonType[Option[A]]
+
+    case class Opt[A <: HChain, B <: HChain] private (inner: Regex[A])(override val nodeType: OptType[A, B]) extends Regex[B] {
+      override val numCaptures: Int = inner.numCaptures
+
+      override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[B] = {
+        given Type[B] = nodeType.tpe
+
+        nodeType match {
+          case OptEmpty() => '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
+          case OptNested(_) => inner.sanitiseCode(groups, i)
+          case OptSingleton(given Type[A]) => {
+            val sanitisedInner = inner.sanitiseCode(groups, i)
+            '{
+              val innerCaps = $sanitisedInner
+              SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
+            }
+          }
+        }
+      }
+
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[B, C], L, ?] = ???
+    }
 
     sealed trait AltType[A <: HChain, B <: HChain, C <: HChain] extends NodeType[C]
     case class AltEmpty()(using Type[HEmpty]) extends AltType[HEmpty, HEmpty, HEmpty] with EmptyType
