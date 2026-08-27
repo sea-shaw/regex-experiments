@@ -102,7 +102,11 @@ object ast {
     }
 
     case class EmptyType()(using Type[HEmpty]) extends HEmptyType
-    sealed abstract class Empty protected (override val nodeType: EmptyType) extends Regex[HEmpty] {
+    object EmptyType {
+      given Quotes => EmptyType = EmptyType()
+    }
+
+    sealed abstract class Empty protected (using override val nodeType: EmptyType) extends Regex[HEmpty] {
       override final def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[HEmpty] = {
         empty
       }
@@ -118,22 +122,23 @@ object ast {
       }
     }
 
-    sealed abstract class EmptyLeaf protected (nodeType: EmptyType) extends Empty(nodeType) {
+    sealed abstract class EmptyLeaf protected (using EmptyType) extends Empty {
       override final val numCaptures: Int = 0
     }
 
-    case class Dot private ()(nodeType: EmptyType) extends EmptyLeaf(nodeType)
+    case class Dot private ()(using EmptyType) extends EmptyLeaf
     object Dot {
-      def apply()(using Quotes): Dot = {
-        new Dot()(EmptyType())
-      }
+      def apply()(using Quotes): Dot = new Dot()
     }
 
-    case class Lit private (c: Int)(nodeType: EmptyType) extends EmptyLeaf(nodeType)
+    case class Lit private (c: Int)(using EmptyType) extends EmptyLeaf
     object Lit {
-      def apply(c: Int)(using Quotes): Lit = {
-        new Lit(c)(EmptyType())
-      }
+      def apply(c: Int)(using Quotes): Lit = new Lit(c)
+    }
+
+    case class Flags private (flagsOn: Set[Char], flagsOff: Set[Char])(using EmptyType) extends EmptyLeaf
+    object Flags {
+      def apply(flagsOn: Set[Char], flagsOff: Set[Char])(using Quotes): Flags = new Flags(flagsOn, flagsOff)
     }
 
     sealed trait CaptureType[A <: HChain, B <: HChain] extends NodeType[B]
@@ -199,6 +204,19 @@ object ast {
           given Type[a] = nonEmptyType.tpe
           new Capture(inner)(CaptureAppend())
         }
+      }
+    }
+
+    case class NonCapture[A <: HChain](flagsOn: Set[Char], flagsOff: Set[Char], inner: Regex[A]) extends Regex[A] {
+      override val nodeType: NodeType[A] = inner.nodeType
+      override val numCaptures: Int = inner.numCaptures
+
+      override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[A] = {
+        inner.sanitiseCode(groups, i)
+      }
+
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[A, C], L, ?] = {
+        inner.flattenFunction(nodes, types)
       }
     }
 

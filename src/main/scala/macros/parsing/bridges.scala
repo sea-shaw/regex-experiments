@@ -102,13 +102,13 @@ object bridges {
   }
 
   object WithFlags extends PureParserBridge3[List[Char], Option[NonEmptyList[Char]], Option[ToRegex], ToRegex] {
-    override def apply(on: List[Char], off: Option[NonEmptyList[Char]], mInner: Option[ToRegex]): ToRegex =  ??? // {
-    //   val (onSet, offSet) = flags(on, off)
-    //   mInner match {
-    //     case None        => ast.Flags(onSet, offSet)
-    //     case Some(inner) => ast.NonCapture(onSet, offSet, inner)
-    //   }
-    // }
+    override def apply(on: List[Char], off: Option[NonEmptyList[Char]], mInner: Option[ToRegex]): ToRegex = {
+      val (onSet, offSet) = flags(on, off)
+      mInner match {
+        case None        => ast.Flags(onSet, offSet)
+        case Some(inner) => ast.NonCapture(onSet, offSet, inner)
+      }
+    }
   }
 
   private inline def ast(using ast: AST): ast.type = ast
