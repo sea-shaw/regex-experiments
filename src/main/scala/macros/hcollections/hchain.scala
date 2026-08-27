@@ -5,19 +5,9 @@ object hchain {
 
   type HEmpty = HEmpty.type
   case object HEmpty extends HChain
-  case class HSingleton[+A](value: A) extends HChain
-  case class HAppend[+A <: HChain, +B <: HChain](left: A, right: B) extends HChain // TODO: Non-empty constraint
 
-  type HConcat[A <: HChain, B <: HChain] <: HChain = A match {
-    case HEmpty    => B
-    case _         => B match {
-      case HEmpty    => A
-      case _         => HAppend[A, B]
-    }
-  }
+  sealed trait HNonEmpty extends HChain
 
-  type HCons[A, B <: HChain] <: HChain = B match {
-    case HEmpty    => HSingleton[A]
-    case _         => HAppend[HSingleton[A], B]
-  }
+  case class HSingleton[+A](value: A) extends HNonEmpty
+  case class HAppend[+A <: HNonEmpty, +B <: HNonEmpty](left: A, right: B) extends HNonEmpty
 }

@@ -37,20 +37,20 @@ object parser {
   private lazy val term = Cat(some(atom))
   private lazy val atom = boundary | quantified
 
-  private lazy val boundary = (LineStart from '^') | (LineEnd from '$')
+  private lazy val boundary = empty // (LineStart from '^') | (LineEnd from '$')
 
   private lazy val quantified: Parsley[ToRegex] = quantifiable <~> option(postfixOps <~> quantifierType) map {
-    case (regex, None)          => regex
+    case (regex, None)                 => regex
     case (regex, Some(postfix, qType)) => postfix(regex, qType)
   }
   private lazy val quantifiable = choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
 
-  private lazy val positiveLookahead = PositiveLookahead(atomic("(?=") ~> expr <~ ')')
-  private lazy val negativeLookahead = NegativeLookahead(atomic("(?!" ~> expr <~ ')'))
-  private lazy val positiveLookbehind = PositiveLookbehind(atomic("(?<=") ~> expr <~ ')')
-  private lazy val negativeLookbehind = NegativeLookbehind(atomic("(?<!" ~> expr <~ ')'))
-  private lazy val independent = Independent(atomic("(?>") ~> expr <~ ')')
-  private lazy val withFlags = WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(':' ~> expr) <~ ')')
+  private lazy val positiveLookahead = empty // PositiveLookahead(atomic("(?=") ~> expr <~ ')')
+  private lazy val negativeLookahead = empty // NegativeLookahead(atomic("(?!" ~> expr <~ ')'))
+  private lazy val positiveLookbehind = empty // PositiveLookbehind(atomic("(?<=") ~> expr <~ ')')
+  private lazy val negativeLookbehind = empty // NegativeLookbehind(atomic("(?<!" ~> expr <~ ')'))
+  private lazy val independent = empty // Independent(atomic("(?>") ~> expr <~ ')')
+  private lazy val withFlags = empty // WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(':' ~> expr) <~ ')')
   private lazy val capture = Capture('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars).map(_.toInt) | charEsc)
   private lazy val dot = Dot from '.'
@@ -96,29 +96,29 @@ object parser {
   }
   private lazy val setEsc: Parsley[Diet[Int]] = empty
 
-  private lazy val cls = {
-    lazy val clsSet: Parsley[Diet[Int]] = '[' ~> ('^' ~> clsBody.map(allSet -- _) | clsBody) <~ ']'
-    // classes may not be empty, and ] can be used as part of one in that instance: []] is ], but [a]] is a] and [] is an error
-    // although []a] is also treated as `a|]`...
-    lazy val clsBody = clsIntersect | ']' ~> clsIntersect
-    lazy val clsAtom = noneOf(']', '[', '\\', '&').map(_.toInt) | atomic('&'.map(_.toInt) <~ notFollowedBy('&')) | charEsc
-    lazy val clsRange = clsAtom.zip(option(atomic('-' ~> clsAtom))).mapFilterMsg {
-      case (l, Some(r)) if l < r => Right(Diet.fromRange(Range(l, r)))
-      case (l, Some(r))          => Left(Seq(s"ranges must be ascending, but '$l' is greater than '$r'")) // TODO: whitespace in message!
-      case (l, None) => Right(Diet.one(l))
-    } | setEsc
-    lazy val clsUnion = (clsRange | clsSet).reduceLeft(_ | _)
-    // intersection is lowest precedence, but it's a bit of a pain, because [&&X] and [X&&] are legal, but [&&] is not.
-    // similarly, [X&&..&&Y] is the same as [X&&Y].
-    lazy val clsIntersect = sepBy1(option(clsUnion), "&&").mapFilterMsg { css =>
-      css.flatten.reduceOption(_ & _) match
-        case Some(cs) => Right(cs)
-        case None     => Left(Seq("class intersections cannot be empty on both sides"))
-    }
-    Class(clsSet)
-  }
+  private lazy val cls = empty // {
+  //   lazy val clsSet: Parsley[Diet[Int]] = '[' ~> ('^' ~> clsBody.map(allSet -- _) | clsBody) <~ ']'
+  //   // classes may not be empty, and ] can be used as part of one in that instance: []] is ], but [a]] is a] and [] is an error
+  //   // although []a] is also treated as `a|]`...
+  //   lazy val clsBody = clsIntersect | ']' ~> clsIntersect
+  //   lazy val clsAtom = noneOf(']', '[', '\\', '&').map(_.toInt) | atomic('&'.map(_.toInt) <~ notFollowedBy('&')) | charEsc
+  //   lazy val clsRange = clsAtom.zip(option(atomic('-' ~> clsAtom))).mapFilterMsg {
+  //     case (l, Some(r)) if l < r => Right(Diet.fromRange(Range(l, r)))
+  //     case (l, Some(r))          => Left(Seq(s"ranges must be ascending, but '$l' is greater than '$r'")) // TODO: whitespace in message!
+  //     case (l, None) => Right(Diet.one(l))
+  //   } | setEsc
+  //   lazy val clsUnion = (clsRange | clsSet).reduceLeft(_ | _)
+  //   // intersection is lowest precedence, but it's a bit of a pain, because [&&X] and [X&&] are legal, but [&&] is not.
+  //   // similarly, [X&&..&&Y] is the same as [X&&Y].
+  //   lazy val clsIntersect = sepBy1(option(clsUnion), "&&").mapFilterMsg { css =>
+  //     css.flatten.reduceOption(_ & _) match
+  //       case Some(cs) => Right(cs)
+  //       case None     => Left(Seq("class intersections cannot be empty on both sides"))
+  //   }
+  //   Class(clsSet)
+  // }
 
-  private lazy val predefinedEsc = atomic('\\' ~> predefined)
+  private lazy val predefinedEsc = empty // atomic('\\' ~> predefined)
   private lazy val predefined = Class(
     choice(
       'd' as Diet.fromRange(Range('0'.toInt, '9'.toInt)),
@@ -130,14 +130,14 @@ object parser {
     )
   )
 
-  private lazy val backreference = Backreference(atomic('\\' ~> int))
+  private lazy val backreference = empty // Backreference(atomic('\\' ~> int))
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 
-  private lazy val postfixOps = (Opt from '?') | (Star from '*') | (Plus from '+') | numericalQuantifier
-  private lazy val quantifierType = ('?' as Reluctant) | ('+' as Possessive) | pure(Greedy)
+  private lazy val postfixOps = (Opt from '?') // | (Star from '*') | (Plus from '+') | numericalQuantifier
+  private lazy val quantifierType = /* ('?' as Reluctant) | ('+' as Possessive) | */ pure(Greedy)
 
-  private lazy val numericalQuantifier = NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
+  private lazy val numericalQuantifier = empty // NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
   private lazy val int = lexer.lexeme.natural.decimal32[Int]
 
   private val allSet = Diet.fromRange(Range(0x00000, 0x1ffff))
