@@ -78,19 +78,12 @@ object ast2 {
     sealed trait NodeType[A <: HChain](using val tpe: Type[A])
 
     sealed trait EmptyType extends NodeType[HEmpty]
-    object EmptyType {
-      def unapply(emptyType: EmptyType): true = true
-    }
-
     sealed trait NonEmptyType[A <: HChain] extends NodeType[A]
-    object NonEmptyType {
-      def unapply[A <: HChain](nonEmptyType: NonEmptyType[A]): Tuple1[Type[A]] = Tuple1(nonEmptyType.tpe)
-    }
 
     sealed trait SingletonType[A] extends NonEmptyType[HSingleton[A]]
     sealed trait AppendType[A <: HChain, B <: HChain] extends NonEmptyType[HAppend[A, B]]
 
-    sealed trait Regex[A <: HChain] {
+    sealed abstract class Regex[A <: HChain](using val tpe: Type[A]) {
       val nodeType: NodeType[A]
       val numCaptures: Int
 
@@ -111,14 +104,14 @@ object ast2 {
 
     sealed trait CaptureType[A <: HChain, B <: HChain] extends NodeType[B]
     case class CaptureSingleton()(using Type[HSingleton[String]]) extends CaptureType[HEmpty, HSingleton[String]] with NonEmptyType[HSingleton[String]]
-    case class CaptureAppend[A <: HChain](inner: Type[A])(using Type[HAppend[HSingleton[String], A]]) extends CaptureType[A, HAppend[HSingleton[String], A]] with NonEmptyType[ HAppend[HSingleton[String], A]]
+    case class CaptureAppend[A <: HChain]()(using Type[HAppend[HSingleton[String], A]]) extends CaptureType[A, HAppend[HSingleton[String], A]] with NonEmptyType[HAppend[HSingleton[String], A]]
 
-    case class Capture[A <: HChain, B <: HChain] private (inner: Regex[A])(override val nodeType: CaptureType[A, B]) extends Regex[B] {
+    case class Capture[A <: HChain, B <: HChain: Type] private (inner: Regex[A])(override val nodeType: CaptureType[A, B]) extends Regex[B] {
+      given Type[A] = inner.tpe
+
       override val numCaptures: Int = inner.numCaptures + 1
 
       override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[B] = {
-        given Type[B] = nodeType.tpe
-
         val sanitisedCapture = '{
           val sanitised = $groups(${ Expr(i) }).map { s =>
             Sanitised(HSingleton(s), true)
@@ -127,8 +120,8 @@ object ast2 {
         }
 
         nodeType match {
-          case CaptureSingleton()           => sanitisedCapture
-          case CaptureAppend(given Type[A]) => {
+          case CaptureSingleton() => sanitisedCapture
+          case CaptureAppend()  => {
             val sanitisedInner = inner.sanitiseCode(groups, i + 1)
             '{
               for {
@@ -141,8 +134,6 @@ object ast2 {
       }
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[B, C], L, ?] = {
-        given Type[B] = nodeType.tpe
-
         nodeType match {
           case CaptureSingleton() => nodes.flattenFunction(TCons(Type.of[String], types)) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[B, C], L, a] {
@@ -152,7 +143,7 @@ object ast2 {
               }
             }
           }
-          case CaptureAppend(given Type[A]) => inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
+          case CaptureAppend() => inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[B, C], L, a] {
               override def apply(chains: CCons[B, C], leaves: L)(using Quotes): Expr[a] = {
                 '{
@@ -168,31 +159,32 @@ object ast2 {
 
     object Capture {
       def apply[A <: HChain](inner: Regex[A])(using Quotes): Capture[A, ?] = inner.nodeType match {
-        case EmptyType() => new Capture(inner)(CaptureSingleton())
+        case _: EmptyType => new Capture(inner)(CaptureSingleton())
         case nonEmptyType: NonEmptyType[A] => {
           given Type[A] = nonEmptyType.tpe
-          new Capture(inner)(CaptureAppend(nonEmptyType.tpe))
+          new Capture(inner)(CaptureAppend())
         }
       }
     }
 
     sealed trait CatType[A <: HChain, B <: HChain, C <: HChain] extends NodeType[C]
     case class CatEmpty()(using Type[HEmpty]) extends CatType[HEmpty, HEmpty, HEmpty] with EmptyType
-    case class CatLeft[A <: HChain](left: Type[A])(using Type[A]) extends CatType[A, HEmpty, A] with NonEmptyType[A]
-    case class CatRight[B <: HChain](right: Type[B])(using Type[B]) extends CatType[HEmpty, B, B] with NonEmptyType[B]
-    case class CatBoth[A <: HChain, B <: HChain](left: Type[A], right: Type[B])(using Type[HAppend[A, B]]) extends CatType[A, B, HAppend[A, B]] with AppendType[A, B]
+    case class CatLeft[A <: HChain]()(using Type[A]) extends CatType[A, HEmpty, A] with NonEmptyType[A]
+    case class CatRight[B <: HChain]()(using Type[B]) extends CatType[HEmpty, B, B] with NonEmptyType[B]
+    case class CatBoth[A <: HChain, B <: HChain]()(using Type[HAppend[A, B]]) extends CatType[A, B, HAppend[A, B]] with AppendType[A, B]
 
-    case class Cat[A <: HChain, B <: HChain, T <: HChain] private (left: Regex[A], right: Regex[B])(override val nodeType: CatType[A, B, T]) extends Regex[T] {
+    case class Cat[A <: HChain, B <: HChain, T <: HChain: Type] private (left: Regex[A], right: Regex[B])(override val nodeType: CatType[A, B, T]) extends Regex[T] {
+      given Type[A] = left.tpe
+      given Type[B] = right.tpe
+
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
       override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[T] = {
-        given Type[T] = nodeType.tpe
-
         nodeType match {
-          case CatEmpty()  => '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
-          case CatLeft(_)  => left.sanitiseCode(groups, i)
-          case CatRight(_) => right.sanitiseCode(groups, i + left.numCaptures)
-          case CatBoth(given Type[A], given Type[B]) => {
+          case CatEmpty()   => '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
+          case CatLeft()  => left.sanitiseCode(groups, i)
+          case CatRight() => right.sanitiseCode(groups, i + left.numCaptures)
+          case CatBoth()  => {
             val sanitisedLeft = left.sanitiseCode(groups, i)
             val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
             '{
@@ -206,8 +198,6 @@ object ast2 {
       }
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[T, C], L, ?] = {
-        given Type[T] = nodeType.tpe
-
         nodeType match {
           case CatEmpty() => nodes.flattenFunction(types) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[T, C], L, a] {
@@ -216,9 +206,9 @@ object ast2 {
               }
             }
           }
-          case CatLeft(_) => left.flattenFunction(nodes, types)
-          case CatRight(_) => right.flattenFunction(nodes, types)
-          case CatBoth(given Type[A], given Type[B]) => left.flattenFunction(NCons(right, nodes), types) match {
+          case CatLeft()  => left.flattenFunction(nodes, types)
+          case CatRight() => right.flattenFunction(nodes, types)
+          case CatBoth()  => left.flattenFunction(NCons(right, nodes), types) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[T, C], L, a] {
               override def apply(chains: CCons[T, C], leaves: L)(using Quotes): Expr[a] = {
                 '{
@@ -234,36 +224,36 @@ object ast2 {
 
     object Cat {
       def apply[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B])(using Quotes): Cat[A, B, ?] = (left.nodeType, right.nodeType) match {
-        case (EmptyType(), EmptyType()) => new Cat(left, right)(CatEmpty())
-        case (leftType: NonEmptyType[A], EmptyType()) => {
+        case (_: EmptyType, _: EmptyType) => new Cat(left, right)(CatEmpty())
+        case (leftType: NonEmptyType[A], _: EmptyType) => {
           given Type[A] = leftType.tpe
-          new Cat(left, right)(CatLeft(leftType.tpe))
+          new Cat(left, right)(CatLeft())
         }
-        case (EmptyType(), rightType: NonEmptyType[B]) => {
+        case (_: EmptyType, rightType: NonEmptyType[B]) => {
           given Type[B] = rightType.tpe
-          new Cat(left, right)(CatRight(rightType.tpe))
+          new Cat(left, right)(CatRight())
         }
         case (leftType: NonEmptyType[A], rightType: NonEmptyType[B]) => {
           given Type[A] = leftType.tpe
           given Type[B] = rightType.tpe
-          new Cat(left, right)(CatBoth(leftType.tpe, rightType.tpe))
+          new Cat(left, right)(CatBoth())
         }
       }
     }
 
     sealed trait OptType[A <: HChain, B <: HChain] extends NodeType[B]
     case class OptEmpty()(using Type[HEmpty]) extends OptType[HEmpty, HEmpty] with EmptyType
-    case class OptSingleton[A <: HChain](inner: Type[A])(using Type[HSingleton[Option[A]]]) extends OptType[A, HSingleton[Option[A]]] with SingletonType[Option[A]]
+    case class OptSingleton[A <: HChain]()(using Type[HSingleton[Option[A]]]) extends OptType[A, HSingleton[Option[A]]] with SingletonType[Option[A]]
 
-    case class Opt[A <: HChain, B <: HChain] private (inner: Regex[A])(override val nodeType: OptType[A, B]) extends Regex[B] {
+    case class Opt[A <: HChain, B <: HChain: Type] private (inner: Regex[A])(override val nodeType: OptType[A, B]) extends Regex[B] {
+      given Type[A] = inner.tpe
+
       override val numCaptures: Int = inner.numCaptures
 
       override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[B] = {
-        given Type[B] = nodeType.tpe
-
         nodeType match {
           case OptEmpty() => '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
-          case OptSingleton(given Type[A]) => {
+          case OptSingleton() => {
             val sanitisedInner = inner.sanitiseCode(groups, i)
             '{
               val innerCaps = $sanitisedInner
@@ -274,16 +264,13 @@ object ast2 {
       }
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[B, C], L, ?] = {
-        given Type[A] = inner.nodeType.tpe
-        given Type[B] = nodeType.tpe
-
         nodeType match {
           case OptEmpty() => nodes.flattenFunction(types) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[B, C], L, a] {
               override def apply(chains: CCons[B, C], leaves: L)(using Quotes): Expr[a] = flatten(chains.tail, leaves)
             }
           }
-          case OptSingleton(_) => inner.tidyFunction match {
+          case OptSingleton() => inner.tidyFunction match {
             case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
               case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[B, C], L, b] {
                 override def apply(chains: CCons[B, C], leaves: L)(using Quotes): Expr[b] = {
@@ -303,19 +290,18 @@ object ast2 {
 
     sealed trait AltType[Left <: HChain, Right <: HChain, C <: HChain] extends NodeType[C]
     case class AltEmpty()(using Type[HEmpty]) extends AltType[HEmpty, HEmpty, HEmpty] with EmptyType
-    case class AltEither[A <: HChain, B <: HChain](left: Type[A], right: Type[B])(using Type[HSingleton[Either[A, B]]]) extends AltType[A, B, HSingleton[Either[A, B]]] with SingletonType[Either[A, B]]
+    case class AltEither[A <: HChain, B <: HChain]()(using Type[HSingleton[Either[A, B]]]) extends AltType[A, B, HSingleton[Either[A, B]]] with SingletonType[Either[A, B]]
 
-    case class Alt[A <: HChain, B <: HChain, T <: HChain] private (left: Regex[A], right: Regex[B])(override val nodeType: AltType[A, B, T]) extends Regex[T] {
+    case class Alt[A <: HChain, B <: HChain, T <: HChain: Type] private (left: Regex[A], right: Regex[B])(override val nodeType: AltType[A, B, T]) extends Regex[T] {
+      given Type[A] = left.tpe
+      given Type[B] = right.tpe
+
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
       override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[T] = {
-        given Type[T] = nodeType.tpe
-        given Type[A] = left.nodeType.tpe
-        given Type[B] = right.nodeType.tpe
-
         nodeType match {
           case AltEmpty() => '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
-          case AltEither(_, _) => {
+          case AltEither() => {
             val sanitisedLeft = left.sanitiseCode(groups, i)
             val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
             '{
@@ -328,10 +314,6 @@ object ast2 {
       }
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[T, C], L, ?] = {
-        given Type[T] = nodeType.tpe
-        given Type[A] = left.nodeType.tpe
-        given Type[B] = right.nodeType.tpe
-
         nodeType match {
           case AltEmpty() => nodes.flattenFunction(types) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[T, C], L, a] {
@@ -340,7 +322,7 @@ object ast2 {
               }
             }
           }
-          case AltEither(_, _) => (left.tidyFunction, right.tidyFunction) match {
+          case AltEither() => (left.tidyFunction, right.tidyFunction) match {
             case (tidyLeft @ TidyFunction(given Type[a]), tidyRight @ TidyFunction(given Type[b])) => nodes.flattenFunction(TCons(Type.of[Either[a, b]], types)) match {
               case flatten @ FlattenFunction(given Type[c]) => new FlattenFunction[CCons[T, C], L, c] {
                 override def apply(chains: CCons[T, C], leaves: L)(using Quotes): Expr[c] = {
