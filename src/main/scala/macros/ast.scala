@@ -198,12 +198,15 @@ object ast {
     }
 
     object Capture {
-      def apply[A <: HChain](inner: Regex[A])(using Quotes): Capture[A, ?] = inner.nodeType match {
-        case _: HEmptyType => new Capture(inner)(CaptureSingleton())
-        case nonEmptyType: HNonEmptyType[a] => {
-          given Type[a] = nonEmptyType.tpe
-          new Capture(inner)(CaptureAppend())
+      def apply[A <: HChain](inner: Regex[A])(using Quotes): Capture[A, ?] = {
+        val nodeType: CaptureType[A, ?] = inner.nodeType match {
+          case _: HEmptyType => CaptureSingleton()
+          case nonEmptyType: HNonEmptyType[a] => {
+            given Type[a] = nonEmptyType.tpe
+            CaptureAppend()
+          }
         }
+        new Capture(inner)(nodeType)
       }
     }
 
@@ -277,21 +280,24 @@ object ast {
     }
 
     object Cat {
-      def apply[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B])(using Quotes): Cat[A, B, ?] = (left.nodeType, right.nodeType) match {
-        case (_: HEmptyType, _: HEmptyType) => new Cat(left, right)(CatEmpty())
-        case (leftType: HNonEmptyType[a], _: HEmptyType) => {
-          given Type[a] = leftType.tpe
-          new Cat(left, right)(CatLeft())
+      def apply[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B])(using Quotes): Cat[A, B, ?] = {
+        val nodeType: CatType[A, B, ?] = (left.nodeType, right.nodeType) match {
+          case (_: HEmptyType, _: HEmptyType) => CatEmpty()
+          case (leftType: HNonEmptyType[a], _: HEmptyType) => {
+            given Type[a] = leftType.tpe
+            CatLeft()
+          }
+          case (_: HEmptyType, rightType: HNonEmptyType[b]) => {
+            given Type[b] = rightType.tpe
+            CatRight()
+          }
+          case (leftType: HNonEmptyType[a], rightType: HNonEmptyType[b]) => {
+            given Type[a] = leftType.tpe
+            given Type[b] = rightType.tpe
+            CatBoth()
+          }
         }
-        case (_: HEmptyType, rightType: HNonEmptyType[b]) => {
-          given Type[b] = rightType.tpe
-          new Cat(left, right)(CatRight())
-        }
-        case (leftType: HNonEmptyType[a], rightType: HNonEmptyType[b]) => {
-          given Type[a] = leftType.tpe
-          given Type[b] = rightType.tpe
-          new Cat(left, right)(CatBoth())
-        }
+        new Cat(left, right)(nodeType)
       }
     }
 
@@ -344,15 +350,16 @@ object ast {
     }
 
     object Alt {
-      def apply[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B])(using Quotes): Alt[A, B, ?] = (left.nodeType, right.nodeType) match {
-        case (_: HEmptyType, _: HEmptyType) => {
-          new Alt(left, right)(AltEmpty())
+      def apply[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B])(using Quotes): Alt[A, B, ?] = {
+        val nodeType: AltType[A, B, ?] = (left.nodeType, right.nodeType) match {
+          case (_: HEmptyType, _: HEmptyType) => AltEmpty()
+          case (leftType, rightType) => {
+            given Type[A] = leftType.tpe
+            given Type[B] = rightType.tpe
+            AltEither()
+          }
         }
-        case (leftType, rightType) => {
-          given Type[A] = leftType.tpe
-          given Type[B] = rightType.tpe
-          new Alt(left, right)(AltEither())
-        }
+        new Alt(left, right)(nodeType)
       }
     }
 
@@ -360,7 +367,7 @@ object ast {
     case class OptEmpty()(using Type[HEmpty]) extends OptType[HEmpty, HEmpty] with HEmptyType
     case class OptSingleton[A <: HChain]()(using Type[HSingleton[Option[A]]]) extends OptType[A, HSingleton[Option[A]]] with HSingletonType[Option[A]]
 
-    case class Opt[A <: HChain, B <: HChain] private (inner: Regex[A])(override val nodeType: OptType[A, B]) extends Regex[B] {
+    case class Opt[A <: HChain, B <: HChain] private (inner: Regex[A], quantifierType: QuantifierType)(override val nodeType: OptType[A, B]) extends Regex[B] {
       given Type[A] = inner.nodeType.tpe
       given Type[B] = nodeType.tpe
 
@@ -401,12 +408,15 @@ object ast {
     }
 
     object Opt {
-      def apply[A <: HChain](inner: Regex[A])(using Quotes): Opt[A, ?] = inner.nodeType match {
-        case _: HEmptyType                  => new Opt(inner)(OptEmpty())
-        case nonEmptyType: HNonEmptyType[a] => {
-          given Type[a] = nonEmptyType.tpe
-          new Opt(inner)(OptSingleton())
+      def apply[A <: HChain](inner: Regex[A], quantifierType: QuantifierType)(using Quotes): Opt[A, ?] = {
+        val nodeType: OptType[A, ?] = inner.nodeType match {
+          case _: HEmptyType => OptEmpty()
+          case nonEmptyType: HNonEmptyType[a] => {
+            given Type[a] = nonEmptyType.tpe
+            OptSingleton()
+          }
         }
+        new Opt(inner, quantifierType)(nodeType)
       }
     }
 
