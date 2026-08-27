@@ -1,6 +1,6 @@
 package experiments.macros
 
-import experiments.macros.ast.AST
+import experiments.macros.ast.{AST, Rep, RepFalse}
 import experiments.macros.hcollections.hchain.HChain
 import experiments.macros.parsing.errors.{Pos, PosError, PosErrorBuilder}
 import experiments.macros.parsing.parser.parse
@@ -65,10 +65,10 @@ object regex {
     }
   }
 
-  private def regexCode[A <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[A])(using Quotes): Expr[Regex[?]] = {      
-    given Type[A] = regex.nodeType.tpe
+  private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {      
+    given Type[F] = regex.nodeType.tpe
 
-    regex.tidyFunction match {
+    regex.tidyFunction(using RepFalse) match {
       case tidy @ ast.TidyFunction(given Type[a]) => '{
         new Regex[a] {
           private val pattern: Pattern = Pattern.compile($regexStr)
@@ -79,7 +79,7 @@ object regex {
               val groups = Array.tabulate(m.groupCount) {i =>
                 Option(m.group(i + 1))
               }
-              val sanitised = ${ regex.sanitiseCode('groups, 0) }
+              val sanitised = ${ regex.sanitiseCode('groups, 0)(using RepFalse) }
               sanitised.value.map { case Sanitised(captures, _) =>
                 ${ tidy('captures) }
               }

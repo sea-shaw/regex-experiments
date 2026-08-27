@@ -12,9 +12,6 @@ object ast {
   type Rep = Boolean
   sealed trait RepType[R <: Rep]
   object RepType {
-    given repTrue: RepType[true] = RepTrue
-    given repFalse: RepType[false] = RepFalse
-
     inline def apply[R <: Rep](using rep: RepType[R]): RepType[R] = rep
   }
   case object RepTrue extends RepType[true]
@@ -98,7 +95,7 @@ object ast {
       val nodeType: NodeType[F]
       val numCaptures: Int
 
-      def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R], Quotes): SanitiseExpr[F[R]]
+      def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[F[R]]
 
       final def tidyFunction[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = {
         flattenFunction(NNil, TNil) match {
@@ -110,7 +107,7 @@ object ast {
         }
       }
 
-      private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R], Quotes): FlattenFunction[CCons[F[R], C], L, ?]
+      private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?]
     }
 
     case class EmptyType()(using Type[Const[HEmpty]]) extends HEmptyType
@@ -119,11 +116,11 @@ object ast {
     }
 
     sealed abstract class Empty protected (using override val nodeType: EmptyType) extends Regex[Const[HEmpty]] {
-      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R], Quotes): SanitiseExpr[Const[HEmpty][R]] = {
+      override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
         empty
       }
 
-      override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R], Quotes): FlattenFunction[CCons[HEmpty, C], L, ?] = {
+      override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HEmpty, C], L, ?] = {
         nodes.flattenFunction(types) match {
           case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HEmpty, C], L, a] {
             override def apply(chains: CCons[HEmpty, C], leaves: L)(using Quotes): Expr[a] = {
@@ -166,7 +163,7 @@ object ast {
 
       override val numCaptures: Int = inner.numCaptures + 1
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R], Quotes): SanitiseExpr[G[R]] = { 
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = { 
         val sanitisedCapture = '{
           val sanitised = $groups(${ Expr(i) }).map { s =>
             Sanitised(HSingleton(s), true)
@@ -188,7 +185,7 @@ object ast {
         }
       }
 
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R], Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
         nodeType match {
           case CaptureSingleton() => nodes.flattenFunction(TCons(Type.of[String], types)) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[G[R], C], L, a] {
@@ -229,11 +226,11 @@ object ast {
       override val nodeType: NodeType[F] = inner.nodeType
       override val numCaptures: Int = inner.numCaptures
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R], Quotes): SanitiseExpr[F[R]] = {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[F[R]] = {
         inner.sanitiseCode(groups, i)
       }
 
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R], Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
         inner.flattenFunction(nodes, types)
       }
     }
@@ -252,7 +249,7 @@ object ast {
 
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R], Quotes): SanitiseExpr[H[R]] = {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[H[R]] = {
         nodeType match {
           case CatEmpty() => empty
           case CatLeft()  => left.sanitiseCode(groups, i)
@@ -270,7 +267,7 @@ object ast {
         }
       }
 
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R], Quotes): FlattenFunction[CCons[H[R], C], L, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?] = {
         nodeType match {
           case CatEmpty() => flattenEmpty(nodes.flattenFunction(types))
           case CatLeft()  => left.flattenFunction(nodes, types)
@@ -323,7 +320,7 @@ object ast {
 
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R], Quotes): SanitiseExpr[H[R]] = {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[H[R]] = {
         nodeType match {
           case AltEmpty() => empty
           case AltBoth() => {
@@ -338,7 +335,7 @@ object ast {
         }
       }
 
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R], Quotes): FlattenFunction[CCons[H[R], C], L, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?] = {
         nodeType match {
           case AltEmpty() => flattenEmpty(nodes.flattenFunction(types))
           case AltBoth() => (left.tidyFunction, right.tidyFunction) match {
@@ -385,7 +382,7 @@ object ast {
 
       override val numCaptures: Int = inner.numCaptures
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R], Quotes): SanitiseExpr[G[R]] = {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
         nodeType match {
           case OptEmpty() => empty
           case OptSingleton() => {
@@ -398,7 +395,7 @@ object ast {
         }
       }
 
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R], Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
         nodeType match {
           case OptEmpty()     => flattenEmpty(nodes.flattenFunction(types))
           case OptSingleton() => inner.tidyFunction match {
@@ -447,17 +444,17 @@ object ast {
     case class Plus[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: PlusType[F, G])(override val nodeType: PlusType[F, G]) extends Regex[G] {
       override val numCaptures: Int = inner.numCaptures
 
-      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R], Quotes): SanitiseExpr[G[R]] = {
+      override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
         nodeType match {
           case PlusEmpty() => empty
-          case PlusNonEmpty() => inner.sanitiseCode(groups, i)
+          case PlusNonEmpty() => inner.sanitiseCode(groups, i)(using RepTrue)
         }
       }
 
-      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R], Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
         nodeType match {
           case PlusEmpty() => flattenEmpty(nodes.flattenFunction(types))
-          case PlusNonEmpty() => inner.flattenFunction(nodes, types)
+          case PlusNonEmpty() => inner.flattenFunction(nodes, types)(using RepTrue)
         }
       }
     }
