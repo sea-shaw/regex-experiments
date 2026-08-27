@@ -1,5 +1,6 @@
 package experiments.macros
 
+import cats.Applicative
 import cats.syntax.all.*
 import experiments.macros.hcollections.hchain2.*
 import experiments.macros.sanitised.{SanitiseExpr, Sanitised, SanitisedT}
@@ -76,14 +77,12 @@ object ast2 {
     }
 
     sealed trait NodeType[A <: HChain](using val tpe: Type[A])
-  
-    sealed trait EmptyType extends NodeType[HEmpty]
+    sealed trait HEmptyType extends NodeType[HEmpty]
+    sealed trait HNonEmptyType[A <: HNonEmpty] extends NodeType[A]
+    sealed trait HSingletonType[A] extends HNonEmptyType[HSingleton[A]]
+    sealed trait HAppendType[A <: HNonEmpty, B <: HNonEmpty] extends HNonEmptyType[HAppend[A, B]]
 
-    sealed trait NonEmptyType[A <: HNonEmpty] extends NodeType[A]
-    sealed trait SingletonType[A] extends NonEmptyType[HSingleton[A]]
-    sealed trait AppendType[A <: HNonEmpty, B <: HNonEmpty] extends NonEmptyType[HAppend[A, B]]
-
-    sealed abstract class Regex[A <: HChain](using val tpe: Type[A]) {
+    sealed abstract class Regex[A <: HChain] {
       val nodeType: NodeType[A]
       val numCaptures: Int
 
@@ -102,12 +101,48 @@ object ast2 {
       private [AST] def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[A, C], L, ?]
     }
 
-    sealed trait CaptureType[A <: HChain, B <: HChain] extends NodeType[B]
-    case class CaptureSingleton()(using Type[HSingleton[String]]) extends CaptureType[HEmpty, HSingleton[String]] with NonEmptyType[HSingleton[String]]
-    case class CaptureAppend[A <: HNonEmpty]()(using Type[HAppend[HSingleton[String], A]]) extends CaptureType[A, HAppend[HSingleton[String], A]] with NonEmptyType[HAppend[HSingleton[String], A]]
+    case class EmptyType()(using Type[HEmpty]) extends HEmptyType
+    sealed abstract class Empty protected (override val nodeType: EmptyType) extends Regex[HEmpty] {
+      override final def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[HEmpty] = {
+        empty
+      }
 
-    case class Capture[A <: HChain, B <: HChain: Type] private (inner: Regex[A])(override val nodeType: CaptureType[A, B]) extends Regex[B] {
-      given Type[A] = inner.tpe
+      override private [AST] final def flattenFunction[C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[HEmpty, C], L, ?] = {
+        nodes.flattenFunction(types) match {
+          case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HEmpty, C], L, a] {
+            override def apply(chains: CCons[HEmpty, C], leaves: L)(using Quotes): Expr[a] = {
+              flatten(chains.tail, leaves)
+            }
+          }
+        }
+      }
+    }
+
+    sealed abstract class EmptyLeaf protected (nodeType: EmptyType) extends Empty(nodeType) {
+      override final val numCaptures: Int = 0
+    }
+
+    case class Dot private ()(nodeType: EmptyType) extends EmptyLeaf(nodeType)
+    object Dot {
+      def apply()(using Quotes): Dot = {
+        new Dot()(EmptyType())
+      }
+    }
+
+    case class Lit private (c: Int)(nodeType: EmptyType) extends EmptyLeaf(nodeType)
+    object Lit {
+      def apply(c: Int)(using Quotes): Lit = {
+        new Lit(c)(EmptyType())
+      }
+    }
+
+    sealed trait CaptureType[A <: HChain, B <: HChain] extends NodeType[B]
+    case class CaptureSingleton()(using Type[HSingleton[String]]) extends CaptureType[HEmpty, HSingleton[String]] with HNonEmptyType[HSingleton[String]]
+    case class CaptureAppend[A <: HNonEmpty]()(using Type[HAppend[HSingleton[String], A]]) extends CaptureType[A, HAppend[HSingleton[String], A]] with HNonEmptyType[HAppend[HSingleton[String], A]]
+
+    case class Capture[A <: HChain, B <: HChain] private (inner: Regex[A])(override val nodeType: CaptureType[A, B]) extends Regex[B] {
+      given Type[A] = inner.nodeType.tpe
+      given Type[B] = nodeType.tpe
 
       override val numCaptures: Int = inner.numCaptures + 1
 
@@ -121,7 +156,7 @@ object ast2 {
 
         nodeType match {
           case CaptureSingleton() => sanitisedCapture
-          case CaptureAppend()  => {
+          case CaptureAppend()    => {
             val sanitisedInner = inner.sanitiseCode(groups, i + 1)
             '{
               for {
@@ -159,8 +194,8 @@ object ast2 {
 
     object Capture {
       def apply[A <: HChain](inner: Regex[A])(using Quotes): Capture[A, ?] = inner.nodeType match {
-        case _: EmptyType => new Capture(inner)(CaptureSingleton())
-        case nonEmptyType: NonEmptyType[a] => {
+        case _: HEmptyType => new Capture(inner)(CaptureSingleton())
+        case nonEmptyType: HNonEmptyType[a] => {
           given Type[a] = nonEmptyType.tpe
           new Capture(inner)(CaptureAppend())
         }
@@ -168,20 +203,21 @@ object ast2 {
     }
 
     sealed trait CatType[A <: HChain, B <: HChain, C <: HChain] extends NodeType[C]
-    case class CatEmpty()(using Type[HEmpty]) extends CatType[HEmpty, HEmpty, HEmpty] with EmptyType
-    case class CatLeft[A <: HNonEmpty]()(using Type[A]) extends CatType[A, HEmpty, A] with NonEmptyType[A]
-    case class CatRight[B <: HNonEmpty]()(using Type[B]) extends CatType[HEmpty, B, B] with NonEmptyType[B]
-    case class CatBoth[A <: HNonEmpty, B <: HNonEmpty]()(using Type[HAppend[A, B]]) extends CatType[A, B, HAppend[A, B]] with AppendType[A, B]
+    case class CatEmpty()(using Type[HEmpty]) extends CatType[HEmpty, HEmpty, HEmpty] with HEmptyType
+    case class CatLeft[A <: HNonEmpty]()(using Type[A]) extends CatType[A, HEmpty, A] with HNonEmptyType[A]
+    case class CatRight[B <: HNonEmpty]()(using Type[B]) extends CatType[HEmpty, B, B] with HNonEmptyType[B]
+    case class CatBoth[A <: HNonEmpty, B <: HNonEmpty]()(using Type[HAppend[A, B]]) extends CatType[A, B, HAppend[A, B]] with HAppendType[A, B]
 
-    case class Cat[A <: HChain, B <: HChain, T <: HChain: Type] private (left: Regex[A], right: Regex[B])(override val nodeType: CatType[A, B, T]) extends Regex[T] {
-      given Type[A] = left.tpe
-      given Type[B] = right.tpe
+    case class Cat[A <: HChain, B <: HChain, T <: HChain] private (left: Regex[A], right: Regex[B])(override val nodeType: CatType[A, B, T]) extends Regex[T] {
+      given Type[A] = left.nodeType.tpe
+      given Type[B] = right.nodeType.tpe
+      given Type[T] = nodeType.tpe
 
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
       override def sanitiseCode(groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[T] = {
         nodeType match {
-          case CatEmpty()   => '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
+          case CatEmpty() => empty
           case CatLeft()  => left.sanitiseCode(groups, i)
           case CatRight() => right.sanitiseCode(groups, i + left.numCaptures)
           case CatBoth()  => {
@@ -224,16 +260,16 @@ object ast2 {
 
     object Cat {
       def apply[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B])(using Quotes): Cat[A, B, ?] = (left.nodeType, right.nodeType) match {
-        case (_: EmptyType, _: EmptyType) => new Cat(left, right)(CatEmpty())
-        case (leftType: NonEmptyType[a], _: EmptyType) => {
+        case (_: HEmptyType, _: HEmptyType) => new Cat(left, right)(CatEmpty())
+        case (leftType: HNonEmptyType[a], _: HEmptyType) => {
           given Type[a] = leftType.tpe
           new Cat(left, right)(CatLeft())
         }
-        case (_: EmptyType, rightType: NonEmptyType[b]) => {
+        case (_: HEmptyType, rightType: HNonEmptyType[b]) => {
           given Type[b] = rightType.tpe
           new Cat(left, right)(CatRight())
         }
-        case (leftType: NonEmptyType[a], rightType: NonEmptyType[b]) => {
+        case (leftType: HNonEmptyType[a], rightType: HNonEmptyType[b]) => {
           given Type[a] = leftType.tpe
           given Type[b] = rightType.tpe
           new Cat(left, right)(CatBoth())
@@ -242,11 +278,12 @@ object ast2 {
     }
 
     sealed trait OptType[A <: HChain, B <: HChain] extends NodeType[B]
-    case class OptEmpty()(using Type[HEmpty]) extends OptType[HEmpty, HEmpty] with EmptyType
-    case class OptSingleton[A <: HChain]()(using Type[HSingleton[Option[A]]]) extends OptType[A, HSingleton[Option[A]]] with SingletonType[Option[A]]
+    case class OptEmpty()(using Type[HEmpty]) extends OptType[HEmpty, HEmpty] with HEmptyType
+    case class OptSingleton[A <: HChain]()(using Type[HSingleton[Option[A]]]) extends OptType[A, HSingleton[Option[A]]] with HSingletonType[Option[A]]
 
-    case class Opt[A <: HChain, B <: HChain: Type] private (inner: Regex[A])(override val nodeType: OptType[A, B]) extends Regex[B] {
-      given Type[A] = inner.tpe
+    case class Opt[A <: HChain, B <: HChain] private (inner: Regex[A])(override val nodeType: OptType[A, B]) extends Regex[B] {
+      given Type[A] = inner.nodeType.tpe
+      given Type[B] = nodeType.tpe
 
       override val numCaptures: Int = inner.numCaptures
 
@@ -288,13 +325,24 @@ object ast2 {
       }
     }
 
-    sealed trait AltType[Left <: HChain, Right <: HChain, C <: HChain] extends NodeType[C]
-    case class AltEmpty()(using Type[HEmpty]) extends AltType[HEmpty, HEmpty, HEmpty] with EmptyType
-    case class AltEither[A <: HChain, B <: HChain]()(using Type[HSingleton[Either[A, B]]]) extends AltType[A, B, HSingleton[Either[A, B]]] with SingletonType[Either[A, B]]
+    object Opt {
+      def apply[A <: HChain](inner: Regex[A])(using Quotes): Opt[A, ?] = inner.nodeType match {
+        case _: HEmptyType                  => new Opt(inner)(OptEmpty())
+        case nonEmptyType: HNonEmptyType[a] => {
+          given Type[a] = nonEmptyType.tpe
+          new Opt(inner)(OptSingleton())
+        }
+      }
+    }
 
-    case class Alt[A <: HChain, B <: HChain, T <: HChain: Type] private (left: Regex[A], right: Regex[B])(override val nodeType: AltType[A, B, T]) extends Regex[T] {
-      given Type[A] = left.tpe
-      given Type[B] = right.tpe
+    sealed trait AltType[Left <: HChain, Right <: HChain, C <: HChain] extends NodeType[C]
+    case class AltEmpty()(using Type[HEmpty]) extends AltType[HEmpty, HEmpty, HEmpty] with HEmptyType
+    case class AltEither[A <: HChain, B <: HChain]()(using Type[HSingleton[Either[A, B]]]) extends AltType[A, B, HSingleton[Either[A, B]]] with HSingletonType[Either[A, B]]
+
+    case class Alt[A <: HChain, B <: HChain, T <: HChain] private (left: Regex[A], right: Regex[B])(override val nodeType: AltType[A, B, T]) extends Regex[T] {
+      given Type[A] = left.nodeType.tpe
+      given Type[B] = right.nodeType.tpe
+      given Type[T] = nodeType.tpe
 
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
@@ -340,5 +388,20 @@ object ast2 {
         }
       }
     }
+
+    object Alt {
+      def apply[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B])(using Quotes): Alt[A, B, ?] = (left.nodeType, right.nodeType) match {
+        case (_: HEmptyType, _: HEmptyType) => new Alt(left, right)(AltEmpty())
+        case (leftType, rightType) => {
+          given Type[A] = leftType.tpe
+          given Type[B] = rightType.tpe
+          new Alt(left, right)(AltEither())
+        }
+      }
+    }
+  }
+
+  private def empty(using Quotes): SanitiseExpr[HEmpty] = {
+    '{ Applicative[[A] =>> SanitisedT[Option, A]].pure(HEmpty) }
   }
 }
