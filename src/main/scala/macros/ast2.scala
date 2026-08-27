@@ -1,7 +1,7 @@
 package experiments.macros
 
 import cats.syntax.all.*
-import experiments.macros.hcollections.hchain.*
+import experiments.macros.hcollections.hchain2.*
 import experiments.macros.sanitised.{SanitiseExpr, Sanitised, SanitisedT}
 import scala.quoted.{Expr, Type, Quotes}
 
@@ -76,12 +76,12 @@ object ast2 {
     }
 
     sealed trait NodeType[A <: HChain](using val tpe: Type[A])
-
+  
     sealed trait EmptyType extends NodeType[HEmpty]
-    sealed trait NonEmptyType[A <: HChain] extends NodeType[A]
 
+    sealed trait NonEmptyType[A <: HNonEmpty] extends NodeType[A]
     sealed trait SingletonType[A] extends NonEmptyType[HSingleton[A]]
-    sealed trait AppendType[A <: HChain, B <: HChain] extends NonEmptyType[HAppend[A, B]]
+    sealed trait AppendType[A <: HNonEmpty, B <: HNonEmpty] extends NonEmptyType[HAppend[A, B]]
 
     sealed abstract class Regex[A <: HChain](using val tpe: Type[A]) {
       val nodeType: NodeType[A]
@@ -104,7 +104,7 @@ object ast2 {
 
     sealed trait CaptureType[A <: HChain, B <: HChain] extends NodeType[B]
     case class CaptureSingleton()(using Type[HSingleton[String]]) extends CaptureType[HEmpty, HSingleton[String]] with NonEmptyType[HSingleton[String]]
-    case class CaptureAppend[A <: HChain]()(using Type[HAppend[HSingleton[String], A]]) extends CaptureType[A, HAppend[HSingleton[String], A]] with NonEmptyType[HAppend[HSingleton[String], A]]
+    case class CaptureAppend[A <: HNonEmpty]()(using Type[HAppend[HSingleton[String], A]]) extends CaptureType[A, HAppend[HSingleton[String], A]] with NonEmptyType[HAppend[HSingleton[String], A]]
 
     case class Capture[A <: HChain, B <: HChain: Type] private (inner: Regex[A])(override val nodeType: CaptureType[A, B]) extends Regex[B] {
       given Type[A] = inner.tpe
@@ -160,8 +160,8 @@ object ast2 {
     object Capture {
       def apply[A <: HChain](inner: Regex[A])(using Quotes): Capture[A, ?] = inner.nodeType match {
         case _: EmptyType => new Capture(inner)(CaptureSingleton())
-        case nonEmptyType: NonEmptyType[A] => {
-          given Type[A] = nonEmptyType.tpe
+        case nonEmptyType: NonEmptyType[a] => {
+          given Type[a] = nonEmptyType.tpe
           new Capture(inner)(CaptureAppend())
         }
       }
@@ -169,9 +169,9 @@ object ast2 {
 
     sealed trait CatType[A <: HChain, B <: HChain, C <: HChain] extends NodeType[C]
     case class CatEmpty()(using Type[HEmpty]) extends CatType[HEmpty, HEmpty, HEmpty] with EmptyType
-    case class CatLeft[A <: HChain]()(using Type[A]) extends CatType[A, HEmpty, A] with NonEmptyType[A]
-    case class CatRight[B <: HChain]()(using Type[B]) extends CatType[HEmpty, B, B] with NonEmptyType[B]
-    case class CatBoth[A <: HChain, B <: HChain]()(using Type[HAppend[A, B]]) extends CatType[A, B, HAppend[A, B]] with AppendType[A, B]
+    case class CatLeft[A <: HNonEmpty]()(using Type[A]) extends CatType[A, HEmpty, A] with NonEmptyType[A]
+    case class CatRight[B <: HNonEmpty]()(using Type[B]) extends CatType[HEmpty, B, B] with NonEmptyType[B]
+    case class CatBoth[A <: HNonEmpty, B <: HNonEmpty]()(using Type[HAppend[A, B]]) extends CatType[A, B, HAppend[A, B]] with AppendType[A, B]
 
     case class Cat[A <: HChain, B <: HChain, T <: HChain: Type] private (left: Regex[A], right: Regex[B])(override val nodeType: CatType[A, B, T]) extends Regex[T] {
       given Type[A] = left.tpe
@@ -225,17 +225,17 @@ object ast2 {
     object Cat {
       def apply[A <: HChain, B <: HChain](left: Regex[A], right: Regex[B])(using Quotes): Cat[A, B, ?] = (left.nodeType, right.nodeType) match {
         case (_: EmptyType, _: EmptyType) => new Cat(left, right)(CatEmpty())
-        case (leftType: NonEmptyType[A], _: EmptyType) => {
-          given Type[A] = leftType.tpe
+        case (leftType: NonEmptyType[a], _: EmptyType) => {
+          given Type[a] = leftType.tpe
           new Cat(left, right)(CatLeft())
         }
-        case (_: EmptyType, rightType: NonEmptyType[B]) => {
-          given Type[B] = rightType.tpe
+        case (_: EmptyType, rightType: NonEmptyType[b]) => {
+          given Type[b] = rightType.tpe
           new Cat(left, right)(CatRight())
         }
-        case (leftType: NonEmptyType[A], rightType: NonEmptyType[B]) => {
-          given Type[A] = leftType.tpe
-          given Type[B] = rightType.tpe
+        case (leftType: NonEmptyType[a], rightType: NonEmptyType[b]) => {
+          given Type[a] = leftType.tpe
+          given Type[b] = rightType.tpe
           new Cat(left, right)(CatBoth())
         }
       }
