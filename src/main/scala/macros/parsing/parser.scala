@@ -134,10 +134,10 @@ object parser {
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 
-  private lazy val postfixOps = (Opt from '?') | /* (Star from '*') | */ (Plus from '+') | numericalQuantifier
+  private lazy val postfixOps = (Opt from '?') | (Star from '*') | (Plus from '+') | numericalQuantifier
   private lazy val quantifierType = ('?' as Reluctant) | ('+' as Possessive) | pure(Greedy)
 
-  private lazy val numericalQuantifier = empty // NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
+  private lazy val numericalQuantifier = NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
   private lazy val int = lexer.lexeme.natural.decimal32[Int]
 
   private val allSet = Diet.fromRange(Range(0x00000, 0x1ffff))
