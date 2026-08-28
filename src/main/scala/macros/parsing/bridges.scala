@@ -23,27 +23,27 @@ object bridges {
   }
 
   object Class extends PureParserBridge1[Diet[Int], ToRegex] {
-    override def apply(cs: Diet[Int]): ToRegex = ??? // ast.Class(cs)
+    override def apply(cs: Diet[Int]): ToRegex = ast.Class(cs)
   }
 
   object LineStart extends ParserSingletonBridge[ToRegex] {
-    override protected def singleton: Parsley[ToRegex] = ??? // pure(ast.LineStart())
+    override protected def singleton: Parsley[ToRegex] = pure(ast.LineStart())
   }
 
   object LineEnd extends ParserSingletonBridge[ToRegex] {
-    override protected def singleton: Parsley[ToRegex] = ??? //  pure(ast.LineEnd())
+    override protected def singleton: Parsley[ToRegex] = pure(ast.LineEnd())
   }
 
   object NegativeLookahead extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ??? //  ast.NegativeLookahead(inner)
+    override def apply(inner: ToRegex): ToRegex = ast.NegativeLookahead(inner)
   }
 
   object NegativeLookbehind extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ??? //  ast.NegativeLookbehind(inner)
+    override def apply(inner: ToRegex): ToRegex = ast.NegativeLookbehind(inner)
   }
 
   object Backreference extends PureParserBridge1[Int, ToRegex] {
-    override def apply(group: Int): ToRegex = ??? //  ast.Backreference(group)
+    override def apply(group: Int): ToRegex = ast.Backreference(group)
   }
 
   object Capture extends PureParserBridge1[ToRegex, ToRegex] {

@@ -1,6 +1,7 @@
 package experiments.macros
 
 import cats.Applicative
+import cats.collections.Diet
 import cats.syntax.all.*
 import experiments.macros.hcollections.hchain.*
 import experiments.macros.sanitised.{SanitiseExpr, Sanitised, SanitisedT}
@@ -149,9 +150,64 @@ object ast {
       def apply(c: Int)(using Quotes): Lit = new Lit(c)
     }
 
+    case class Class private (cs: Diet[Int])(using EmptyType) extends EmptyLeaf
+    object Class {
+      def apply(cs: Diet[Int])(using Quotes): Class = {
+        new Class(cs)
+      }
+    }
+
+    case class LineStart private ()(using EmptyType) extends EmptyLeaf
+    object LineStart {
+      def apply()(using Quotes): LineStart = {
+        new LineStart()
+      }
+    }
+
+    case class LineEnd private ()(using EmptyType) extends EmptyLeaf
+    object LineEnd {
+      def apply()(using Quotes): LineEnd = {
+        new LineEnd()
+      }
+    }
+
+    case class Backreference private (group: Int)(using EmptyType) extends EmptyLeaf
+    object Backreference {
+      def apply(group: Int)(using Quotes): Backreference = {
+        new Backreference(group)
+      }
+    }
+
     case class Flags private (flagsOn: Set[Char], flagsOff: Set[Char])(using EmptyType) extends EmptyLeaf
     object Flags {
       def apply(flagsOn: Set[Char], flagsOff: Set[Char])(using Quotes): Flags = new Flags(flagsOn, flagsOff)
+    }
+
+    sealed abstract class EmptyWithInner[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using EmptyType) extends Empty {
+      override final val numCaptures: Int = inner.numCaptures      
+    }
+
+    // TODO: Should this be allowed?
+    /* {0} or {0,0} */
+    case class Zero[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWithInner[F](inner)
+    object Zero {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Zero[F] = {
+        new Zero(inner)
+      }
+    }
+
+    case class NegativeLookahead[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWithInner[F](inner)
+    object NegativeLookahead {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): NegativeLookahead[F] = {
+        new NegativeLookahead(inner)
+      }
+    }
+
+    case class NegativeLookbehind[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWithInner[F](inner)
+    object NegativeLookbehind {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): NegativeLookbehind[F] = {
+        new NegativeLookbehind(inner)
+      }
     }
 
     sealed trait CaptureType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
