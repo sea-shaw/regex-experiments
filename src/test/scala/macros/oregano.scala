@@ -67,8 +67,8 @@ class OreganoUnitTests extends AnyFlatSpec {
 
   it should "match alternative patterns with capture groups on one side" in {
     val r = r"(a)|b"
-    "a" should matchPattern { case r(Left("a")) => }
-    "b" should matchPattern { case r(Right(())) => }
+    "a" should matchPattern { case r(Some("a")) => }
+    "b" should matchPattern { case r(None) => }
   }
 
   it should "match alternatives with multiple capture groups on either side" in {

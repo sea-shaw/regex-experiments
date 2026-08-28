@@ -1,7 +1,7 @@
 package experiments.macros
 
 import experiments.macros.catnip.r
-import cats.data.Ior.{Both => IBoth, Left => ILeft, Right => IRight}
+import cats.data.Ior.Both
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.{matchPattern, should}
 
@@ -70,7 +70,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   it should "pass test 13: ((foo)|(bar))*" in {
     val r13 = r"((foo)|(bar))*"
-    "foobar" should matchPattern { case r13(Some("bar", IBoth("foo", "bar"))) => }
+    "foobar" should matchPattern { case r13(Some("bar", Both("foo", "bar"))) => }
   }
 
   it should "pass test 14: (.*)c(.*)" in {
@@ -80,7 +80,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   it should "pass test 15: (?:(f)(o)(o)|(b)(a)(r))*" in {
     val r15 = r"(?:(f)(o)(o)|(b)(a)(r))*"
-    "foobar" should matchPattern { case r15(Some(IBoth(("f", "o", "o"), ("b", "a", "r")))) => }
+    "foobar" should matchPattern { case r15(Some(Both(("f", "o", "o"), ("b", "a", "r")))) => }
   }
 
   it should "pass test 16: ([[:digit:]-[:alpha:]]+)" in pending // {
@@ -194,7 +194,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   it should "pass test 37: (a)|\\1" in {
     val r37 = r"(a)|\1"
-    "a" should matchPattern { case r37(Left("a")) => }
+    "a" should matchPattern { case r37(Some("a")) => }
   }
 
   it should "pass test 38: (a+|b)*" in {
@@ -304,7 +304,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   it should "pass test 59: (bc+d$|ef*g.|h?i(j|k))" in {
     val r59 = r"(bc+d$$|ef*g.|h?i(j|k))"
-    "ij" should matchPattern { case r59("ij", Right(Right("j"))) => }
+    "ij" should matchPattern { case r59("ij", Some(Some("j"))) => }
   }
 
   it should "pass test 60: (foo[1x]|bar[2x]|baz[3x])*y" in {
@@ -794,7 +794,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   ignore should "pass test 157: a(?:b|(c|e){1,2}?|d)+?(.)" in {
     val r157 = r"a(?:b|(c|e){1,2}?|d)+?(.)"
-    "ace" should matchPattern { case r157(IRight(ILeft("c")), "e") => }
+    "ace" should matchPattern { case r157(Some(Some("c")), "e") => }
   }
 
   it should "pass test 158: a(?:b|c|d)(.)" in {
