@@ -10,7 +10,7 @@
             val `sanitised₂`: Option[Sanitised[HSingleton[String]]] = groups.apply(0).map[Sanitised[HSingleton[String]]](((`s₂`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₂`), true)))
             SanitisedT.apply[Option, HSingleton[String]](`sanitised₂`)
           }
-          SanitisedT.apply[[A >: Nothing <: Any] =>> Option[A], HSingleton[Option[HSingleton[String]]]](Some.apply[Sanitised[HSingleton[Option[HSingleton[String]]]]](toFunctorOps[Sanitised, Option[HSingleton[String]]](toTraverseOps[Option, Sanitised[HSingleton[String]]](caps.value)(catsTraverseForOption).sequence[Sanitised, HSingleton[String]](refl[Sanitised[HSingleton[String]]], given_Applicative_Sanitised))(given_Functor_Sanitised).map[HSingleton[Option[HSingleton[String]]]](((_$115: Option[HSingleton[String]]) => HSingleton.apply[Option[HSingleton[String]]](_$115)))))
+          SanitisedT.apply[[A >: Nothing <: Any] =>> Option[A], HSingleton[Option[HSingleton[String]]]](Some.apply[Sanitised[HSingleton[Option[HSingleton[String]]]]](toFunctorOps[Sanitised, Option[HSingleton[String]]](toTraverseOps[Option, Sanitised[HSingleton[String]]](caps.value)(catsTraverseForOption).sequence[Sanitised, HSingleton[String]](refl[Sanitised[HSingleton[String]]], given_Applicative_Sanitised))(given_Functor_Sanitised).map[HSingleton[Option[HSingleton[String]]]](((_$118: Option[HSingleton[String]]) => HSingleton.apply[Option[HSingleton[String]]](_$118)))))
         }
         sanitised.value.map[Option[String]](((x$1: Sanitised[HSingleton[Option[HSingleton[String]]]]) => x$1 match {
           case Sanitised(captures, _) =>

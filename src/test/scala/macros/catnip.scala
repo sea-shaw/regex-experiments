@@ -48,6 +48,12 @@ class CatnipUnitTests extends AnyFlatSpec {
     "ab" should matchPattern { case r(Some("ab", Some("b"))) => }
   }
 
+  it should "match optional capture group inside optional non-capture group" in {
+    val r = r"(?:(a)?)?"
+    "" should matchPattern { case r(None) => }
+    "a" should matchPattern { case r(Some("a")) => }
+  }
+
   it should "match star capture groups" in {
     val r = r"(a)*"
     "aaaa" should matchPattern { case r(Some("a")) => }

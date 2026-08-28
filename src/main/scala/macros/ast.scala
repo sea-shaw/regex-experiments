@@ -14,7 +14,8 @@ object ast {
   case object RepTrue extends RepType[true]
   case object RepFalse extends RepType[false]
 
-  type Const[A] = [_] =>> A
+  type Id[+A] = A
+  type Const[+A] = [_] =>> A
 
   /* This has to be outside the `AST` trait otherwise there is a compiler error.
      It says it needs a `Type[AST.this.AltRep]`. */
@@ -94,6 +95,7 @@ object ast {
     sealed trait NodeType[F[_ <: Rep] <: HChain](using val tpe: Type[F])
     sealed trait HEmptyType extends NodeType[Const[HEmpty]]
     sealed trait HNonEmptyType[F[_ <: Rep] <: HNonEmpty] extends NodeType[F]
+    sealed trait SingletonOption[F[_ <: Rep] <: HNonEmpty](using val innerType: Type[F]) extends HNonEmptyType[[R <: Rep] =>> HSingleton[Option[F[R]]]]
 
     sealed abstract class Regex[F[_ <: Rep] <: HChain] {
       val nodeType: NodeType[F]
@@ -379,11 +381,25 @@ object ast {
     }
 
     sealed trait AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] extends NodeType[H]
+
+    /* A|B */
     case class AltEmpty()(using Type[Const[HEmpty]]) extends AltType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType
+
+    /* (A)|B */
     type AltLeftType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
-    case class AltLeft[F[_ <: Rep] <: HNonEmpty]()(using Type[AltLeftType[F]]) extends AltType[F, Const[HEmpty], AltLeftType[F]] with HNonEmptyType[AltLeftType[F]]
+    case class AltLeft[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[AltLeftType[F]]) extends AltType[F, Const[HEmpty], AltLeftType[F]] with SingletonOption[F]
+
+    /* A|(B) */
     type AltRightType[G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[G[R]]]
-    case class AltRight[G[_ <: Rep] <: HNonEmpty]()(using Type[AltRightType[G]]) extends AltType[Const[HEmpty], G, AltRightType[G]] with HNonEmptyType[AltRightType[G]]
+    case class AltRight[G[_ <: Rep] <: HNonEmpty]()(using Type[G], Type[AltRightType[G]]) extends AltType[Const[HEmpty], G, AltRightType[G]] with SingletonOption[G]
+
+    /* (A)?|B */
+    /* A|(B)? */
+    /* (A)?|(B) */
+    /* (A)|(B)? */
+    /* (A)?|(B)? */
+
+    /* (A)|(B) */
     type AltBothType[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[AltRep[F, G, R, InclusiveOr]]
     case class AltBoth[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty]()(using Type[AltBothType[F, G]]) extends AltType[F, G, AltBothType[F, G]] with HNonEmptyType[AltBothType[F, G]]
 
@@ -484,9 +500,17 @@ object ast {
     }
 
     sealed trait OptType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
+
+    /* A? */
     case class OptEmpty()(using Type[Const[HEmpty]]) extends OptType[Const[HEmpty], Const[HEmpty]] with HEmptyType
+
+    /* (A)? */
     type OptSingletonType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
-    case class OptSingleton[F[_ <: Rep] <: HNonEmpty]()(using Type[OptSingletonType[F]]) extends OptType[F, OptSingletonType[F]] with HNonEmptyType[OptSingletonType[F]]
+    case class OptSingleton[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[OptSingletonType[F]]) extends OptType[F, OptSingletonType[F]] with SingletonOption[F]
+
+    /* (A?)? */
+    type OptNestedType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
+    case class OptNested[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[OptNestedType[F]]) extends OptType[OptNestedType[F], OptNestedType[F]] with SingletonOption[F]
 
     case class Opt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(override val nodeType: OptType[F, G]) extends Regex[G] {
       given Type[F] = inner.nodeType.tpe
@@ -497,6 +521,7 @@ object ast {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
         nodeType match {
           case OptEmpty() => sanitiseEmpty
+          case OptNested() => inner.sanitiseCode(groups, i)
           case OptSingleton() => {
             val sanitisedInner = inner.sanitiseCode(groups, i)
             '{
@@ -510,6 +535,7 @@ object ast {
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
         nodeType match {
           case OptEmpty()     => flattenEmpty(nodes, types)
+          case OptNested()    => inner.flattenFunction(nodes, types)
           case OptSingleton() => flattenOpt(inner, nodes, types)
         }
       }
@@ -519,8 +545,12 @@ object ast {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes): Opt[F, ?] = {
         val nodeType: OptType[F, ?] = inner.nodeType match {
           case _: HEmptyType => OptEmpty()
-          case nonEmptyType: HNonEmptyType[f] => {
-            given Type[f] = nonEmptyType.tpe
+          case singletonOption: SingletonOption[f] => {
+            given Type[f] = singletonOption.innerType
+            OptNested()
+          }
+          case nonEmpty: HNonEmptyType[f] => {
+            given Type[f] = nonEmpty.tpe
             OptSingleton()
           }
         }
@@ -595,7 +625,7 @@ object ast {
     sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
     case class Rep0Empty()(using Type[Const[HEmpty]]) extends Rep0Type[Const[HEmpty], Const[HEmpty]] with HEmptyType
     type Rep0NonEmptyType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[true]]]
-    case class Rep0NonEmpty[F[_ <: Rep] <: HNonEmpty]()(using Type[Rep0NonEmptyType[F]]) extends Rep0Type[F, Rep0NonEmptyType[F]] with HNonEmptyType[Rep0NonEmptyType[F]]
+    case class Rep0NonEmpty[F[_ <: Rep] <: HNonEmpty]()(using Type[Const[F[true]]], Type[Rep0NonEmptyType[F]]) extends Rep0Type[F, Rep0NonEmptyType[F]] with SingletonOption[Const[F[true]]]
 
     object Rep0Type {
       def apply[F[_ <: Rep] <: HChain](innerType: NodeType[F])(using Quotes): Rep0Type[F, ?] = {
