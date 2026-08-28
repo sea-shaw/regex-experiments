@@ -68,23 +68,33 @@ object regex {
   private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {      
     given Type[F] = regex.nodeType.tpe
 
-    regex.tidyFunction(using RepFalse) match {
-      case tidy @ ast.TidyFunction(given Type[a]) => '{
-        new Regex[a] {
+    regex.nodeType match {
+      case _: ast.HEmptyType => '{
+        new Regex[Unit] {
           private val pattern: Pattern = Pattern.compile($regexStr)
+          override def unapply(s: String): Option[Unit] = {
+            Option.when(pattern.matcher(s).matches)(())
+          }
+        }
+      }
+      case _: ast.HNonEmptyType[_] => regex.tidyFunction(using RepFalse) match {
+        case tidy @ ast.TidyFunction(given Type[a]) => '{
+          new Regex[a] {
+            private val pattern: Pattern = Pattern.compile($regexStr)
 
-          override def unapply(s: String): Option[a] = {
-            val m = pattern.matcher(s)
-            if (m.matches()) {
-              val groups = Array.tabulate(m.groupCount) {i =>
-                Option(m.group(i + 1))
+            override def unapply(s: String): Option[a] = {
+              val m = pattern.matcher(s)
+              if (m.matches()) {
+                val groups = Array.tabulate(m.groupCount) {i =>
+                  Option(m.group(i + 1))
+                }
+                val sanitised = ${ regex.sanitiseCode('groups, 0)(using RepFalse) }
+                sanitised.value.map { case Sanitised(captures, _) =>
+                  ${ tidy('captures) }
+                }
+              } else {
+                None
               }
-              val sanitised = ${ regex.sanitiseCode('groups, 0)(using RepFalse) }
-              sanitised.value.map { case Sanitised(captures, _) =>
-                ${ tidy('captures) }
-              }
-            } else {
-              None
             }
           }
         }
