@@ -95,7 +95,9 @@ object ast {
     sealed trait NodeType[F[_ <: Rep] <: HChain](using val tpe: Type[F])
     sealed trait HEmptyType extends NodeType[Const[HEmpty]]
     sealed trait HNonEmptyType[F[_ <: Rep] <: HNonEmpty] extends NodeType[F]
-    sealed trait SingletonOption[F[_ <: Rep] <: HNonEmpty](using val innerType: Type[F]) extends HNonEmptyType[[R <: Rep] =>> HSingleton[Option[F[R]]]]
+
+    type SingletonOptionType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
+    sealed trait SingletonOption[F[_ <: Rep] <: HNonEmpty](using val innerType: Type[F]) extends HNonEmptyType[SingletonOptionType[F]]
 
     sealed abstract class Regex[F[_ <: Rep] <: HChain] {
       val nodeType: NodeType[F]
@@ -386,19 +388,19 @@ object ast {
     case class AltEmpty()(using Type[Const[HEmpty]]) extends AltType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType
 
     /* (A)|B */
-    type AltLeftType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
+    type AltLeftType = SingletonOptionType
     case class AltLeft[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[AltLeftType[F]]) extends AltType[F, Const[HEmpty], AltLeftType[F]] with SingletonOption[F]
 
     /* A|(B) */
-    type AltRightType[G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[G[R]]]
+    type AltRightType = SingletonOptionType
     case class AltRight[G[_ <: Rep] <: HNonEmpty]()(using Type[G], Type[AltRightType[G]]) extends AltType[Const[HEmpty], G, AltRightType[G]] with SingletonOption[G]
 
     /* (A)?|B */
-    type AltLeftOptionType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
+    type AltLeftOptionType = SingletonOptionType
     case class AltLeftOption[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[AltLeftOptionType[F]]) extends AltType[AltLeftOptionType[F], Const[HEmpty], AltLeftOptionType[F]] with SingletonOption[F]
 
     /* A|(B)? */
-    type AltRightOptionType[G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[G[R]]]
+    type AltRightOptionType = SingletonOptionType
     case class AltRightOption[G[_ <: Rep] <: HNonEmpty]()(using Type[G], Type[AltRightOptionType[G]]) extends AltType[Const[HEmpty], AltRightOptionType[G], AltRightOptionType[G]] with SingletonOption[G]
 
     /* (A)?|(B) */
@@ -523,11 +525,11 @@ object ast {
     case class OptEmpty()(using Type[Const[HEmpty]]) extends OptType[Const[HEmpty], Const[HEmpty]] with HEmptyType
 
     /* (A)? */
-    type OptSingletonType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
+    type OptSingletonType = SingletonOptionType
     case class OptSingleton[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[OptSingletonType[F]]) extends OptType[F, OptSingletonType[F]] with SingletonOption[F]
 
     /* (A?)? */
-    type OptNestedType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
+    type OptNestedType = SingletonOptionType
     case class OptNested[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[OptNestedType[F]]) extends OptType[OptNestedType[F], OptNestedType[F]] with SingletonOption[F]
 
     case class Opt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(override val nodeType: OptType[F, G]) extends Regex[G] {
@@ -691,7 +693,7 @@ object ast {
       }
     }
 
-    private def sanitiseOpt[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](regex: Regex[F], groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[HSingleton[Option[F[R]]]] = {
+    private def sanitiseOpt[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](regex: Regex[F], groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[SingletonOptionType[F][R]] = {
       val sanitised = regex.sanitiseCode(groups, i)
       '{
         val caps = $sanitised
@@ -699,11 +701,11 @@ object ast {
       }
     }
 
-    private def flattenOpt[F[_ <: Rep] <: HNonEmpty: Type, C <: Chains, L <: Leaves, R <: Rep: Type](regex: Regex[F], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[Option[F[R]]], C], L, ?] = {
+    private def flattenOpt[F[_ <: Rep] <: HNonEmpty: Type, C <: Chains, L <: Leaves, R <: Rep: Type](regex: Regex[F], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[SingletonOptionType[F][R], C], L, ?] = {
       regex.tidyFunction match {
         case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
-          case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[HSingleton[Option[F[R]]], C], L, b] {
-            override def apply(chains: CCons[HSingleton[Option[F[R]]], C], leaves: L)(using Quotes): Expr[b] = {
+          case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[SingletonOptionType[F][R], C], L, b] {
+            override def apply(chains: CCons[SingletonOptionType[F][R], C], leaves: L)(using Quotes): Expr[b] = {
               val opt = '{
                 ${ chains.head }.value.map { value =>
                   ${ tidy('value) }
