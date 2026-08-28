@@ -45,11 +45,11 @@ object parser {
   }
   private lazy val quantifiable = choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
 
-  private lazy val positiveLookahead = empty // PositiveLookahead(atomic("(?=") ~> expr <~ ')')
-  private lazy val negativeLookahead = empty // NegativeLookahead(atomic("(?!" ~> expr <~ ')'))
+  private lazy val positiveLookahead = PositiveLookahead(atomic("(?=") ~> expr <~ ')')
+  private lazy val negativeLookahead = NegativeLookahead(atomic("(?!" ~> expr <~ ')'))
   private lazy val positiveLookbehind = PositiveLookbehind(atomic("(?<=") ~> expr <~ ')')
   private lazy val negativeLookbehind = NegativeLookbehind(atomic("(?<!" ~> expr <~ ')'))
-  private lazy val independent = empty // Independent(atomic("(?>") ~> expr <~ ')')
+  private lazy val independent = Independent(atomic("(?>") ~> expr <~ ')')
   private lazy val withFlags = WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(':' ~> expr) <~ ')')
   private lazy val capture = Capture('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars).map(_.toInt) | charEsc)
@@ -118,7 +118,7 @@ object parser {
     Class(clsSet)
   }
 
-  private lazy val predefinedEsc = empty // atomic('\\' ~> predefined)
+  private lazy val predefinedEsc = atomic('\\' ~> predefined)
   private lazy val predefined = Class(
     choice(
       'd' as Diet.fromRange(Range('0'.toInt, '9'.toInt)),
@@ -135,7 +135,7 @@ object parser {
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 
   private lazy val postfixOps = (Opt from '?') | /* (Star from '*') | */ (Plus from '+') | numericalQuantifier
-  private lazy val quantifierType = /* ('?' as Reluctant) | ('+' as Possessive) | */ pure(Greedy)
+  private lazy val quantifierType = ('?' as Reluctant) | ('+' as Possessive) | pure(Greedy)
 
   private lazy val numericalQuantifier = empty // NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
   private lazy val int = lexer.lexeme.natural.decimal32[Int]

@@ -51,19 +51,19 @@ object bridges {
   }
 
   object NamedCapture extends PureParserBridge2[String, ToRegex, ToRegex] {
-    override def apply(name: String, inner: ToRegex): ToRegex = ??? //  ast.NamedCapture(name, inner)
+    override def apply(name: String, inner: ToRegex): ToRegex = ast.NamedCapture(name, inner)
   }
 
   object PositiveLookahead extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ??? //  ast.PositiveLookahead(inner)
+    override def apply(inner: ToRegex): ToRegex = ast.PositiveLookahead(inner)
   }
 
   object PositiveLookbehind extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ??? //  ast.PositiveLookbehind(inner)
+    override def apply(inner: ToRegex): ToRegex = ast.PositiveLookbehind(inner)
   }
 
   object Independent extends PureParserBridge1[ToRegex, ToRegex] {
-    override def apply(inner: ToRegex): ToRegex = ??? //  ast.Independent(inner)
+    override def apply(inner: ToRegex): ToRegex = ast.Independent(inner)
   }
 
   object Cat extends PureParserBridge1[NonEmptyList[ToRegex], ToRegex] {
