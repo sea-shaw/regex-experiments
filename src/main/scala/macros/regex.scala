@@ -58,7 +58,7 @@ object regex {
           import quotes.reflect.{Printer, asTerm}
           val codeExpr = regexCode(exprStr, ast)(regex)
           val codeStr = codeExpr.asTerm.show(using Printer.TreeShortCode)
-          Expr(codeStr)
+          Expr(codeStr.replaceAll("_\\$\\d+", "_\\$"))
         }
         case Failure(err)   => Expr(err)
       }
