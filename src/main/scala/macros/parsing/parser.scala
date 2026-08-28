@@ -134,7 +134,7 @@ object parser {
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 
-  private lazy val postfixOps = (Opt from '?') // | (Star from '*') | (Plus from '+') | numericalQuantifier
+  private lazy val postfixOps = (Opt from '?') | /* (Star from '*') | */ (Plus from '+') | numericalQuantifier
   private lazy val quantifierType = /* ('?' as Reluctant) | ('+' as Possessive) | */ pure(Greedy)
 
   private lazy val numericalQuantifier = empty // NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')

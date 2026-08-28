@@ -86,7 +86,7 @@ object bridges {
   }
 
   object Plus extends PureParserBridge2[ToRegex, QuantifierType, ToRegex] {
-    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex =  ??? // ast.Plus(inner, quantifierType)
+    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex =  ast.Plus(inner, quantifierType)
   }
 
   object NumericalQuantifier {

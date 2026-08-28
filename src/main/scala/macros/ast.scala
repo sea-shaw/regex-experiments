@@ -441,7 +441,7 @@ object ast {
     type PlusNonEmptyType[F[_ <: Rep] <: HNonEmpty] = Const[F[true]]
     case class PlusNonEmpty[F[_ <: Rep] <: HNonEmpty]()(using Type[PlusNonEmptyType[F]]) extends PlusType[F, PlusNonEmptyType[F]] with HNonEmptyType[PlusNonEmptyType[F]]
 
-    case class Plus[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: PlusType[F, G])(override val nodeType: PlusType[F, G]) extends Regex[G] {
+    case class Plus[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(override val nodeType: PlusType[F, G]) extends Regex[G] {
       override val numCaptures: Int = inner.numCaptures
 
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
@@ -456,6 +456,19 @@ object ast {
           case PlusEmpty() => flattenEmpty(nodes.flattenFunction(types))
           case PlusNonEmpty() => inner.flattenFunction(nodes, types)(using RepTrue)
         }
+      }
+    }
+
+    object Plus {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes): Plus[F, ?] = {
+        val nodeType: PlusType[F, ?] = inner.nodeType match {
+          case _: HEmptyType => PlusEmpty()
+          case nonEmptyType: HNonEmptyType[f] => {
+            given Type[f] = nonEmptyType.tpe
+            PlusNonEmpty()
+          }
+        }
+        new Plus(inner, quantifierType)(nodeType)
       }
     }
   }
