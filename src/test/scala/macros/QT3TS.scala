@@ -304,7 +304,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   it should "pass test 59: (bc+d$|ef*g.|h?i(j|k))" in {
     val r59 = r"(bc+d$$|ef*g.|h?i(j|k))"
-    "ij" should matchPattern { case r59("ij", Some(Some("j"))) => }
+    "ij" should matchPattern { case r59("ij", Some("j")) => }
   }
 
   it should "pass test 60: (foo[1x]|bar[2x]|baz[3x])*y" in {
@@ -794,7 +794,7 @@ class QT3TSTests extends AnyFlatSpec {
 
   it should "pass test 157: a(?:b|(c|e){1,2}?|d)+?(.)" in {
     val r157 = r"a(?:b|(c|e){1,2}?|d)+?(.)"
-    "ace" should matchPattern { case r157(Some(Some("c")), "e") => }
+    "ace" should matchPattern { case r157(Some("c"), "e") => }
   }
 
   it should "pass test 158: a(?:b|c|d)(.)" in {
