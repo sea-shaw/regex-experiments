@@ -210,14 +210,24 @@ object ast {
       }
     }
 
-    sealed trait CaptureType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
-    type CaptureSingletonType = Const[HSingleton[String]]
-    case class CaptureSingleton()(using Type[CaptureSingletonType]) extends CaptureType[Const[HEmpty], CaptureSingletonType] with HNonEmptyType[CaptureSingletonType]
+    sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
+    type CapturingSingletonType = Const[HSingleton[String]]
+    case class CapturingSingleton()(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType]
 
-    type CaptureAppendType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[HSingleton[String], F[R]]
-    case class CaptureAppend[F[_ <: Rep] <: HNonEmpty]()(using Type[CaptureAppendType[F]]) extends CaptureType[F, CaptureAppendType[F]] with HNonEmptyType[CaptureAppendType[F]]
+    type CapturingAppendType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[HSingleton[String], F[R]]
+    case class CapturingAppend[F[_ <: Rep] <: HNonEmpty]()(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]]
 
-    case class Capture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F])(override val nodeType: CaptureType[F, G]) extends Regex[G] {
+    object CapturingType {
+      def apply[F[_ <: Rep] <: HChain](innerType: NodeType[F])(using Quotes): CapturingType[F, ?] = {
+        given Type[F] = innerType.tpe
+        innerType match {
+          case _: HEmptyType       => CapturingSingleton()
+          case _: HNonEmptyType[_] => CapturingAppend()
+        }
+      }
+    }
+
+    sealed abstract class Capturing[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] protected (inner: Regex[F])(override val nodeType: CapturingType[F, G]) extends Regex[G] {
       given Type[F] = inner.nodeType.tpe
       given Type[G] = nodeType.tpe
 
@@ -232,8 +242,8 @@ object ast {
         }
 
         nodeType match {
-          case CaptureSingleton() => sanitisedCapture
-          case CaptureAppend()    => {
+          case CapturingSingleton() => sanitisedCapture
+          case CapturingAppend()    => {
             val sanitisedInner = inner.sanitiseCode(groups, i + 1)
             '{
               for {
@@ -247,7 +257,7 @@ object ast {
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
         nodeType match {
-          case CaptureSingleton() => nodes.flattenFunction(TCons(Type.of[String], types)) match {
+          case CapturingSingleton() => nodes.flattenFunction(TCons(Type.of[String], types)) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[G[R], C], L, a] {
               override def apply(chains: CCons[G[R], C], leaves: L)(using Quotes): Expr[a] = {
                 val capture = '{ ${ chains.head }.value }
@@ -255,7 +265,7 @@ object ast {
               }
             }
           }
-          case CaptureAppend() => inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
+          case CapturingAppend() => inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[G[R], C], L, a] {
               override def apply(chains: CCons[G[R], C], leaves: L)(using Quotes): Expr[a] = {
                 '{
@@ -269,16 +279,17 @@ object ast {
       }
     }
 
+    case class Capture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F])(nodeType: CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
     object Capture {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Capture[F, ?] = {
-        val nodeType: CaptureType[F, ?] = inner.nodeType match {
-          case _: HEmptyType => CaptureSingleton()
-          case nonEmptyType: HNonEmptyType[f] => {
-            given Type[f] = nonEmptyType.tpe
-            CaptureAppend()
-          }
-        }
-        new Capture(inner)(nodeType)
+        new Capture(inner)(CapturingType(inner.nodeType))
+      }
+    }
+
+    case class NamedCapture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (name: String, inner: Regex[F])(nodeType: CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
+    object NamedCapture {
+      def apply[F[_ <: Rep] <: HChain](name: String, inner: Regex[F])(using Quotes): NamedCapture[F, ?] = {
+        new NamedCapture(name, inner)(CapturingType(inner.nodeType))
       }
     }
 
