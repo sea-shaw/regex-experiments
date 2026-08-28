@@ -20,9 +20,9 @@
         }
         sanitised.value.map[Option[Tuple2[String, Option[String]]]](((x$1: Sanitised[HSingleton[Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]]]) => x$1 match {
           case Sanitised(captures, _) =>
-            captures.$asInstanceOf$[HSingleton[Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]]].value.map[Tuple2[String, Option[String]]](((value: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]) => {
+            captures.value.map[Tuple2[String, Option[String]]](((value: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]) => {
               val node: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]] = value
-              Tuple2.apply[String, Option[String]](node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]].left.value, node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]].right.$asInstanceOf$[HSingleton[Option[HSingleton[String]]]].value.map[String](((`value₂`: HSingleton[String]) => `value₂`.$asInstanceOf$[HSingleton[String]].value)))
+              Tuple2.apply[String, Option[String]](node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]].left.value, node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]].right.value.map[String](((`value₂`: HSingleton[String]) => `value₂`.$asInstanceOf$[HSingleton[String]].value)))
             }))
         }))
       } else None

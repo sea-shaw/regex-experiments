@@ -792,7 +792,7 @@ class QT3TSTests extends AnyFlatSpec {
     "aba" should matchPattern { case r156("a", "b") => }
   }
 
-  ignore should "pass test 157: a(?:b|(c|e){1,2}?|d)+?(.)" in {
+  it should "pass test 157: a(?:b|(c|e){1,2}?|d)+?(.)" in {
     val r157 = r"a(?:b|(c|e){1,2}?|d)+?(.)"
     "ace" should matchPattern { case r157(Some(Some("c")), "e") => }
   }
