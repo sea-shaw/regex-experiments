@@ -556,40 +556,13 @@ object ast {
 
         nodeType match {
           case AltEmpty()       => flattenEmpty(nodes, types)
-          case AltLeft()        => flattenOpt(left, nodes, types)
-          case AltRight()       => flattenOpt(right, nodes, types)
+          case AltLeft()        => flattenOpt(left.tidyFunction, nodes, types)
+          case AltRight()       => flattenOpt(right.tidyFunction, nodes, types)
           case AltLeftOption()  => left.flattenFunction(nodes, types)
           case AltRightOption() => right.flattenFunction(nodes, types)
-          case altBothOption @ AltBothOption(given Type[f], given Type[g]) => altBothOption.tidyInner match {
-            case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
-              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[H[R], C], L, b] {
-                override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[b] = {
-                  val alt = '{ ${ chains.head }.value.map(node => ${ tidy('node) }) }
-                  flatten(chains.tail, LCons(alt, leaves))
-                }
-              }
-            }
-          }
-          case altBothLeftOption @ AltBothLeftOption(given Type[f]) => altBothLeftOption.tidyInner match {
-            case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
-              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[H[R], C], L, b] {
-                override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[b] = {
-                  val alt = '{ ${ chains.head }.value.map(node => ${ tidy('node) }) }
-                  flatten(chains.tail, LCons(alt, leaves))
-                }
-              }
-            }
-          }
-          case altBothRightOption @ AltBothRightOption(given Type[g]) => altBothRightOption.tidyInner match {
-            case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
-              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[H[R], C], L, b] {
-                override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[b] = {
-                  val alt = '{ ${ chains.head }.value.map(node => ${ tidy('node) }) }
-                  flatten(chains.tail, LCons(alt, leaves))
-                }
-              }
-            }
-          }
+          case altBothOption @ AltBothOption(given Type[f], given Type[g]) => flattenOpt(altBothOption.tidyInner, nodes, types)
+          case altBothLeftOption @ AltBothLeftOption(given Type[f]) => flattenOpt(altBothLeftOption.tidyInner, nodes, types)
+          case altBothRightOption @ AltBothRightOption(given Type[g]) => flattenOpt(altBothRightOption.tidyInner, nodes, types)
           case AltBoth() => tidyAlt(left.tidyFunction, right.tidyFunction) match {
             case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[a], types)) match {
               case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[H[R], C], L, b] {
@@ -692,7 +665,7 @@ object ast {
         nodeType match {
           case OptEmpty()     => flattenEmpty(nodes, types)
           case OptNested()    => inner.flattenFunction(nodes, types)
-          case OptSingleton() => flattenOpt(inner, nodes, types)
+          case OptSingleton() => flattenOpt(inner.tidyFunction, nodes, types)
         }
       }
     }
@@ -814,7 +787,7 @@ object ast {
       override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
         nodeType match {
           case Rep0Empty()    => flattenEmpty(nodes, types)
-          case Rep0NonEmpty() => flattenOpt(inner, nodes, types)(using RepTrue)
+          case Rep0NonEmpty() => flattenOpt(inner.tidyFunction(using RepTrue), nodes, types)
         }
       }
     }
@@ -841,18 +814,18 @@ object ast {
       }
     }
 
-    private def flattenOpt[F[_ <: Rep] <: HNonEmpty: Type, C <: Chains, L <: Leaves, R <: Rep: Type](regex: Regex[F], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[SingletonOptionType[F][R], C], L, ?] = {
-      regex.tidyFunction match {
-        case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
-          case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[SingletonOptionType[F][R], C], L, b] {
-            override def apply(chains: CCons[SingletonOptionType[F][R], C], leaves: L)(using Quotes): Expr[b] = {
-              val opt = '{
-                ${ chains.head }.value.map { value =>
-                  ${ tidy('value) }
-                }
+    private def flattenOpt[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type, A, C <: Chains, L <: Leaves](tidy: TidyFunction[F[R], A], nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[SingletonOptionType[F][R], C], L, ?] = {
+      given Type[A] = tidy.tpe
+
+      nodes.flattenFunction(TCons(Type.of[Option[A]], types)) match {
+        case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[SingletonOptionType[F][R], C], L, b] {
+          override def apply(chains: CCons[SingletonOptionType[F][R], C], leaves: L)(using Quotes): Expr[b] = {
+            val opt = '{
+              ${ chains.head }.value.map { value =>
+                ${ tidy('value) }
               }
-              flatten(chains.tail, LCons(opt, leaves))
             }
+            flatten(chains.tail, LCons(opt, leaves))
           }
         }
       }
