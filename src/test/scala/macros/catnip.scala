@@ -104,6 +104,35 @@ class CatnipUnitTests extends AnyFlatSpec {
     "b" should matchPattern { case r(Some("b")) => }
   }
 
+  it should "match alternative with optional capture groups on both sides" in {
+    val r = r"(a)?|(b)?"
+    "a" should matchPattern { case r(Some(Left("a"))) => }
+    "b" should matchPattern { case r(Some(Right("b"))) => }
+    "" should matchPattern { case r(None) => }
+  }
+
+  it should "match alternative with optional capture group on the left and non-optional on the right" in {
+    val r = r"(a)?|(b)"
+    "a" should matchPattern { case r(Some(Left("a"))) => }
+    "b" should matchPattern { case r(Some(Right("b"))) => }
+    "" should matchPattern { case r(None) => }
+  }
+
+  it should "match alternative with non-optional capture group on the left and optional on the right" in {
+    val r = r"(a)|(b)?"
+    "a" should matchPattern { case r(Some(Left("a"))) => }
+    "b" should matchPattern { case r(Some(Right("b"))) => }
+    "" should matchPattern { case r(None) => }
+  }
+
+  it should "match 4-way alternative with no capture groups in the middle" in {
+    val r = r"(a)|b|c|(d)"
+    "a" should matchPattern { case r(Some(Left("a"))) => }
+    "b" should matchPattern { case r(None) => }
+    "c" should matchPattern { case r(None) => }
+    "d" should matchPattern { case r(Some(Right("d"))) => }
+  }
+
   it should "allow non-capturing groups" in {
     val r = r"(?:a)"
     "a" should matchPattern { case r(()) => }
@@ -113,13 +142,6 @@ class CatnipUnitTests extends AnyFlatSpec {
     val r = r"(?:(a)(b))?"
     "ab" should matchPattern { case r(Some("a", "b")) => }
     "" should matchPattern { case r(None) => }
-  }
-
-  it should "match optional capture groups inside alternative" in {
-    val r = r"(a)?|(b)?"
-    "a" should matchPattern { case r(Some(Left("a"))) => }
-    "b" should matchPattern { case r(Some(Right(Some("b")))) => }
-    "" should matchPattern { case r(None | Some(Right(None))) => }
   }
 
   it should "match alternative capture groups inside optional" in {
