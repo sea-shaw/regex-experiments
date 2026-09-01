@@ -117,9 +117,9 @@ class CatnipUnitTests extends AnyFlatSpec {
 
   it should "match optional capture groups inside alternative" in {
     val r = r"(a)?|(b)?"
-    "a" should matchPattern { case r(Left(Some("a"))) => }
-    "b" should matchPattern { case r(Right(Some("b"))) => }
-    "" should matchPattern { case r(Left(None)) | r(Right(None)) => }
+    "a" should matchPattern { case r(Some(Left("a"))) => }
+    "b" should matchPattern { case r(Some(Right(Some("b")))) => }
+    "" should matchPattern { case r(None | Some(Right(None))) => }
   }
 
   it should "match alternative capture groups inside optional" in {
