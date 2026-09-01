@@ -69,7 +69,7 @@ object ast {
     protected case class LCons[A, L <: Leaves](head: Expr[A], tail: L) extends Leaves
 
     abstract class TidyFunction[A <: HChain, B](using val tpe: Type[B]) {
-      def apply(xs: Expr[A])(using Quotes): Expr[B]
+      def apply(chain: Expr[A])(using Quotes): Expr[B]
     }
 
     object TidyFunction {
@@ -97,7 +97,9 @@ object ast {
     sealed trait HNonEmptyType[F[_ <: Rep] <: HNonEmpty] extends NodeType[F]
 
     type SingletonOptionType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
-    sealed trait SingletonOption[F[_ <: Rep] <: HNonEmpty](using val innerType: Type[F]) extends HNonEmptyType[SingletonOptionType[F]]
+    sealed trait SingletonOption[F[_ <: Rep] <: HNonEmpty](using val innerType: Type[F]) extends HNonEmptyType[SingletonOptionType[F]] {
+      def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?]
+    }
 
     sealed abstract class Regex[F[_ <: Rep] <: HChain] {
       val nodeType: NodeType[F]
@@ -108,8 +110,8 @@ object ast {
       final def tidyFunction[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = {
         flattenFunction(NNil, TNil) match {
           case flatten @ FlattenFunction(given Type[a]) => new TidyFunction[F[R], a] {
-            override def apply(xs: Expr[F[R]])(using Quotes): Expr[a] = {
-              flatten(CCons(xs, CNil), LNil)
+            override def apply(chain: Expr[F[R]])(using Quotes): Expr[a] = {
+              flatten(CCons(chain, CNil), LNil)
             }
           }
         }
@@ -390,23 +392,52 @@ object ast {
 
     /* (A)|B */
     type AltLeftType = SingletonOptionType
-    case class AltLeft[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[AltLeftType[F]]) extends AltType[F, Const[HEmpty], AltLeftType[F]] with SingletonOption[F]
+    case class AltLeft[F[_ <: Rep] <: HNonEmpty]()(left: Regex[F])(using Type[F], Type[AltLeftType[F]]) extends AltType[F, Const[HEmpty], AltLeftType[F]] with SingletonOption[F] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = left.tidyFunction
+    }
 
     /* A|(B) */
     type AltRightType = SingletonOptionType
-    case class AltRight[G[_ <: Rep] <: HNonEmpty]()(using Type[G], Type[AltRightType[G]]) extends AltType[Const[HEmpty], G, AltRightType[G]] with SingletonOption[G]
+    case class AltRight[G[_ <: Rep] <: HNonEmpty]()(right: Regex[G])(using Type[G], Type[AltRightType[G]]) extends AltType[Const[HEmpty], G, AltRightType[G]] with SingletonOption[G] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[G[R], ?] = right.tidyFunction
+    }
 
     /* (A)?|B */
     type AltLeftOptionType = SingletonOptionType
-    case class AltLeftOption[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[AltLeftOptionType[F]]) extends AltType[AltLeftOptionType[F], Const[HEmpty], AltLeftOptionType[F]] with SingletonOption[F]
+    case class AltLeftOption[F[_ <: Rep] <: HNonEmpty]()(leftType: SingletonOption[F])(using Type[F], Type[AltLeftOptionType[F]]) extends AltType[AltLeftOptionType[F], Const[HEmpty], AltLeftOptionType[F]] with SingletonOption[F] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = leftType.tidyInner
+    }
 
     /* A|(B)? */
     type AltRightOptionType = SingletonOptionType
-    case class AltRightOption[G[_ <: Rep] <: HNonEmpty]()(using Type[G], Type[AltRightOptionType[G]]) extends AltType[Const[HEmpty], AltRightOptionType[G], AltRightOptionType[G]] with SingletonOption[G]
+    case class AltRightOption[G[_ <: Rep] <: HNonEmpty]()(rightType: SingletonOption[G])(using Type[G], Type[AltRightOptionType[G]]) extends AltType[Const[HEmpty], AltRightOptionType[G], AltRightOptionType[G]] with SingletonOption[G] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[G[R], ?] = rightType.tidyInner
+    }
 
     /* (A)?|(B) */
     type AltBothLeftOptionType[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[AltSingleton[F, G][R]]]
-    case class AltBothLeftOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty](left: Type[F])(using Type[AltBothLeftOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[SingletonOptionType[F], G, AltBothLeftOptionType[F, G]] with SingletonOption[AltSingleton[F, G]]
+    case class AltBothLeftOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty](left: Type[F])(leftType: SingletonOption[F], right: Regex[G])(using Type[AltBothLeftOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[SingletonOptionType[F], G, AltBothLeftOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
+      override def tidyInner[R <: Rep: Type](using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
+        given Type[F] = left
+        given Type[G] = right.nodeType.tpe
+        given Type[InclusiveOr] = inclusiveOrType
+
+        (leftType.tidyInner, right.tidyFunction) match {
+          case (tidyLeft @ TidyFunction(given Type[a]), tidyRight @ TidyFunction(given Type[b])) => rep match {
+            case RepFalse => new TidyFunction[AltSingleton[F, G][R], Either[a, b]] {
+              override def apply(chain: Expr[AltSingleton[F, G][R]])(using Quotes): Expr[Either[a, b]] = {
+                '{ $chain.value.bimap(left => ${ tidyLeft('left) }, right => ${ tidyRight('right) }) }
+              }
+            }
+            case RepTrue => new TidyFunction[AltSingleton[F, G][R], InclusiveOr[a, b]] {
+              override def apply(chain: Expr[AltSingleton[F, G][R]])(using Quotes): Expr[InclusiveOr[a, b]] = {
+                bimap(tidyLeft(_), tidyRight(_))('{ $chain.value })
+              }
+            }
+          }
+        }
+      }
+    }
 
     /* (A)|(B)? */
     /* (A)?|(B)? */
@@ -477,8 +508,17 @@ object ast {
           case AltRight()       => flattenOpt(right, nodes, types)
           case AltLeftOption()  => left.flattenFunction(nodes, types)
           case AltRightOption() => right.flattenFunction(nodes, types)
-          case AltBothLeftOption(_) => ???
-          case AltBoth()        => (left.tidyFunction, right.tidyFunction) match {
+          case altBothLeftOption @ AltBothLeftOption(given Type[f]) => altBothLeftOption.tidyInner match {
+            case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
+              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[H[R], C], L, b] {
+                override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[b] = {
+                  val alt = '{ ${ chains.head }.value.map(node => ${ tidy('node) }) }
+                  flatten(chains.tail, LCons(alt, leaves))
+                }
+              }
+            }
+          }
+          case AltBoth() => (left.tidyFunction, right.tidyFunction) match {
             case (tidyLeft @ TidyFunction(given Type[a]), tidyRight @ TidyFunction(given Type[b])) => rep match {
               case RepFalse => nodes.flattenFunction(TCons(Type.of[Either[a, b]], types)) match {
                 case flatten @ FlattenFunction(given Type[c]) => new FlattenFunction[CCons[H[R], C], L, c] {
@@ -512,28 +552,34 @@ object ast {
 
     object Alt {
       def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Alt[F, G, ?] = {
+        given Type[InclusiveOr] = inclusiveOrType
+
         val nodeType: AltType[F, G, ?] = (left.nodeType, right.nodeType) match {
           case (_: HEmptyType, _: HEmptyType) => AltEmpty()
           case (leftType: SingletonOption[f], _: HEmptyType) => {
             given Type[f] = leftType.innerType
-            AltLeftOption()
+            AltLeftOption()(leftType)
           }
           case (_: HEmptyType, rightType: SingletonOption[g]) => {
             given Type[g] = rightType.innerType
-            AltRightOption()
+            AltRightOption()(rightType)
           }
           case (leftType: HNonEmptyType[f], _: HEmptyType) => {
             given Type[f] = leftType.tpe
-            AltLeft()
+            AltLeft()(left)
           }
           case (_: HEmptyType, rightType: HNonEmptyType[g]) => {
             given Type[g] = rightType.tpe
-            AltRight()
+            AltRight()(right)
+          }
+          case (leftType: SingletonOption[f], rightType: HNonEmptyType[g]) => {
+            given Type[f] = leftType.innerType
+            given Type[g] = rightType.tpe
+            AltBothLeftOption(leftType.innerType)(leftType, right)
           }
           case (leftType: HNonEmptyType[f], rightType: HNonEmptyType[g]) => {
             given Type[f] = leftType.tpe
             given Type[g] = rightType.tpe
-            given Type[InclusiveOr] = inclusiveOrType
             AltBoth()
           }
         }
@@ -548,11 +594,15 @@ object ast {
 
     /* (A)? */
     type OptSingletonType = SingletonOptionType
-    case class OptSingleton[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[OptSingletonType[F]]) extends OptType[F, OptSingletonType[F]] with SingletonOption[F]
+    case class OptSingleton[F[_ <: Rep] <: HNonEmpty]()(inner: Regex[F])(using Type[F], Type[OptSingletonType[F]]) extends OptType[F, OptSingletonType[F]] with SingletonOption[F] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = inner.tidyFunction
+    }
 
     /* (A?)? */
     type OptNestedType = SingletonOptionType
-    case class OptNested[F[_ <: Rep] <: HNonEmpty]()(using Type[F], Type[OptNestedType[F]]) extends OptType[OptNestedType[F], OptNestedType[F]] with SingletonOption[F]
+    case class OptNested[F[_ <: Rep] <: HNonEmpty]()(innerType: SingletonOption[F])(using Type[F], Type[OptNestedType[F]]) extends OptType[OptNestedType[F], OptNestedType[F]] with SingletonOption[F] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = innerType.tidyInner
+    }
 
     case class Opt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(override val nodeType: OptType[F, G]) extends Regex[G] {
       given Type[F] = inner.nodeType.tpe
@@ -589,11 +639,11 @@ object ast {
           case _: HEmptyType => OptEmpty()
           case singletonOption: SingletonOption[f] => {
             given Type[f] = singletonOption.innerType
-            OptNested()
+            OptNested()(singletonOption)
           }
           case nonEmpty: HNonEmptyType[f] => {
             given Type[f] = nonEmpty.tpe
-            OptSingleton()
+            OptSingleton()(inner)
           }
         }
         new Opt(inner, quantifierType)(nodeType)
@@ -666,15 +716,20 @@ object ast {
 
     sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
     case class Rep0Empty()(using Type[Const[HEmpty]]) extends Rep0Type[Const[HEmpty], Const[HEmpty]] with HEmptyType
+
+    // TODO: Rep0Nested
+
     type Rep0NonEmptyType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[true]]]
-    case class Rep0NonEmpty[F[_ <: Rep] <: HNonEmpty]()(using Type[Const[F[true]]], Type[Rep0NonEmptyType[F]]) extends Rep0Type[F, Rep0NonEmptyType[F]] with SingletonOption[Const[F[true]]]
+    case class Rep0NonEmpty[F[_ <: Rep] <: HNonEmpty]()(inner: Regex[F])(using Type[Const[F[true]]], Type[Rep0NonEmptyType[F]]) extends Rep0Type[F, Rep0NonEmptyType[F]] with SingletonOption[Const[F[true]]] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[true], ?] = inner.tidyFunction(using RepTrue)
+    }
 
     object Rep0Type {
-      def apply[F[_ <: Rep] <: HChain](innerType: NodeType[F])(using Quotes): Rep0Type[F, ?] = {
-        given Type[F] = innerType.tpe
-        innerType match {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep0Type[F, ?] = {
+        given Type[F] = inner.nodeType.tpe
+        inner.nodeType match {
           case _: HEmptyType       => Rep0Empty()
-          case _: HNonEmptyType[_] => Rep0NonEmpty()
+          case _: HNonEmptyType[_] => Rep0NonEmpty()(inner)
         }
       }
     }
@@ -703,7 +758,7 @@ object ast {
     case class Star[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(nodeType: Rep0Type[F, G]) extends Rep0[F, G](inner)(nodeType)
     object Star {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes) = {
-        new Star(inner, quantifierType)(Rep0Type(inner.nodeType))
+        new Star(inner, quantifierType)(Rep0Type(inner))
       }
     }
 
@@ -711,7 +766,7 @@ object ast {
     case class AtMost[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: Rep0Type[F, G]) extends Rep0[F, G](inner)(nodeType)
     object AtMost {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes) = {
-        new AtMost(inner, n, quantifierType)(Rep0Type(inner.nodeType))
+        new AtMost(inner, n, quantifierType)(Rep0Type(inner))
       }
     }
 
