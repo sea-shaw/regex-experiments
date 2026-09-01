@@ -478,15 +478,16 @@ object ast {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using rep: RepType[R])(using Quotes): SanitiseExpr[H[R]] = {
         given Type[InclusiveOr] = inclusiveOrType
 
+        lazy val sanitisedLeft = left.sanitiseCode(groups, i)
+        lazy val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
+
         nodeType match {
           case AltEmpty()       => sanitiseEmpty
-          case AltLeft()        => sanitiseOpt(left, groups, i)
-          case AltRight()       => sanitiseOpt(right, groups, i + left.numCaptures)
+          case AltLeft()        => sanitiseOpt(left.sanitiseCode(groups, i))
+          case AltRight()       => sanitiseOpt(right.sanitiseCode(groups, i + left.numCaptures))
           case AltLeftOption()  => left.sanitiseCode(groups, i)
           case AltRightOption() => right.sanitiseCode(groups, i + left.numCaptures)
           case AltBothOption(given Type[f], given Type[g]) => {
-            val sanitisedLeft = left.sanitiseCode(groups, i)
-            val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
             rep match {
               case RepFalse => '{
                 val left = $sanitisedLeft.map(_.value.map(_.asLeft[g[R]].singleton))
@@ -829,7 +830,7 @@ object ast {
       override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
         nodeType match {
           case Rep0Empty()    => sanitiseEmpty
-          case Rep0NonEmpty() => sanitiseOpt(inner, groups, i)(using RepTrue)
+          case Rep0NonEmpty() => sanitiseOpt(inner.sanitiseCode(groups, i)(using RepTrue))
         }
       }
 
@@ -856,8 +857,7 @@ object ast {
       }
     }
 
-    private def sanitiseOpt[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](regex: Regex[F], groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[SingletonOptionType[F][R]] = {
-      val sanitised = regex.sanitiseCode(groups, i)
+    private def sanitiseOpt[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](sanitised: SanitiseExpr[F[R]])(using Quotes): SanitiseExpr[SingletonOptionType[F][R]] = {
       '{
         val caps = $sanitised
         SanitisedT(Some(caps.value.sequence.map(HSingleton(_))))
