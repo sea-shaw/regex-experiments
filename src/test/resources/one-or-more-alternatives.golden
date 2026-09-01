@@ -24,10 +24,7 @@
           case Sanitised(captures, _) =>
             {
               val node: HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]] = captures
-              Tuple2.apply[String, Ior[String, String]](node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]].left.value, {
-                val alt: Ior[HSingleton[String], HSingleton[String]] = node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]].right.$asInstanceOf$[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]].value
-                alt.bimap[String, String](((`left₃`: HSingleton[String]) => `left₃`.$asInstanceOf$[HSingleton[String]].value), ((`right₃`: HSingleton[String]) => `right₃`.$asInstanceOf$[HSingleton[String]].value))
-              })
+              Tuple2.apply[String, Ior[String, String]](node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]].left.value, node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]].right.value.bimap[String, String](((`left₃`: HSingleton[String]) => `left₃`.$asInstanceOf$[HSingleton[String]].value), ((`right₃`: HSingleton[String]) => `right₃`.$asInstanceOf$[HSingleton[String]].value)))
             }
         }))
       } else None

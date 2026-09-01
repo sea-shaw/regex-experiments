@@ -590,30 +590,11 @@ object ast {
               }
             }
           }
-          case AltBoth() => (left.tidyFunction, right.tidyFunction) match {
-            case (tidyLeft @ TidyFunction(given Type[a]), tidyRight @ TidyFunction(given Type[b])) => rep match {
-              case RepFalse => nodes.flattenFunction(TCons(Type.of[Either[a, b]], types)) match {
-                case flatten @ FlattenFunction(given Type[c]) => new FlattenFunction[CCons[H[R], C], L, c] {
-                  override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[c] = {
-                    val alt = '{
-                      ${ chains.head }.value.bimap(
-                        left => ${ tidyLeft('left) },
-                        right => ${ tidyRight('right) }
-                      )
-                    }
-                    flatten(chains.tail, LCons(alt, leaves))
-                  }
-                }
-              }
-              case RepTrue => nodes.flattenFunction(TCons(Type.of[InclusiveOr[a, b]], types)) match {
-                case flatten @ FlattenFunction(given Type[c]) => new FlattenFunction[CCons[H[R], C], L, c] {
-                  override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[c] = {
-                    val alt = '{
-                      val alt = ${ chains.head }.value
-                      ${ bimap(tidyLeft(_), tidyRight(_))('alt) }
-                    }
-                    flatten(chains.tail, LCons(alt, leaves))
-                  }
+          case AltBoth() => tidyAlt(left.tidyFunction, right.tidyFunction) match {
+            case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[a], types)) match {
+              case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[H[R], C], L, b] {
+                override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[b] = {
+                  flatten(chains.tail, LCons(tidy(chains.head), leaves))
                 }
               }
             }
