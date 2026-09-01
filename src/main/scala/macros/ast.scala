@@ -326,13 +326,14 @@ object ast {
       override val numCaptures: Int = left.numCaptures + right.numCaptures
 
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[H[R]] = {
+        lazy val sanitisedLeft = left.sanitiseCode(groups, i)
+        lazy val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
+
         nodeType match {
           case CatEmpty() => sanitiseEmpty
-          case CatLeft()  => left.sanitiseCode(groups, i)
-          case CatRight() => right.sanitiseCode(groups, i + left.numCaptures)
+          case CatLeft()  => sanitisedLeft
+          case CatRight() => sanitisedRight
           case CatBoth()  => {
-            val sanitisedLeft = left.sanitiseCode(groups, i)
-            val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
             '{
               for {
                 left <- $sanitisedLeft
@@ -698,11 +699,12 @@ object ast {
       override val numCaptures: Int = inner.numCaptures
 
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
+        lazy val sanitisedInner = inner.sanitiseCode(groups, i)
+
         nodeType match {
           case OptEmpty() => sanitiseEmpty
-          case OptNested() => inner.sanitiseCode(groups, i)
+          case OptNested() => sanitisedInner
           case OptSingleton() => {
-            val sanitisedInner = inner.sanitiseCode(groups, i)
             '{
               val innerCaps = $sanitisedInner
               SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
