@@ -504,8 +504,6 @@ object ast {
             }
           }
           case AltBothLeftOption(given Type[f]) => {
-            val sanitisedLeft = left.sanitiseCode(groups, i)
-            val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
             rep match {
               case RepFalse => '{
                 val left = $sanitisedLeft.map(_.value.map(_.asLeft[G[R]].singleton))
@@ -521,8 +519,6 @@ object ast {
             }
           }
           case AltBothRightOption(given Type[g]) => {
-            val sanitisedLeft = left.sanitiseCode(groups, i)
-            val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
             rep match {
               case RepFalse => '{
                 val left = $sanitisedLeft.map(_.asLeft[g[R]].singleton.some)
@@ -537,9 +533,7 @@ object ast {
               }
             }
           }
-          case AltBoth()        => {
-            val sanitisedLeft = left.sanitiseCode(groups, i)
-            val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
+          case AltBoth() => {
             rep match {
               case RepFalse => '{
                 val left = $sanitisedLeft.map(_.asLeft[G[R]])
