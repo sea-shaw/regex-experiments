@@ -10,4 +10,8 @@ object hchain {
 
   case class HSingleton[+A](value: A) extends HNonEmpty
   case class HAppend[+A <: HNonEmpty, +B <: HNonEmpty](left: A, right: B) extends HNonEmpty
+
+  extension [A] (x: A) {
+    def singleton: HSingleton[A] = HSingleton(x)
+  }
 }
