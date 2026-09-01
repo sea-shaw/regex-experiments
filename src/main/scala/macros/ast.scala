@@ -484,10 +484,10 @@ object ast {
 
         nodeType match {
           case AltEmpty()       => sanitiseEmpty
-          case AltLeft()        => sanitiseOpt(left.sanitiseCode(groups, i))
-          case AltRight()       => sanitiseOpt(right.sanitiseCode(groups, i + left.numCaptures))
-          case AltLeftOption()  => left.sanitiseCode(groups, i)
-          case AltRightOption() => right.sanitiseCode(groups, i + left.numCaptures)
+          case AltLeft()        => sanitiseOpt(sanitisedLeft)
+          case AltRight()       => sanitiseOpt(sanitisedRight)
+          case AltLeftOption()  => sanitisedLeft
+          case AltRightOption() => sanitisedRight
           case AltBothOption(given Type[f], given Type[g]) => {
             rep match {
               case RepFalse => '{
