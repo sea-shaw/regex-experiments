@@ -754,9 +754,12 @@ object ast {
     sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
     case class Rep0Empty()(using Type[Const[HEmpty]]) extends Rep0Type[Const[HEmpty], Const[HEmpty]] with HEmptyType
 
-    // TODO: Rep0Nested
+    type Rep0OptType[F[_ <: Rep] <: HNonEmpty] = SingletonOptionType[Const[F[true]]]
+    case class Rep0Opt[F[_ <: Rep] <: HNonEmpty]()(innerType: SingletonOption[F])(using Type[Const[F[true]]], Type[Rep0OptType[F]]) extends Rep0Type[SingletonOptionType[F], Rep0OptType[F]] with SingletonOption[Const[F[true]]] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[true], ?] = innerType.tidyInner(using RepTrue)
+    }
 
-    type Rep0NonEmptyType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[true]]]
+    type Rep0NonEmptyType[F[_ <: Rep] <: HNonEmpty] = SingletonOptionType[Const[F[true]]]
     case class Rep0NonEmpty[F[_ <: Rep] <: HNonEmpty]()(inner: Regex[F])(using Type[Const[F[true]]], Type[Rep0NonEmptyType[F]]) extends Rep0Type[F, Rep0NonEmptyType[F]] with SingletonOption[Const[F[true]]] {
       override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[true], ?] = inner.tidyFunction(using RepTrue)
     }
@@ -765,7 +768,11 @@ object ast {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep0Type[F, ?] = {
         given Type[F] = inner.nodeType.tpe
         inner.nodeType match {
-          case _: HEmptyType       => Rep0Empty()
+          case _: HEmptyType => Rep0Empty()
+          case option: SingletonOption[f] => {
+            given Type[f] = option.innerType
+            Rep0Opt()(option)
+          }
           case _: HNonEmptyType[_] => Rep0NonEmpty()(inner)
         }
       }
@@ -780,6 +787,7 @@ object ast {
       override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
         nodeType match {
           case Rep0Empty()    => sanitiseEmpty
+          case Rep0Opt() => inner.sanitiseCode(groups, i)(using RepTrue)
           case Rep0NonEmpty() => sanitiseOpt(inner.sanitiseCode(groups, i)(using RepTrue))
         }
       }
@@ -787,6 +795,7 @@ object ast {
       override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
         nodeType match {
           case Rep0Empty()    => flattenEmpty(nodes, types)
+          case Rep0Opt()      => inner.flattenFunction(nodes, types)(using RepTrue)
           case Rep0NonEmpty() => flattenOpt(inner.tidyFunction(using RepTrue), nodes, types)
         }
       }
