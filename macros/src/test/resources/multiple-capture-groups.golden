@@ -5,22 +5,22 @@
       val m: (Matcher)? = $anon.this.pattern.matcher(s)
       if (m.matches()) {
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
-        val sanitised: SanitisedT[[A >: Nothing <: Any] =>> Option[A], HConcat[HConcat[HCons[String, HEmpty], HCons[String, HEmpty]], HCons[String, HEmpty]]] = toFlatMapOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HConcat[HCons[String, HEmpty], HCons[String, HEmpty]]](toFlatMapOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HCons[String, HEmpty]]({
+        val sanitised: SanitisedT[[A >: Nothing <: Any] =>> Option[A], HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]] = toFlatMapOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HAppend[HSingleton[String], HSingleton[String]]](toFlatMapOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HSingleton[String]]({
           val `sanitised₂`: Option[Sanitised[HSingleton[String]]] = groups.apply(0).map[Sanitised[HSingleton[String]]](((`s₂`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₂`), true)))
           SanitisedT.apply[Option, HSingleton[String]](`sanitised₂`)
-        })(given_Monad_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).flatMap[HAppend[HCons[String, HEmpty], HCons[String, HEmpty]]](((left: HCons[String, HEmpty]) => toFunctorOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HCons[String, HEmpty]]({
+        })(given_Monad_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).flatMap[HAppend[HSingleton[String], HSingleton[String]]](((left: HSingleton[String]) => toFunctorOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HSingleton[String]]({
           val `sanitised₃`: Option[Sanitised[HSingleton[String]]] = groups.apply(1).map[Sanitised[HSingleton[String]]](((`s₃`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₃`), true)))
           SanitisedT.apply[Option, HSingleton[String]](`sanitised₃`)
-        })(given_Functor_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).map[HAppend[HCons[String, HEmpty], HCons[String, HEmpty]]](((right: HCons[String, HEmpty]) => HAppend.apply[HCons[String, HEmpty], HCons[String, HEmpty]](left, right))))))(given_Monad_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).flatMap[HAppend[HConcat[HCons[String, HEmpty], HCons[String, HEmpty]], HCons[String, HEmpty]]](((`left₂`: HConcat[HCons[String, HEmpty], HCons[String, HEmpty]]) => toFunctorOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HCons[String, HEmpty]]({
+        })(given_Functor_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).map[HAppend[HSingleton[String], HSingleton[String]]](((right: HSingleton[String]) => HAppend.apply[HSingleton[String], HSingleton[String]](left, right).$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]])))))(given_Monad_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).flatMap[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]](((`left₂`: HAppend[HSingleton[String], HSingleton[String]]) => toFunctorOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HSingleton[String]]({
           val `sanitised₄`: Option[Sanitised[HSingleton[String]]] = groups.apply(2).map[Sanitised[HSingleton[String]]](((`s₄`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₄`), true)))
           SanitisedT.apply[Option, HSingleton[String]](`sanitised₄`)
-        })(given_Functor_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).map[HAppend[HConcat[HCons[String, HEmpty], HCons[String, HEmpty]], HCons[String, HEmpty]]](((`right₂`: HCons[String, HEmpty]) => HAppend.apply[HConcat[HCons[String, HEmpty], HCons[String, HEmpty]], HCons[String, HEmpty]](`left₂`, `right₂`)))))
-        sanitised.value.map[Tuple3[String, String, String]](((x$1: Sanitised[HConcat[HConcat[HCons[String, HEmpty], HCons[String, HEmpty]], HCons[String, HEmpty]]]) => x$1 match {
+        })(given_Functor_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).map[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]](((`right₂`: HSingleton[String]) => HAppend.apply[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]](`left₂`, `right₂`).$asInstanceOf$[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]]))))
+        sanitised.value.map[Tuple3[String, String, String]](((x$1: Sanitised[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]]) => x$1 match {
           case Sanitised(captures, _) =>
             {
-              val node: HAppend[HConcat[HCons[String, HEmpty], HCons[String, HEmpty]], HCons[String, HEmpty]] = captures
-              val `node₂`: HAppend[HCons[String, HEmpty], HCons[String, HEmpty]] = node.left
-              Tuple3.apply[String, String, String](`node₂`.left.value, `node₂`.right.value, node.right.value)
+              val node: HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]] = captures
+              val `node₂`: HAppend[HSingleton[String], HSingleton[String]] = node.$asInstanceOf$[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]].left
+              Tuple3.apply[String, String, String](`node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].left.$asInstanceOf$[HSingleton[String]].value, `node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].right.$asInstanceOf$[HSingleton[String]].value, node.$asInstanceOf$[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]].right.$asInstanceOf$[HSingleton[String]].value)
             }
         }))
       } else None

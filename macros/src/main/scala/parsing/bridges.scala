@@ -82,15 +82,15 @@ object bridges {
   }
 
   object Star extends PureParserBridge2[ToRegex, QuantifierType, ToRegex] {
-    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex = ast.Star(inner, quantifierType)
+    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex =  ast.Star(inner, quantifierType)
   }
 
   object Plus extends PureParserBridge2[ToRegex, QuantifierType, ToRegex] {
-    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex = ast.Plus(inner, quantifierType)
+    override def apply(inner: ToRegex, quantifierType: QuantifierType): ToRegex =  ast.Plus(inner, quantifierType)
   }
 
   object NumericalQuantifier {
-    def apply(start: Parsley[Int], end: Parsley[Option[Option[Int]]]): Parsley[(ToRegex, QuantifierType) => ToRegex] = (start <~> end).mapFilterMsg {
+    def apply(start: Parsley[Int], end: Parsley[Option[Option[Int]]]): Parsley[(ToRegex, QuantifierType) => ToRegex] =  (start <~> end).mapFilterMsg {
       case (0, None | Some(Some(0))) => Right((toRegex, _) => ast.Zero(toRegex))
       case (1, None | Some(Some(1))) => Right((toRegex, _) => toRegex)
       case (n, None)                 => Right(ast.Exactly(_, n, _))

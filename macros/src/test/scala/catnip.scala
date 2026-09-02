@@ -48,6 +48,12 @@ class CatnipUnitTests extends AnyFlatSpec {
     "ab" should matchPattern { case r(Some("ab", Some("b"))) => }
   }
 
+  it should "match optional capture group inside optional non-capture group" in {
+    val r = r"(?:(a)?)?"
+    "" should matchPattern { case r(None) => }
+    "a" should matchPattern { case r(Some("a")) => }
+  }
+
   it should "match star capture groups" in {
     val r = r"(a)*"
     "aaaa" should matchPattern { case r(Some("a")) => }
@@ -55,7 +61,7 @@ class CatnipUnitTests extends AnyFlatSpec {
   }
 
   it should "match alternative patterns" in {
-    val r = r"a|b" // TODO: Make type `Unit` instead of `Either[Unit, Unit]`
+    val r = r"a|b"
      "a" should matchPattern { case r(()) => }
      "b" should matchPattern { case r(()) => }
   }
@@ -68,8 +74,8 @@ class CatnipUnitTests extends AnyFlatSpec {
 
   it should "match alternative patterns with capture groups on one side" in {
     val r = r"(a)|b"
-    "a" should matchPattern { case r(Left("a")) => }
-    "b" should matchPattern { case r(Right(())) => }
+    "a" should matchPattern { case r(Some("a")) => }
+    "b" should matchPattern { case r(None) => }
   }
 
   it should "match alternatives with multiple capture groups on either side" in {
@@ -84,6 +90,18 @@ class CatnipUnitTests extends AnyFlatSpec {
     "b" should matchPattern { case r(Right(Left("b"))) => }
     "c" should matchPattern { case r(Right(Right(Left("c")))) => }
     "d" should matchPattern { case r(Right(Right(Right("d")))) => }
+  }
+
+  it should "match alternative with optional capture group on the left" in {
+    val r = r"(a)?|b"
+    "a" should matchPattern { case r(Some("a")) => }
+    "b" should matchPattern { case r(None) => }
+  }
+
+  it should "match alternative with optional capture group on the right" in {
+    val r = r"a|(b)?"
+    "a" should matchPattern { case r(None) => }
+    "b" should matchPattern { case r(Some("b")) => }
   }
 
   it should "allow non-capturing groups" in {

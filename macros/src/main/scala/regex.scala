@@ -1,9 +1,10 @@
 package experiments.macros
 
-import experiments.macros.ast.{AST, Rep, Sanitised}
+import experiments.macros.ast.{AST, Rep, RepFalse}
 import experiments.macros.hcollections.hchain.HChain
 import experiments.macros.parsing.errors.{Pos, PosError, PosErrorBuilder}
 import experiments.macros.parsing.parser.parse
+import experiments.macros.sanitised.Sanitised
 import java.util.regex.Pattern
 import parsley.{Failure, Success}
 import parsley.errors.ErrorBuilder
@@ -57,7 +58,7 @@ object regex {
           import quotes.reflect.{Printer, asTerm}
           val codeExpr = regexCode(exprStr, ast)(regex)
           val codeStr = codeExpr.asTerm.show(using Printer.TreeShortCode)
-          Expr(codeStr)
+          Expr(codeStr.replaceAll("_\\$\\d+", "_\\$"))
         }
         case Failure(err)   => Expr(err)
       }
@@ -65,25 +66,35 @@ object regex {
   }
 
   private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {      
-    given Type[F] = regex.tpe
+    given Type[F] = regex.nodeType.tpe
 
-    regex.tidyFunction[false] match {
-      case tidy @ ast.TidyFunction(given Type[a]) => '{
-        new Regex[a] {
+    regex.nodeType match {
+      case _: ast.HEmptyType => '{
+        new Regex[Unit] {
           private val pattern: Pattern = Pattern.compile($regexStr)
+          override def unapply(s: String): Option[Unit] = {
+            Option.when(pattern.matcher(s).matches)(())
+          }
+        }
+      }
+      case _: ast.HNonEmptyType[_] => regex.tidyFunction(using RepFalse) match {
+        case tidy @ ast.TidyFunction(given Type[a]) => '{
+          new Regex[a] {
+            private val pattern: Pattern = Pattern.compile($regexStr)
 
-          override def unapply(s: String): Option[a] = {
-            val m = pattern.matcher(s)
-            if (m.matches()) {
-              val groups = Array.tabulate(m.groupCount) {i =>
-                Option(m.group(i + 1))
+            override def unapply(s: String): Option[a] = {
+              val m = pattern.matcher(s)
+              if (m.matches()) {
+                val groups = Array.tabulate(m.groupCount) {i =>
+                  Option(m.group(i + 1))
+                }
+                val sanitised = ${ regex.sanitiseCode('groups, 0)(using RepFalse) }
+                sanitised.value.map { case Sanitised(captures, _) =>
+                  ${ tidy('captures) }
+                }
+              } else {
+                None
               }
-              val sanitised = ${ regex.sanitiseCode[false]('groups, 0) }
-              sanitised.value.map { case Sanitised(captures, _) =>
-                ${ tidy('captures) }
-              }
-            } else {
-              None
             }
           }
         }

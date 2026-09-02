@@ -42,7 +42,7 @@ object parser {
   private lazy val boundary = (LineStart from '^') | (LineEnd from '$')
 
   private lazy val quantified: Parsley[ToRegex] = quantifiable <~> option(postfixOps <~> quantifierType) map {
-    case (regex, None)          => regex
+    case (regex, None)                 => regex
     case (regex, Some(postfix, qType)) => postfix(regex, qType)
   }
   private lazy val quantifiable = choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
