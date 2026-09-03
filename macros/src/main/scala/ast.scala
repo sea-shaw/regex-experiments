@@ -209,12 +209,27 @@ object ast {
       }
     }
 
-    sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
+    sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G] {
+      def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes, Type[F]): Expr[SanitisedT[Option, G[R]]]
+    }
     type CapturingSingletonType = Const[HSingleton[String]]
-    case class CapturingSingleton()(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType]
+    case class CapturingSingleton()(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
+      override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, Const[HEmpty][R]]])(using Quotes, Type[Const[HEmpty]]): Expr[SanitisedT[Option, HSingleton[String]]] = {
+        sanitisedCapture
+      }
+    }
 
     type CapturingAppendType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[HSingleton[String], F[R]]
-    case class CapturingAppend[F[_ <: Rep] <: HNonEmpty]()(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]]
+    case class CapturingAppend[F[_ <: Rep] <: HNonEmpty]()(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]] {
+      override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes, Type[F]): Expr[SanitisedT[Option, HAppend[HSingleton[String], F[R]]]] = {
+        '{
+          for {
+            capture <- $sanitisedCapture
+            inner <- $sanitisedInner
+          } yield HAppend(capture, inner)
+        }
+      }
+    }
 
     object CapturingType {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): CapturingType[F, ?] = {
@@ -240,20 +255,8 @@ object ast {
           SanitisedT(sanitised)
         }
 
-        nodeType match {
-          case CapturingSingleton() => sanitisedCapture
-          case CapturingAppend()    => {
-            val sanitisedInner = inner.sanitiseCode(groups, i + 1)
-            '{
-              for {
-                capture <- $sanitisedCapture
-                inner <- $sanitisedInner
-              } yield HAppend(capture, inner)
-            }
-          }
-        }
+        nodeType.sanitiseCode(sanitisedCapture, inner.sanitiseCode(groups, i + 1))
       }
-
       override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
         nodeType match {
           case CapturingSingleton() => nodes.flattenFunction(TCons(Type.of[String], types)) match {
