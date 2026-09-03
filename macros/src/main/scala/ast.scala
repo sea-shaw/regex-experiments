@@ -211,11 +211,23 @@ object ast {
 
     sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G] {
       def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes, Type[F]): Expr[SanitisedT[Option, G[R]]]
+      private [AST] def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](inner: Regex[F], nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R], Type[F]): FlattenFunction[CCons[G[R], C], L, ?]
     }
     type CapturingSingletonType = Const[HSingleton[String]]
     case class CapturingSingleton()(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
       override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, Const[HEmpty][R]]])(using Quotes, Type[Const[HEmpty]]): Expr[SanitisedT[Option, HSingleton[String]]] = {
         sanitisedCapture
+      }
+
+      override private [AST] def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](inner: Regex[Const[HEmpty]], nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R], Type[Const[HEmpty]]): FlattenFunction[CCons[HSingleton[String], C], L, ?] = {
+        nodes.flattenFunction(TCons(Type.of[String], types)) match {
+          case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HSingleton[String], C], L, a] {
+            override def apply(chains: CCons[HSingleton[String], C], leaves: L)(using Quotes): Expr[a] = {
+              val capture = '{ ${ chains.head }.value }
+              flatten(chains.tail, LCons(capture, leaves))
+            }
+          }
+        }
       }
     }
 
@@ -227,6 +239,19 @@ object ast {
             capture <- $sanitisedCapture
             inner <- $sanitisedInner
           } yield HAppend(capture, inner)
+        }
+      }
+
+      override private [AST] def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](inner: Regex[F], nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R], Type[F]): FlattenFunction[CCons[CapturingAppendType[F][R], C], L, ?] = {
+        inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
+          case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CapturingAppendType[F][R], C], L, a] {
+            override def apply(chains: CCons[CapturingAppendType[F][R], C], leaves: L)(using Quotes): Expr[a] = {
+              '{
+                val node = ${ chains.head }
+                ${ flatten(CCons('{ node.right }, chains.tail), LCons('{ node.left.value }, leaves)) }
+              }
+            }
+          }
         }
       }
     }
@@ -257,27 +282,9 @@ object ast {
 
         nodeType.sanitiseCode(sanitisedCapture, inner.sanitiseCode(groups, i + 1))
       }
+
       override private [AST] final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
-        nodeType match {
-          case CapturingSingleton() => nodes.flattenFunction(TCons(Type.of[String], types)) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[G[R], C], L, a] {
-              override def apply(chains: CCons[G[R], C], leaves: L)(using Quotes): Expr[a] = {
-                val capture = '{ ${ chains.head }.value }
-                flatten(chains.tail, LCons(capture, leaves))
-              }
-            }
-          }
-          case CapturingAppend() => inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[G[R], C], L, a] {
-              override def apply(chains: CCons[G[R], C], leaves: L)(using Quotes): Expr[a] = {
-                '{
-                  val node = ${ chains.head }
-                  ${ flatten(CCons('{ node.right }, chains.tail), LCons('{ node.left.value }, leaves)) }
-                }
-              }
-            }
-          }
-        }
+        nodeType.flattenFunction(inner, nodes, types)
       }
     }
 

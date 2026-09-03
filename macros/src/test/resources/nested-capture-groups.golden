@@ -19,8 +19,8 @@
           case Sanitised(captures, _) =>
             {
               val node: HAppend[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]] = captures
-              val `node₂`: HAppend[HSingleton[String], HSingleton[String]] = node.$asInstanceOf$[HAppend[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]].right
-              Tuple3.apply[String, String, String](node.$asInstanceOf$[HAppend[HSingleton[String], HAppend[HSingleton[String], HSingleton[String]]]].left.value, `node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].left.value, `node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].right.$asInstanceOf$[HSingleton[String]].value)
+              val `node₂`: HAppend[HSingleton[String], HSingleton[String]] = node.right
+              Tuple3.apply[String, String, String](node.left.value, `node₂`.left.value, `node₂`.right.value)
             }
         }))
       } else None

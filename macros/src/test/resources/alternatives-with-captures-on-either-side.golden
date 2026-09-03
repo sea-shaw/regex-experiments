@@ -26,10 +26,10 @@
           case Sanitised(captures, _) =>
             catsSyntaxEither[HAppend[HSingleton[String], HSingleton[String]], HAppend[HSingleton[String], HSingleton[String]]](captures.value.$asInstanceOf$[value & AltRep[[R >: Nothing <: Boolean] =>> HAppend[HSingleton[String], HSingleton[String]], [R >: Nothing <: Boolean] =>> HAppend[HSingleton[String], HSingleton[String]], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]] & Either[HAppend[HSingleton[String], HSingleton[String]], HAppend[HSingleton[String], HSingleton[String]]]]).bimap[Tuple2[String, String], Tuple2[String, String]](((`left₄`: HAppend[HSingleton[String], HSingleton[String]]) => {
               val node: HAppend[HSingleton[String], HSingleton[String]] = `left₄`
-              Tuple2.apply[String, String](node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].left.$asInstanceOf$[HSingleton[String]].value, node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].right.$asInstanceOf$[HSingleton[String]].value)
+              Tuple2.apply[String, String](node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].left.value, node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].right.value)
             }), ((`right₄`: HAppend[HSingleton[String], HSingleton[String]]) => {
               val `node₂`: HAppend[HSingleton[String], HSingleton[String]] = `right₄`
-              Tuple2.apply[String, String](`node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].left.$asInstanceOf$[HSingleton[String]].value, `node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].right.$asInstanceOf$[HSingleton[String]].value)
+              Tuple2.apply[String, String](`node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].left.value, `node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].right.value)
             }))
         }))
       } else None

@@ -24,7 +24,7 @@
           case Sanitised(captures, _) =>
             {
               val node: HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]] = captures
-              Tuple2.apply[String, Ior[String, String]](node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]].left.value, node.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]].right.value.bimap[String, String](((`left₂`: HSingleton[String]) => `left₂`.$asInstanceOf$[HSingleton[String]].value), ((`right₂`: HSingleton[String]) => `right₂`.$asInstanceOf$[HSingleton[String]].value)))
+              Tuple2.apply[String, Ior[String, String]](node.left.value, node.right.value.bimap[String, String](((`left₂`: HSingleton[String]) => `left₂`.value), ((`right₂`: HSingleton[String]) => `right₂`.value)))
             }
         }))
       } else None

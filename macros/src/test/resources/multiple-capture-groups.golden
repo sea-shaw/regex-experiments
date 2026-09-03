@@ -20,7 +20,7 @@
             {
               val node: HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]] = captures
               val `node₂`: HAppend[HSingleton[String], HSingleton[String]] = node.$asInstanceOf$[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]].left
-              Tuple3.apply[String, String, String](`node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].left.$asInstanceOf$[HSingleton[String]].value, `node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].right.$asInstanceOf$[HSingleton[String]].value, node.$asInstanceOf$[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]].right.$asInstanceOf$[HSingleton[String]].value)
+              Tuple3.apply[String, String, String](`node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].left.value, `node₂`.$asInstanceOf$[HAppend[HSingleton[String], HSingleton[String]]].right.value, node.$asInstanceOf$[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]].right.value)
             }
         }))
       } else None

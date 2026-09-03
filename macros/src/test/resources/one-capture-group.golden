@@ -11,7 +11,7 @@
         }
         sanitised.value.map[String](((x$1: Sanitised[HSingleton[String]]) => x$1 match {
           case Sanitised(captures, _) =>
-            captures.$asInstanceOf$[HSingleton[String]].value
+            captures.value
         }))
       } else None
     }

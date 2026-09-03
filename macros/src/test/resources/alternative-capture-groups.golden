@@ -18,7 +18,7 @@
         }
         sanitised.value.map[Either[String, String]](((x$1: Sanitised[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]) => x$1 match {
           case Sanitised(captures, _) =>
-            catsSyntaxEither[HSingleton[String], HSingleton[String]](captures.value.$asInstanceOf$[value & AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]] & Either[HSingleton[String], HSingleton[String]]]).bimap[String, String](((`left₂`: HSingleton[String]) => `left₂`.$asInstanceOf$[HSingleton[String]].value), ((`right₂`: HSingleton[String]) => `right₂`.$asInstanceOf$[HSingleton[String]].value))
+            catsSyntaxEither[HSingleton[String], HSingleton[String]](captures.value.$asInstanceOf$[value & AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]] & Either[HSingleton[String], HSingleton[String]]]).bimap[String, String](((`left₂`: HSingleton[String]) => `left₂`.value), ((`right₂`: HSingleton[String]) => `right₂`.value))
         }))
       } else None
     }
