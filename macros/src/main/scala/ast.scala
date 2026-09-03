@@ -504,51 +504,30 @@ object ast {
           case AltRight()       => sanitiseOpt(sanitisedRight)
           case AltLeftOption()  => sanitisedLeft
           case AltRightOption() => sanitisedRight
-          case AltBothOption(given Type[f], given Type[g]) => {
-            rep match {
-              case RepFalse => '{
-                val left = $sanitisedLeft.map(_.value.map(_.asLeft[g[R]].singleton))
-                val right = $sanitisedRight.map(_.value.map(_.asRight[f[R]].singleton))
-                (left max right).map(_.singleton)
-              }
-              case RepTrue  => '{
-                val left = $sanitisedLeft.value.sequence.map(_.flatMap(_.value))
-                val right = $sanitisedRight.value.sequence.map(_.flatMap(_.value))
-                val caps = (left, right).mapN((left, right) => ${ fromOptions('left, 'right) })
-                SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
-              }
-            }
-          }
-          case AltBothLeftOption(given Type[f]) => {
-            rep match {
-              case RepFalse => '{
-                val left = $sanitisedLeft.map(_.value.map(_.asLeft[G[R]].singleton))
-                val right = $sanitisedRight.map(_.asRight[f[R]].singleton.some)
-                (left max right).map(_.singleton)
-              }
-              case RepTrue  => '{
-                val left = $sanitisedLeft.value.sequence.map(_.flatMap(_.value))
-                val right = $sanitisedRight.value.sequence
-                val caps = (left, right).mapN((left, right) => ${ fromOptions('left, 'right) })
-                SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
-              }
-            }
-          }
-          case AltBothRightOption(given Type[g]) => {
-            rep match {
-              case RepFalse => '{
-                val left = $sanitisedLeft.map(_.asLeft[g[R]].singleton.some)
-                val right = $sanitisedRight.map(_.value.map(_.asRight[F[R]].singleton))
-                (left max right).map(_.singleton)
-              }
-              case RepTrue  => '{
-                val left = $sanitisedLeft.value.sequence
-                val right = $sanitisedRight.value.sequence.map(_.flatMap(_.value))
-                val caps = (left, right).mapN((left, right) => ${ fromOptions('left, 'right) })
-                SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
-              }
-            }
-          }
+          case AltBothOption(given Type[f], given Type[g]) => flattenAlt(
+            sanitisedLeft,
+            sanitisedRight,
+            '{ _.value.map(_.asLeft[g[R]].singleton) },
+            '{ _.value.map(_.asRight[f[R]].singleton) },
+            expr => '{ $expr.map(_.flatMap(_.value)) },
+            expr => '{ $expr.map(_.flatMap(_.value)) },
+          )
+          case AltBothLeftOption(given Type[f]) => flattenAlt(
+            sanitisedLeft,
+            sanitisedRight,
+            '{ _.value.map(_.asLeft[G[R]].singleton) },
+            '{ _.asRight[f[R]].singleton.some },
+            expr => '{ $expr.map(_.flatMap(_.value)) },
+            identity,
+          )
+          case AltBothRightOption(given Type[g]) => flattenAlt(
+            sanitisedLeft,
+            sanitisedRight,
+            '{ _.asLeft[g[R]].singleton.some },
+            '{ _.value.map(_.asRight[F[R]].singleton) },
+            identity,
+            expr => '{ $expr.map(_.flatMap(_.value)) },
+          )
           case AltBoth() => {
             rep match {
               case RepFalse => '{
@@ -636,6 +615,31 @@ object ast {
           }
         }
         new Alt(left, right)(nodeType)
+      }
+    }
+
+    private def flattenAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, H[_ <: Rep] <: HNonEmpty: Type, I[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](
+      sanitisedLeft: SanitiseExpr[F[R]],
+      sanitisedRight: SanitiseExpr[G[R]],
+      leftEither: Expr[F[R] => Option[HSingleton[Either[H[R], I[R]]]]],
+      rightEither: Expr[G[R] => Option[HSingleton[Either[H[R], I[R]]]]],
+      leftIor: Expr[Sanitised[Option[F[R]]]] => Quotes ?=> Expr[Sanitised[Option[H[R]]]],
+      rightIor: Expr[Sanitised[Option[G[R]]]] => Quotes ?=> Expr[Sanitised[Option[I[R]]]],
+    )(using rep: RepType[R])(using Quotes): SanitiseExpr[AltSingletonOption[H, I][R]] = {
+      given Type[InclusiveOr] = inclusiveOrType      
+
+      rep match {
+        case RepFalse => '{
+          val left = $sanitisedLeft.map($leftEither)
+          val right = $sanitisedRight.map($rightEither)
+          (left max right).map(_.singleton)
+        }
+        case RepTrue  => '{
+          val left = ${ leftIor('{ $sanitisedLeft.value.sequence }) }
+          val right = ${ rightIor('{ $sanitisedRight.value.sequence }) }
+          val caps = (left, right).mapN((left, right) => ${ fromOptions('left, 'right) })
+          SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
+        }
       }
     }
 
