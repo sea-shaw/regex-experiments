@@ -38,6 +38,10 @@ class GoldenTests extends AnyFlatSpec with GoldenMatchers {
     code("(a(b)?)?") should matchGolden (s"$dir/nested-optional-capture-groups.golden")
   }
 
+  it should "match optional capture group inside optional non-capture group" in {
+    code("(?:(a)?)?") should matchGolden (s"$dir/option-inside-option.golden")
+  }
+
   it should "match star capture groups" in {
     code("(a)*") should matchGolden (s"$dir/star-capture-groups.golden")
   }
@@ -60,6 +64,14 @@ class GoldenTests extends AnyFlatSpec with GoldenMatchers {
 
   it should "match many chained alternative capture groups" in {
     code("(a)|(b)|(c)|(d)") should matchGolden (s"$dir/many-chained-alternative-capture-groups.golden")
+  }
+
+  it should "match alternative with optional capture group on the left" in {
+    code("(a)?|b") should matchGolden (s"$dir/alt-option-left.golden")
+  }
+
+  it should "match alternative with optional capture group on the right" in {
+    code("(a)?|b") should matchGolden (s"$dir/alt-option-right.golden")
   }
 
   it should "match non-capturing groups" in {
