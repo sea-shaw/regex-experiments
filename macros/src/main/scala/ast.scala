@@ -504,29 +504,29 @@ object ast {
           case AltRight()       => sanitiseOpt(sanitisedRight)
           case AltLeftOption()  => sanitisedLeft
           case AltRightOption() => sanitisedRight
-          case AltBothOption(given Type[f], given Type[g]) => flattenAlt(
+          case AltBothOption(given Type[f], given Type[g]) => sanitiseAlt(
             sanitisedLeft,
             sanitisedRight,
             '{ _.value.map(_.asLeft[g[R]].singleton) },
             '{ _.value.map(_.asRight[f[R]].singleton) },
-            expr => '{ $expr.map(_.flatMap(_.value)) },
-            expr => '{ $expr.map(_.flatMap(_.value)) },
+            flattenSanitised,
+            flattenSanitised,
           )
-          case AltBothLeftOption(given Type[f]) => flattenAlt(
+          case AltBothLeftOption(given Type[f]) => sanitiseAlt(
             sanitisedLeft,
             sanitisedRight,
             '{ _.value.map(_.asLeft[G[R]].singleton) },
             '{ _.asRight[f[R]].singleton.some },
-            expr => '{ $expr.map(_.flatMap(_.value)) },
+            flattenSanitised,
             identity,
           )
-          case AltBothRightOption(given Type[g]) => flattenAlt(
+          case AltBothRightOption(given Type[g]) => sanitiseAlt(
             sanitisedLeft,
             sanitisedRight,
             '{ _.asLeft[g[R]].singleton.some },
             '{ _.value.map(_.asRight[F[R]].singleton) },
             identity,
-            expr => '{ $expr.map(_.flatMap(_.value)) },
+            flattenSanitised,
           )
           case AltBoth() => {
             rep match {
@@ -539,7 +539,7 @@ object ast {
                 val left = $sanitisedLeft.value.sequence
                 val right = $sanitisedRight.value.sequence
                 val caps = (left, right).mapN((left, right) => ${ fromOptions('left, 'right) })
-                SanitisedT(caps.traverse(_.map(HSingleton(_))))
+                SanitisedT(caps.traverse(_.map(_.singleton)))
               }
             }
           }
@@ -618,7 +618,7 @@ object ast {
       }
     }
 
-    private def flattenAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, H[_ <: Rep] <: HNonEmpty: Type, I[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](
+    private def sanitiseAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, H[_ <: Rep] <: HNonEmpty: Type, I[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](
       sanitisedLeft: SanitiseExpr[F[R]],
       sanitisedRight: SanitiseExpr[G[R]],
       leftEither: Expr[F[R] => Option[HSingleton[Either[H[R], I[R]]]]],
@@ -641,6 +641,10 @@ object ast {
           SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
         }
       }
+    }
+
+    private def flattenSanitised[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](expr: Expr[Sanitised[Option[HSingleton[Option[F[R]]]]]])(using Quotes): Expr[Sanitised[Option[F[R]]]] = {
+      '{ $expr.map(_.flatMap(_.value)) }
     }
 
     sealed trait OptType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G]
