@@ -313,6 +313,12 @@ object ast {
 
     sealed trait CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] extends NodeType[H]
     case class CatEmpty()(using Type[Const[HEmpty]]) extends CatType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType
+    case class CatLeftOption[F[_ <: Rep] <: HNonEmpty]()(leftType: SingletonOption[F])(using Type[F], Type[SingletonOptionType[F]]) extends CatType[SingletonOptionType[F], Const[HEmpty], SingletonOptionType[F]] with SingletonOption[F] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = leftType.tidyInner
+    }
+    case class CatRightOption[G[_ <: Rep] <: HNonEmpty]()(rightType: SingletonOption[G])(using Type[G], Type[SingletonOptionType[G]]) extends CatType[Const[HEmpty], SingletonOptionType[G], SingletonOptionType[G]] with SingletonOption[G] {
+      override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[G[R], ?] = rightType.tidyInner
+    }
     case class CatLeft[F[_ <: Rep] <: HNonEmpty]()(using Type[F]) extends CatType[F, Const[HEmpty], F] with HNonEmptyType[F]
     case class CatRight[G[_ <: Rep] <: HNonEmpty]()(using Type[G]) extends CatType[Const[HEmpty], G, G] with HNonEmptyType[G]
     type CatBothType[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[F[R], G[R]]
@@ -331,6 +337,8 @@ object ast {
 
         nodeType match {
           case CatEmpty() => sanitiseEmpty
+          case CatLeftOption() => sanitisedLeft
+          case CatRightOption() => sanitisedRight
           case CatLeft()  => sanitisedLeft
           case CatRight() => sanitisedRight
           case CatBoth()  => {
@@ -346,10 +354,12 @@ object ast {
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using rep: RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?] = {
         nodeType match {
-          case CatEmpty() => flattenEmpty(nodes, types)
-          case CatLeft()  => left.flattenFunction(nodes, types)
-          case CatRight() => right.flattenFunction(nodes, types)
-          case CatBoth()  => left.flattenFunction(NCons(right, rep, nodes), types) match {
+          case CatEmpty()       => flattenEmpty(nodes, types)
+          case CatLeftOption()  => left.flattenFunction(nodes, types)
+          case CatRightOption() => right.flattenFunction(nodes, types)
+          case CatLeft()        => left.flattenFunction(nodes, types)
+          case CatRight()       => right.flattenFunction(nodes, types)
+          case CatBoth()        => left.flattenFunction(NCons(right, rep, nodes), types) match {
             case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[H[R], C], L, a] {
               override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[a] = {
                 '{
@@ -367,6 +377,14 @@ object ast {
       def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Cat[F, G, ?] = {
         val nodeType: CatType[F, G, ?] = (left.nodeType, right.nodeType) match {
           case (_: HEmptyType, _: HEmptyType) => CatEmpty()
+          case (leftType: SingletonOption[f], _: HEmptyType) => {
+            given Type[f] = leftType.innerType
+            CatLeftOption()(leftType)
+          }
+          case (_: HEmptyType, rightType: SingletonOption[f]) => {
+            given Type[f] = rightType.innerType
+            CatRightOption()(rightType)
+          }
           case (leftType: HNonEmptyType[f], _: HEmptyType) => {
             given Type[f] = leftType.tpe
             CatLeft()

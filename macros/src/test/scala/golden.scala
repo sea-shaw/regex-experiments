@@ -39,7 +39,7 @@ class GoldenTests extends AnyFlatSpec with GoldenMatchers {
   }
 
   it should "match optional capture group inside optional non-capture group" in {
-    code("(?:(a)?)?") should matchGolden (s"$dir/option-inside-option.golden")
+    code("(?:(a)?b)?") should matchGolden (s"$dir/option-inside-option.golden")
   }
 
   it should "match star capture groups" in {

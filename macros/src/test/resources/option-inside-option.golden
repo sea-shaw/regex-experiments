@@ -1,6 +1,6 @@
 {
   final class $anon() extends Regex[Option[String]] {
-    private[this] val pattern: Pattern = Pattern.compile("(?:(a)?)?")
+    private[this] val pattern: Pattern = Pattern.compile("(?:(a)?b)?")
     override def unapply(s: String): Option[Option[String]] = {
       val m: (Matcher)? = $anon.this.pattern.matcher(s)
       if (m.matches()) {
