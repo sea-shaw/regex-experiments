@@ -213,13 +213,14 @@ object ast {
       def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes, Type[F]): Expr[SanitisedT[Option, G[R]]]
       private [AST] def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](inner: Regex[F], nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R], Type[F]): FlattenFunction[CCons[G[R], C], L, ?]
     }
-    type CapturingSingletonType = Const[HSingleton[String]]
-    case class CapturingSingleton()(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
+
+    private type CapturingSingletonType = Const[HSingleton[String]]
+    private case class CapturingSingleton()(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
       override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, Const[HEmpty][R]]])(using Quotes, Type[Const[HEmpty]]): Expr[SanitisedT[Option, HSingleton[String]]] = {
         sanitisedCapture
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](inner: Regex[Const[HEmpty]], nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R], Type[Const[HEmpty]]): FlattenFunction[CCons[HSingleton[String], C], L, ?] = {
+      override def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](inner: Regex[Const[HEmpty]], nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R], Type[Const[HEmpty]]): FlattenFunction[CCons[HSingleton[String], C], L, ?] = {
         nodes.flattenFunction(TCons(Type.of[String], types)) match {
           case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HSingleton[String], C], L, a] {
             override def apply(chains: CCons[HSingleton[String], C], leaves: L)(using Quotes): Expr[a] = {
@@ -231,8 +232,8 @@ object ast {
       }
     }
 
-    type CapturingAppendType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[HSingleton[String], F[R]]
-    case class CapturingAppend[F[_ <: Rep] <: HNonEmpty]()(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]] {
+    private type CapturingAppendType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[HSingleton[String], F[R]]
+    private case class CapturingAppend[F[_ <: Rep] <: HNonEmpty]()(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]] {
       override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes, Type[F]): Expr[SanitisedT[Option, HAppend[HSingleton[String], F[R]]]] = {
         '{
           for {
@@ -242,7 +243,7 @@ object ast {
         }
       }
 
-      override private [AST] def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](inner: Regex[F], nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R], Type[F]): FlattenFunction[CCons[CapturingAppendType[F][R], C], L, ?] = {
+      override def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](inner: Regex[F], nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R], Type[F]): FlattenFunction[CCons[CapturingAppendType[F][R], C], L, ?] = {
         inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
           case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CapturingAppendType[F][R], C], L, a] {
             override def apply(chains: CCons[CapturingAppendType[F][R], C], leaves: L)(using Quotes): Expr[a] = {
@@ -321,18 +322,89 @@ object ast {
     case class PositiveLookbehind[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
     case class Independent[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
 
-    sealed trait CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] extends NodeType[H]
-    private case class CatEmpty()(using Type[Const[HEmpty]]) extends CatType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType
+    sealed trait CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] extends NodeType[H] {
+      def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[H[R]]
+      private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](left: Regex[F], right: Regex[G], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?]
+    }
+
+    private case class CatEmpty()(using Type[Const[HEmpty]]) extends CatType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType {
+      override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
+        sanitiseEmpty
+      }
+
+      override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](left: Regex[Const[HEmpty]], right: Regex[Const[HEmpty]], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HEmpty, C], L, ?] = {
+        flattenEmpty(nodes, types)
+      }
+    }
+
     private case class CatLeftOption[F[_ <: Rep] <: HNonEmpty]()(leftType: SingletonOption[F])(using Type[F], Type[SingletonOptionType[F]]) extends CatType[SingletonOptionType[F], Const[HEmpty], SingletonOptionType[F]] with SingletonOption[F] {
+      override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[SingletonOptionType[F][R]] = {
+        sanitisedLeft
+      }
+
+      override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](left: Regex[SingletonOptionType[F]], right: Regex[Const[HEmpty]], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[SingletonOptionType[F][R], C], L, ?] = {
+        left.flattenFunction(nodes, types)
+      }
+
       override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = leftType.tidyInner
     }
+
     private case class CatRightOption[G[_ <: Rep] <: HNonEmpty]()(rightType: SingletonOption[G])(using Type[G], Type[SingletonOptionType[G]]) extends CatType[Const[HEmpty], SingletonOptionType[G], SingletonOptionType[G]] with SingletonOption[G] {
+      override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[SingletonOptionType[G][R]] = {
+        sanitisedRight
+      }
+
+      override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](left: Regex[Const[HEmpty]], right: Regex[SingletonOptionType[G]], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[Option[G[R]]], C], L, ?] = {
+        right.flattenFunction(nodes, types)
+      }
+
       override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[G[R], ?] = rightType.tidyInner
     }
-    private case class CatLeft[F[_ <: Rep] <: HNonEmpty]()(using Type[F]) extends CatType[F, Const[HEmpty], F] with HNonEmptyType[F]
-    private case class CatRight[G[_ <: Rep] <: HNonEmpty]()(using Type[G]) extends CatType[Const[HEmpty], G, G] with HNonEmptyType[G]
+
+    private case class CatLeft[F[_ <: Rep] <: HNonEmpty]()(using Type[F]) extends CatType[F, Const[HEmpty], F] with HNonEmptyType[F] {
+      override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[F[R]] = {
+        sanitisedLeft
+      }
+
+      override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](left: Regex[F], right: Regex[Const[HEmpty]], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
+        left.flattenFunction(nodes, types)
+      }
+    }
+
+    private case class CatRight[G[_ <: Rep] <: HNonEmpty]()(using Type[G]) extends CatType[Const[HEmpty], G, G] with HNonEmptyType[G] {
+      override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[G[R]] = {
+        sanitisedRight
+      }
+
+      override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](left: Regex[Const[HEmpty]], right: Regex[G], nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
+        right.flattenFunction(nodes, types)
+      }
+    }
+
     private type CatBothType[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[F[R], G[R]]
-    private case class CatBoth[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty]()(using Type[CatBothType[F, G]]) extends CatType[F, G, CatBothType[F, G]] with HNonEmptyType[CatBothType[F, G]]
+    private case class CatBoth[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type]()(using Type[CatBothType[F, G]]) extends CatType[F, G, CatBothType[F, G]] with HNonEmptyType[CatBothType[F, G]] {
+      override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[CatBothType[F, G][R]] = {
+        '{
+          for {
+            left <- $sanitisedLeft
+            right <- $sanitisedRight
+          } yield HAppend(left, right)
+        }
+      }
+
+      override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](left: Regex[F], right: Regex[G], nodes: Nodes[C], types: Types[L])(using rep: RepType[R])(using Quotes): FlattenFunction[CCons[HAppend[F[R], G[R]], C], L, ?] = {
+        left.flattenFunction(NCons(right, rep, nodes), types) match {
+          case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HAppend[F[R], G[R]], C], L, a] {
+            override def apply(chains: CCons[HAppend[F[R], G[R]], C], leaves: L)(using Quotes): Expr[a] = {
+              '{
+                val node = ${ chains.head }
+                ${ flatten(CCons('{ node.left }, CCons('{ node.right }, chains.tail)), leaves) }
+              }
+            }
+          }
+        }
+      }
+    }
 
     case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val nodeType: CatType[F, G, H]) extends Regex[H] {
       given Type[F] = left.nodeType.tpe
@@ -344,40 +416,11 @@ object ast {
       override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[H[R]] = {
         lazy val sanitisedLeft = left.sanitiseCode(groups, i)
         lazy val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
-
-        nodeType match {
-          case CatEmpty()       => sanitiseEmpty
-          case CatLeftOption()  => sanitisedLeft
-          case CatRightOption() => sanitisedRight
-          case CatLeft()        => sanitisedLeft
-          case CatRight()       => sanitisedRight
-          case CatBoth()        => '{
-            for {
-              left <- $sanitisedLeft
-              right <- $sanitisedRight
-            } yield HAppend(left, right)
-          }
-        }
+        nodeType.sanitiseCode(sanitisedLeft, sanitisedRight, groups, i)
       }
 
       override private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using rep: RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?] = {
-        nodeType match {
-          case CatEmpty()       => flattenEmpty(nodes, types)
-          case CatLeftOption()  => left.flattenFunction(nodes, types)
-          case CatRightOption() => right.flattenFunction(nodes, types)
-          case CatLeft()        => left.flattenFunction(nodes, types)
-          case CatRight()       => right.flattenFunction(nodes, types)
-          case CatBoth()        => left.flattenFunction(NCons(right, rep, nodes), types) match {
-            case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[H[R], C], L, a] {
-              override def apply(chains: CCons[H[R], C], leaves: L)(using Quotes): Expr[a] = {
-                '{
-                  val node = ${ chains.head }
-                  ${ flatten(CCons('{ node.left }, CCons('{ node.right }, chains.tail)), leaves) }
-                }
-              }
-            }
-          }
-        }
+        nodeType.flattenFunction(left, right, nodes, types)
       }
     }
 
