@@ -217,9 +217,9 @@ object ast {
     case class CapturingAppend[F[_ <: Rep] <: HNonEmpty]()(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]]
 
     object CapturingType {
-      def apply[F[_ <: Rep] <: HChain](innerType: NodeType[F])(using Quotes): CapturingType[F, ?] = {
-        given Type[F] = innerType.tpe
-        innerType match {
+      def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): CapturingType[F, ?] = {
+        given Type[F] = inner.nodeType.tpe
+        inner.nodeType match {
           case _: HEmptyType       => CapturingSingleton()
           case _: HNonEmptyType[_] => CapturingAppend()
         }
@@ -281,14 +281,14 @@ object ast {
     case class Capture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F])(nodeType: CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
     object Capture {
       def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Capture[F, ?] = {
-        new Capture(inner)(CapturingType(inner.nodeType))
+        new Capture(inner)(CapturingType(inner))
       }
     }
 
     case class NamedCapture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (name: String, inner: Regex[F])(nodeType: CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
     object NamedCapture {
       def apply[F[_ <: Rep] <: HChain](name: String, inner: Regex[F])(using Quotes): NamedCapture[F, ?] = {
-        new NamedCapture(name, inner)(CapturingType(inner.nodeType))
+        new NamedCapture(name, inner)(CapturingType(inner))
       }
     }
 
@@ -336,18 +336,16 @@ object ast {
         lazy val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
 
         nodeType match {
-          case CatEmpty() => sanitiseEmpty
-          case CatLeftOption() => sanitisedLeft
+          case CatEmpty()       => sanitiseEmpty
+          case CatLeftOption()  => sanitisedLeft
           case CatRightOption() => sanitisedRight
-          case CatLeft()  => sanitisedLeft
-          case CatRight() => sanitisedRight
-          case CatBoth()  => {
-            '{
-              for {
-                left <- $sanitisedLeft
-                right <- $sanitisedRight
-              } yield HAppend(left, right)
-            }
+          case CatLeft()        => sanitisedLeft
+          case CatRight()       => sanitisedRight
+          case CatBoth()        => '{
+            for {
+              left <- $sanitisedLeft
+              right <- $sanitisedRight
+            } yield HAppend(left, right)
           }
         }
       }
@@ -446,21 +444,21 @@ object ast {
 
     /* (A)?|(B) */
     private type AltBothLeftOptionType = AltSingletonOption
-    private case class AltBothLeftOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty](left: Type[F])(leftType: SingletonOption[F], right: Regex[G])(using Type[AltBothLeftOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[SingletonOptionType[F], G, AltBothLeftOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
+    private case class AltBothLeftOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty](left: Type[F])(leftType: SingletonOption[F], rightRegex: Regex[G])(using Type[AltBothLeftOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[SingletonOptionType[F], G, AltBothLeftOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
       override def tidyInner[R <: Rep: Type](using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
         given Type[F] = left
-        given Type[G] = right.nodeType.tpe
-        tidyAlt(leftType.tidyInner, right.tidyFunction)
+        given Type[G] = rightRegex.nodeType.tpe
+        tidyAlt(leftType.tidyInner, rightRegex.tidyFunction)
       }
     }
 
     /* (A)|(B)? */
     private type AltBothRightOptionType = AltSingletonOption
-    private case class AltBothRightOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty](right: Type[G])(left: Regex[F], rightType: SingletonOption[G])(using Type[AltBothRightOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[F, SingletonOptionType[G], AltBothRightOptionType[F, G]] with SingletonOption[AltSingleton[F, G]]{
+    private case class AltBothRightOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty](right: Type[G])(leftRegex: Regex[F], rightType: SingletonOption[G])(using Type[AltBothRightOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[F, SingletonOptionType[G], AltBothRightOptionType[F, G]] with SingletonOption[AltSingleton[F, G]]{
       override def tidyInner[R <: Rep: Type](using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
-        given Type[F] = left.nodeType.tpe
+        given Type[F] = leftRegex.nodeType.tpe
         given Type[G] = right
-        tidyAlt(left.tidyFunction, rightType.tidyInner)
+        tidyAlt(leftRegex.tidyFunction, rightType.tidyInner)
       }
     }
 
