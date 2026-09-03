@@ -27,7 +27,7 @@ object ast {
   trait AST {
     type InclusiveOr[+_, +_]
     protected def inclusiveOrType(using Quotes): Type[InclusiveOr]
-    protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]]
+    protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[InclusiveOr[A, B]]]
     protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
     protected def buildFunction[L <: Leaves](types: Types[L])(using Quotes): BuildFunction[L, ?]
 
@@ -538,7 +538,7 @@ object ast {
               case RepTrue => '{
                 val left = $sanitisedLeft.value.sequence
                 val right = $sanitisedRight.value.sequence
-                val caps = (left, right).mapN((left, right) => ${ fromOptions('left, 'right) })
+                val caps = (left, right).mapN($fromOptions)
                 SanitisedT(caps.traverse(_.map(_.singleton)))
               }
             }
@@ -637,7 +637,7 @@ object ast {
         case RepTrue  => '{
           val left = ${ leftIor('{ $sanitisedLeft.value.sequence }) }
           val right = ${ rightIor('{ $sanitisedRight.value.sequence }) }
-          val caps = (left, right).mapN((left, right) => ${ fromOptions('left, 'right) })
+          val caps = (left, right).mapN($fromOptions)
           SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
         }
       }

@@ -13,8 +13,8 @@ object oregano {
 
     override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
 
-    override protected def fromOptions[A: Type, B: Type](left: Expr[Option[A]], right: Expr[Option[B]])(using Quotes): Expr[Option[InclusiveOr[A, B]]] = {
-      '{ Ior.fromOptions($left, $right).map(_.unwrap) }
+    override protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[Either[Either[A, B], (A, B)]]] = {
+      '{ Ior.fromOptions(_, _).map(_.unwrap) }
     }
 
     override protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
