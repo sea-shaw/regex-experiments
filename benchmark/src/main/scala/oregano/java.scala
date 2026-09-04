@@ -1,4 +1,4 @@
-package experiments.benchmark
+package experiments.benchmark.oregano
 
 import java.util.concurrent.TimeUnit
 import org.openjdk.jmh.annotations.*

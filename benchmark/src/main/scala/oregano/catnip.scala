@@ -1,4 +1,4 @@
-package experiments.benchmark
+package experiments.benchmark.oregano
 
 import experiments.macros.catnip.r
 import java.util.concurrent.TimeUnit
