@@ -6,8 +6,8 @@ import org.openjdk.jmh.annotations.*
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @Fork(1)
-@Warmup(iterations = 5, time = 2, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 2, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 8, time = 2, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 8, time = 2, timeUnit = TimeUnit.SECONDS)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @State(Scope.Thread)
 class OreganoQT3TSBenchmarks {
