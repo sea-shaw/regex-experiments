@@ -13,7 +13,7 @@ type AltRep[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, R <: Rep, InclusiveOr[
   case true  => InclusiveOr[F[R], G[R]]
 }
 
-trait AST extends Functions {
+trait AST extends Functions with BuildFunction {
   type InclusiveOr[+_, +_]
   protected def inclusiveOrType(using Quotes): Type[InclusiveOr]
   protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[InclusiveOr[A, B]]]

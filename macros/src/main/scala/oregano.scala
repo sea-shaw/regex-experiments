@@ -2,13 +2,13 @@ package experiments.macros
 
 import cats.data.Ior
 import cats.syntax.all.*
-import experiments.macros.tidy.Tidy
+import experiments.macros.ast.AST
 import experiments.macros.regex.{Regex, isInlineable}
 import scala.quoted.{Expr, Quotes, Type}
 
 object oregano {
 
-  private object Oregano extends Tidy {
+  private object Oregano extends AST {
     type InclusiveOr[+A, +B] = Either[Either[A, B], (A, B)]
 
     override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
