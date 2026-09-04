@@ -7,7 +7,7 @@ import org.openjdk.jmh.annotations.*
 @Fork(1)
 @Warmup(iterations = 8, time = 2, timeUnit = TimeUnit.SECONDS)
 @Measurement(iterations = 8, time = 2, timeUnit = TimeUnit.SECONDS)
-@OutputTimeUnit(TimeUnit.MICROSECONDS)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
 class ScalaQT3TSBenchmarks {
 
