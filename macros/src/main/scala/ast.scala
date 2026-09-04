@@ -120,7 +120,7 @@ object ast {
       private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?]
     }
 
-    case class EmptyType()(using Type[Const[HEmpty]]) extends HEmptyType
+    class EmptyType(using Type[Const[HEmpty]]) extends HEmptyType
     object EmptyType {
       given Quotes => EmptyType = EmptyType()
     }
@@ -215,7 +215,7 @@ object ast {
     }
 
     private type CapturingSingletonType = Const[HSingleton[String]]
-    private case class CapturingSingleton()(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
+    private class CapturingSingleton(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
       override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, Const[HEmpty][R]]])(using Quotes): Expr[SanitisedT[Option, HSingleton[String]]] = {
         sanitisedCapture
       }
@@ -233,7 +233,7 @@ object ast {
     }
 
     private type CapturingAppendType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[HSingleton[String], F[R]]
-    private case class CapturingAppend[F[_ <: Rep] <: HNonEmpty: Type]()(inner: Regex[F])(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]] {
+    private class CapturingAppend[F[_ <: Rep] <: HNonEmpty: Type](inner: Regex[F])(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]] {
       override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes): Expr[SanitisedT[Option, HAppend[HSingleton[String], F[R]]]] = {
         '{
           for {
@@ -262,7 +262,7 @@ object ast {
         given Type[F] = inner.nodeType.tpe
         inner.nodeType match {
           case _: HEmptyType       => CapturingSingleton()
-          case _: HNonEmptyType[_] => CapturingAppend()(inner)
+          case _: HNonEmptyType[_] => CapturingAppend(inner)
         }
       }
     }
@@ -327,7 +327,7 @@ object ast {
       private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?]
     }
 
-    private case class CatEmpty()(using Type[Const[HEmpty]]) extends CatType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType {
+    private class CatEmpty(using Type[Const[HEmpty]]) extends CatType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
         sanitiseEmpty
       }
@@ -337,7 +337,7 @@ object ast {
       }
     }
 
-    private case class CatLeftOption[F[_ <: Rep] <: HNonEmpty]()(leftType: SingletonOption[F])(using Type[F], Type[SingletonOptionType[F]]) extends CatType[SingletonOptionType[F], Const[HEmpty], SingletonOptionType[F]] with SingletonOption[F] {
+    private class CatLeftOption[F[_ <: Rep] <: HNonEmpty](leftType: SingletonOption[F])(using Type[F], Type[SingletonOptionType[F]]) extends CatType[SingletonOptionType[F], Const[HEmpty], SingletonOptionType[F]] with SingletonOption[F] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[SingletonOptionType[F][R]] = {
         sanitisedLeft
       }
@@ -349,7 +349,7 @@ object ast {
       override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = leftType.tidyInner
     }
 
-    private case class CatRightOption[G[_ <: Rep] <: HNonEmpty]()(rightType: SingletonOption[G])(using Type[G], Type[SingletonOptionType[G]]) extends CatType[Const[HEmpty], SingletonOptionType[G], SingletonOptionType[G]] with SingletonOption[G] {
+    private class CatRightOption[G[_ <: Rep] <: HNonEmpty](rightType: SingletonOption[G])(using Type[G], Type[SingletonOptionType[G]]) extends CatType[Const[HEmpty], SingletonOptionType[G], SingletonOptionType[G]] with SingletonOption[G] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[SingletonOptionType[G][R]] = {
         sanitisedRight
       }
@@ -361,7 +361,7 @@ object ast {
       override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[G[R], ?] = rightType.tidyInner
     }
 
-    private case class CatLeft[F[_ <: Rep] <: HNonEmpty]()(left: Regex[F])(using Type[F]) extends CatType[F, Const[HEmpty], F] with HNonEmptyType[F] {
+    private class CatLeft[F[_ <: Rep] <: HNonEmpty](left: Regex[F])(using Type[F]) extends CatType[F, Const[HEmpty], F] with HNonEmptyType[F] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[F[R]] = {
         sanitisedLeft
       }
@@ -371,7 +371,7 @@ object ast {
       }
     }
 
-    private case class CatRight[G[_ <: Rep] <: HNonEmpty]()(right: Regex[G])(using Type[G]) extends CatType[Const[HEmpty], G, G] with HNonEmptyType[G] {
+    private class CatRight[G[_ <: Rep] <: HNonEmpty](right: Regex[G])(using Type[G]) extends CatType[Const[HEmpty], G, G] with HNonEmptyType[G] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[G[R]] = {
         sanitisedRight
       }
@@ -382,7 +382,7 @@ object ast {
     }
 
     private type CatBothType[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[F[R], G[R]]
-    private case class CatBoth[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type]()(left: Regex[F], right: Regex[G])(using Type[CatBothType[F, G]]) extends CatType[F, G, CatBothType[F, G]] with HNonEmptyType[CatBothType[F, G]] {
+    private class CatBoth[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](left: Regex[F], right: Regex[G])(using Type[CatBothType[F, G]]) extends CatType[F, G, CatBothType[F, G]] with HNonEmptyType[CatBothType[F, G]] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[CatBothType[F, G][R]] = {
         '{
           for {
@@ -430,24 +430,24 @@ object ast {
           case (_: HEmptyType, _: HEmptyType) => CatEmpty()
           case (leftType: SingletonOption[f], _: HEmptyType) => {
             given Type[f] = leftType.innerType
-            CatLeftOption()(leftType)
+            CatLeftOption(leftType)
           }
           case (_: HEmptyType, rightType: SingletonOption[f]) => {
             given Type[f] = rightType.innerType
-            CatRightOption()(rightType)
+            CatRightOption(rightType)
           }
           case (leftType: HNonEmptyType[f], _: HEmptyType) => {
             given Type[f] = leftType.tpe
-            CatLeft()(left)
+            CatLeft(left)
           }
           case (_: HEmptyType, rightType: HNonEmptyType[g]) => {
             given Type[g] = rightType.tpe
-            CatRight()(right)
+            CatRight(right)
           }
           case (leftType: HNonEmptyType[f], rightType: HNonEmptyType[g]) => {
             given Type[f] = leftType.tpe
             given Type[g] = rightType.tpe
-            CatBoth()(left, right)
+            CatBoth(left, right)
           }
         }
         new Cat(left, right)(nodeType)
@@ -463,7 +463,7 @@ object ast {
     }
 
     /* A|B */
-    private case class AltEmpty()(using Type[Const[HEmpty]]) extends AltType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType {
+    private class AltEmpty(using Type[Const[HEmpty]]) extends AltType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]])(using RepType[R])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
         sanitiseEmpty
       }
@@ -475,7 +475,7 @@ object ast {
 
     /* (A)|B */
     type AltLeftType = SingletonOptionType
-    private case class AltLeft[F[_ <: Rep] <: HNonEmpty]()(left: Regex[F])(using Type[F], Type[AltLeftType[F]]) extends AltType[F, Const[HEmpty], AltLeftType[F]] with SingletonOption[F] {
+    private class AltLeft[F[_ <: Rep] <: HNonEmpty](left: Regex[F])(using Type[F], Type[AltLeftType[F]]) extends AltType[F, Const[HEmpty], AltLeftType[F]] with SingletonOption[F] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltLeftType[F][R]] = {
         sanitiseOpt(sanitisedLeft)
       }
@@ -489,7 +489,7 @@ object ast {
 
     /* A|(B) */
     private type AltRightType = SingletonOptionType
-    private case class AltRight[G[_ <: Rep] <: HNonEmpty]()(right: Regex[G])(using Type[G], Type[AltRightType[G]]) extends AltType[Const[HEmpty], G, AltRightType[G]] with SingletonOption[G] {
+    private class AltRight[G[_ <: Rep] <: HNonEmpty](right: Regex[G])(using Type[G], Type[AltRightType[G]]) extends AltType[Const[HEmpty], G, AltRightType[G]] with SingletonOption[G] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[G[R]])(using RepType[R])(using Quotes): SanitiseExpr[AltRightType[G][R]] = {
         sanitiseOpt(sanitisedRight)
       }
@@ -503,7 +503,7 @@ object ast {
 
     /* (A)?|B */
     private type AltLeftOptionType = SingletonOptionType
-    private case class AltLeftOption[F[_ <: Rep] <: HNonEmpty]()(leftType: SingletonOption[F])(using Type[F], Type[AltLeftOptionType[F]]) extends AltType[AltLeftOptionType[F], Const[HEmpty], AltLeftOptionType[F]] with SingletonOption[F] {
+    private class AltLeftOption[F[_ <: Rep] <: HNonEmpty](leftType: SingletonOption[F])(using Type[F], Type[AltLeftOptionType[F]]) extends AltType[AltLeftOptionType[F], Const[HEmpty], AltLeftOptionType[F]] with SingletonOption[F] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[AltLeftOptionType[F][R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltLeftOptionType[F][R]] = {
         sanitisedLeft
       }
@@ -517,7 +517,7 @@ object ast {
 
     /* A|(B)? */
     private type AltRightOptionType = SingletonOptionType
-    private case class AltRightOption[G[_ <: Rep] <: HNonEmpty]()(rightType: SingletonOption[G])(using Type[G], Type[AltRightOptionType[G]]) extends AltType[Const[HEmpty], AltRightOptionType[G], AltRightOptionType[G]] with SingletonOption[G] {
+    private class AltRightOption[G[_ <: Rep] <: HNonEmpty](rightType: SingletonOption[G])(using Type[G], Type[AltRightOptionType[G]]) extends AltType[Const[HEmpty], AltRightOptionType[G], AltRightOptionType[G]] with SingletonOption[G] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[AltRightOptionType[G][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltRightOptionType[G][R]] = {
         sanitisedRight
       }
@@ -531,7 +531,7 @@ object ast {
 
     /* (A)?|(B)? */
     private type AltBothOptionType = AltSingletonOption
-    private case class AltBothOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type]()(leftType: SingletonOption[F], rightType: SingletonOption[G])(using Type[AltBothOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[SingletonOptionType[F], SingletonOptionType[G], AltBothOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
+    private class AltBothOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftType: SingletonOption[F], rightType: SingletonOption[G])(using Type[AltBothOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[SingletonOptionType[F], SingletonOptionType[G], AltBothOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothOptionType[F, G][R]] = {
         sanitiseAlt(
           sanitisedLeft,
@@ -567,7 +567,7 @@ object ast {
 
     /* (A)?|(B) */
     private type AltBothLeftOptionType = AltSingletonOption
-    private case class AltBothLeftOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type]()(leftType: SingletonOption[F], rightRegex: Regex[G])(using Type[AltBothLeftOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[SingletonOptionType[F], G, AltBothLeftOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
+    private class AltBothLeftOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftType: SingletonOption[F], rightRegex: Regex[G])(using Type[AltBothLeftOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[SingletonOptionType[F], G, AltBothLeftOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[G[R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothLeftOptionType[F, G][R]] = {
         sanitiseAlt(
           sanitisedLeft,
@@ -603,7 +603,7 @@ object ast {
 
     /* (A)|(B)? */
     private type AltBothRightOptionType = AltSingletonOption
-    private case class AltBothRightOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type]()(leftRegex: Regex[F], rightType: SingletonOption[G])(using Type[AltBothRightOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[F, SingletonOptionType[G], AltBothRightOptionType[F, G]] with SingletonOption[AltSingleton[F, G]]{
+    private class AltBothRightOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftRegex: Regex[F], rightType: SingletonOption[G])(using Type[AltBothRightOptionType[F, G]], Type[AltSingleton[F, G]]) extends AltType[F, SingletonOptionType[G], AltBothRightOptionType[F, G]] with SingletonOption[AltSingleton[F, G]]{
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothRightOptionType[F, G][R]] = {
         sanitiseAlt(
           sanitisedLeft,
@@ -639,7 +639,7 @@ object ast {
 
     /* (A)|(B) */
     private type AltBothType = AltSingleton
-    private case class AltBoth[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](left: Regex[F], right: Regex[G])(using Type[AltBothType[F, G]]) extends AltType[F, G, AltBothType[F, G]] with HNonEmptyType[AltBothType[F, G]] {
+    private class AltBoth[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](left: Regex[F], right: Regex[G])(using Type[AltBothType[F, G]]) extends AltType[F, G, AltBothType[F, G]] with HNonEmptyType[AltBothType[F, G]] {
       override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]])(using rep: RepType[R])(using Quotes): SanitiseExpr[AltBothType[F, G][R]] = {
         given Type[InclusiveOr] = inclusiveOrType        
 
@@ -746,34 +746,34 @@ object ast {
           case (_: HEmptyType, _: HEmptyType) => AltEmpty()
           case (leftType: SingletonOption[f], _: HEmptyType) => {
             given Type[f] = leftType.innerType
-            AltLeftOption()(leftType)
+            AltLeftOption(leftType)
           }
           case (_: HEmptyType, rightType: SingletonOption[g]) => {
             given Type[g] = rightType.innerType
-            AltRightOption()(rightType)
+            AltRightOption(rightType)
           }
           case (leftType: HNonEmptyType[f], _: HEmptyType) => {
             given Type[f] = leftType.tpe
-            AltLeft()(left)
+            AltLeft(left)
           }
           case (_: HEmptyType, rightType: HNonEmptyType[g]) => {
             given Type[g] = rightType.tpe
-            AltRight()(right)
+            AltRight(right)
           }
           case (leftType: SingletonOption[f], rightType: SingletonOption[g]) => {
             given Type[f] = leftType.innerType
             given Type[g] = rightType.innerType
-            AltBothOption()(leftType, rightType)
+            AltBothOption(leftType, rightType)
           }
           case (leftType: SingletonOption[f], rightType: HNonEmptyType[g]) => {
             given Type[f] = leftType.innerType
             given Type[g] = rightType.tpe
-            AltBothLeftOption()(leftType, right)
+            AltBothLeftOption(leftType, right)
           }
           case (leftType: HNonEmptyType[f], rightType: SingletonOption[g]) => {
             given Type[f] = leftType.tpe
             given Type[g] = rightType.innerType
-            AltBothRightOption()(left, rightType)
+            AltBothRightOption(left, rightType)
           }
           case (leftType: HNonEmptyType[f], rightType: HNonEmptyType[g]) => {
             given Type[f] = leftType.tpe
@@ -791,7 +791,7 @@ object ast {
     }
 
     /* A? */
-    private case class OptEmpty()(using Type[Const[HEmpty]]) extends OptType[Const[HEmpty], Const[HEmpty]] with HEmptyType {
+     private class OptEmpty(using Type[Const[HEmpty]]) extends OptType[Const[HEmpty], Const[HEmpty]] with HEmptyType {
       override def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[Const[HEmpty][R]])(using RepType[R])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
         sanitiseEmpty
       }
@@ -803,7 +803,7 @@ object ast {
 
     /* (A)? */
     private type OptSingletonType = SingletonOptionType
-    private case class OptSingleton[F[_ <: Rep] <: HNonEmpty]()(inner: Regex[F])(using Type[F], Type[OptSingletonType[F]]) extends OptType[F, OptSingletonType[F]] with SingletonOption[F] {
+    private class OptSingleton[F[_ <: Rep] <: HNonEmpty](inner: Regex[F])(using Type[F], Type[OptSingletonType[F]]) extends OptType[F, OptSingletonType[F]] with SingletonOption[F] {
       override def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[R]])(using RepType[R])(using Quotes): SanitiseExpr[OptSingletonType[F][R]] = {
         '{
           val innerCaps = $sanitisedInner
@@ -820,7 +820,7 @@ object ast {
 
     /* (A?)? */
     private type OptNestedType = SingletonOptionType
-    private case class OptNested[F[_ <: Rep] <: HNonEmpty]()(innerType: SingletonOption[F])(using Type[F], Type[OptNestedType[F]]) extends OptType[OptNestedType[F], OptNestedType[F]] with SingletonOption[F] {
+    private class OptNested[F[_ <: Rep] <: HNonEmpty](innerType: SingletonOption[F])(using Type[F], Type[OptNestedType[F]]) extends OptType[OptNestedType[F], OptNestedType[F]] with SingletonOption[F] {
       override def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[OptNestedType[F][R]])(using RepType[R])(using Quotes): SanitiseExpr[OptNestedType[F][R]] = {
         sanitisedInner
       }
@@ -864,11 +864,11 @@ object ast {
           case _: HEmptyType => OptEmpty()
           case singletonOption: SingletonOption[f] => {
             given Type[f] = singletonOption.innerType
-            OptNested()(singletonOption)
+            OptNested(singletonOption)
           }
           case nonEmpty: HNonEmptyType[f] => {
             given Type[f] = nonEmpty.tpe
-            OptSingleton()(inner)
+            OptSingleton(inner)
           }
         }
         new Opt(inner, quantifierType)(nodeType)
@@ -880,7 +880,7 @@ object ast {
       private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
     }
 
-    private case class Rep1Empty()(using Type[Const[HEmpty]]) extends Rep1Type[Const[HEmpty], Const[HEmpty]] with HEmptyType {
+    private class Rep1Empty(using Type[Const[HEmpty]]) extends Rep1Type[Const[HEmpty], Const[HEmpty]] with HEmptyType {
       override def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[Const[HEmpty][true]])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
         sanitiseEmpty
       }
@@ -891,7 +891,7 @@ object ast {
     }
 
     private type Rep1NonEmptyType[F[_ <: Rep] <: HNonEmpty] = Const[F[true]]
-    private case class Rep1NonEmpty[F[_ <: Rep] <: HNonEmpty]()(inner: Regex[F])(using Type[Rep1NonEmptyType[F]]) extends Rep1Type[F, Rep1NonEmptyType[F]] with HNonEmptyType[Rep1NonEmptyType[F]] {
+     private class Rep1NonEmpty[F[_ <: Rep] <: HNonEmpty](inner: Regex[F])(using Type[Rep1NonEmptyType[F]]) extends Rep1Type[F, Rep1NonEmptyType[F]] with HNonEmptyType[Rep1NonEmptyType[F]] {
       override def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[Rep1NonEmptyType[F][R]] = {
         sanitisedInner
       }
@@ -906,7 +906,7 @@ object ast {
         given Type[F] = inner.nodeType.tpe
         inner.nodeType match {
           case _: HEmptyType       => Rep1Empty()
-          case _: HNonEmptyType[_] => Rep1NonEmpty()(inner)
+          case _: HNonEmptyType[_] => Rep1NonEmpty(inner)
         }
       }
     }
@@ -959,7 +959,7 @@ object ast {
       def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
       private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
     }
-    private case class Rep0Empty()(using Type[Const[HEmpty]]) extends Rep0Type[Const[HEmpty], Const[HEmpty]] with HEmptyType {
+    private class Rep0Empty(using Type[Const[HEmpty]]) extends Rep0Type[Const[HEmpty], Const[HEmpty]] with HEmptyType {
       override def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[Const[HEmpty][true]])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
         sanitiseEmpty
       }
@@ -970,7 +970,7 @@ object ast {
     }
 
     private type Rep0OptType[F[_ <: Rep] <: HNonEmpty] = SingletonOptionType[Const[F[true]]]
-    private case class Rep0Opt[F[_ <: Rep] <: HNonEmpty: Type]()(innerType: SingletonOption[F])(using Type[Const[F[true]]], Type[Rep0OptType[F]]) extends Rep0Type[SingletonOptionType[F], Rep0OptType[F]] with SingletonOption[Const[F[true]]] {
+    private class Rep0Opt[F[_ <: Rep] <: HNonEmpty: Type](innerType: SingletonOption[F])(using Type[Const[F[true]]], Type[Rep0OptType[F]]) extends Rep0Type[SingletonOptionType[F], Rep0OptType[F]] with SingletonOption[Const[F[true]]] {
       override def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[SingletonOptionType[F][true]])(using Quotes): SanitiseExpr[Rep0OptType[F][R]] = {
         sanitisedInner
       }
@@ -992,7 +992,7 @@ object ast {
     }
 
     private type Rep0NonEmptyType[F[_ <: Rep] <: HNonEmpty] = SingletonOptionType[Const[F[true]]]
-    private case class Rep0NonEmpty[F[_ <: Rep] <: HNonEmpty: Type]()(inner: Regex[F])(using Type[Const[F[true]]], Type[Rep0NonEmptyType[F]]) extends Rep0Type[F, Rep0NonEmptyType[F]] with SingletonOption[Const[F[true]]] {
+    private class Rep0NonEmpty[F[_ <: Rep] <: HNonEmpty: Type](inner: Regex[F])(using Type[Const[F[true]]], Type[Rep0NonEmptyType[F]]) extends Rep0Type[F, Rep0NonEmptyType[F]] with SingletonOption[Const[F[true]]] {
       override def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[Rep0NonEmptyType[F][R]] = {
         sanitiseOpt(sanitisedInner)
       }
@@ -1011,9 +1011,9 @@ object ast {
           case _: HEmptyType => Rep0Empty()
           case option: SingletonOption[f] => {
             given Type[f] = option.innerType
-            Rep0Opt()(option)
+            Rep0Opt(option)
           }
-          case _: HNonEmptyType[_] => Rep0NonEmpty()(inner)
+          case _: HNonEmptyType[_] => Rep0NonEmpty(inner)
         }
       }
     }
