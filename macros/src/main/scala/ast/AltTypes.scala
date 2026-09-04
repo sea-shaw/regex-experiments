@@ -1,0 +1,325 @@
+package experiments.macros.ast
+
+import cats.syntax.all.*
+import experiments.macros.hcollections.hchain.*
+import experiments.macros.sanitised.*
+import scala.quoted.{Expr, Quotes, Type}
+
+type AltRep[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, R <: Rep, InclusiveOr[+_ <: HChain, +_ <: HChain]] = R match {
+  case false => Either[F[R], G[R]]
+  case true  => InclusiveOr[F[R], G[R]]
+}
+
+trait AltTypes { this: Functions =>
+  type AltSingleton[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[AltRep[F, G, R, InclusiveOr]]
+  type AltSingletonOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[AltSingleton[F, G][R]]]
+
+  sealed trait AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] { this: NodeType[H] =>
+    def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]])(using RepType[R])(using Quotes): SanitiseExpr[H[R]]
+    def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?]
+  }
+
+  case class AltTypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain](value: NodeType[H] & AltType[F, G, H])
+  object AltType {
+    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Tidiable[F], right: Tidiable[G])(using Quotes): AltTypeRes[F, G, ?] = {
+      given Type[InclusiveOr] = inclusiveOrType
+
+      (left.nodeType, right.nodeType) match {
+        case (_: HEmptyType, _: HEmptyType) => AltTypeRes(AltEmpty())
+        case (leftType: SingletonOption[f], _: HEmptyType) => {
+          given Type[f] = leftType.innerType
+          AltTypeRes(AltLeftOption(leftType))
+        }
+        case (_: HEmptyType, rightType: SingletonOption[g]) => {
+          given Type[g] = rightType.innerType
+          AltTypeRes(AltRightOption(rightType))
+        }
+        case (leftType: HNonEmptyType[f], _: HEmptyType) => {
+          given Type[f] = leftType.tpe
+          AltTypeRes(AltLeft(left))
+        }
+        case (_: HEmptyType, rightType: HNonEmptyType[g]) => {
+          given Type[g] = rightType.tpe
+          AltTypeRes(AltRight(right))
+        }
+        case (leftType: SingletonOption[f], rightType: SingletonOption[g]) => {
+          given Type[f] = leftType.innerType
+          given Type[g] = rightType.innerType
+          AltTypeRes(AltBothOption(leftType, rightType))
+        }
+        case (leftType: SingletonOption[f], rightType: HNonEmptyType[g]) => {
+          given Type[f] = leftType.innerType
+          given Type[g] = rightType.tpe
+          AltTypeRes(AltBothLeftOption(leftType, right))
+        }
+        case (leftType: HNonEmptyType[f], rightType: SingletonOption[g]) => {
+          given Type[f] = leftType.tpe
+          given Type[g] = rightType.innerType
+          AltTypeRes(AltBothRightOption(left, rightType))
+        }
+        case (leftType: HNonEmptyType[f], rightType: HNonEmptyType[g]) => {
+          given Type[f] = leftType.tpe
+          given Type[g] = rightType.tpe
+          AltTypeRes(AltBoth(left, right))
+        }
+      }
+    }
+  }
+
+  /* A|B */
+  private class AltEmpty(using Type[Const[HEmpty]]) extends AltType[Const[HEmpty], Const[HEmpty], Const[HEmpty]] with HEmptyType {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]])(using RepType[R])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
+      sanitiseEmpty
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HEmpty.type, C], L, ?] = {
+      flattenEmpty(nodes, types)
+    }
+  }
+
+  /* (A)|B */
+  private type AltLeftType = SingletonOptionType
+  private class AltLeft[F[_ <: Rep] <: HNonEmpty](left: Tidiable[F])(using Type[F], Type[AltLeftType[F]]) extends AltType[F, Const[HEmpty], AltLeftType[F]] with SingletonOption[F] {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltLeftType[F][R]] = {
+      sanitiseOpt(sanitisedLeft)
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[Option[F[R]]], C], L, ?] = {
+      flattenOpt(left.tidyFunction, nodes, types)
+    }
+
+    override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = left.tidyFunction
+  }
+
+  /* A|(B) */
+  private type AltRightType = SingletonOptionType
+  private class AltRight[G[_ <: Rep] <: HNonEmpty](right: Tidiable[G])(using Type[G], Type[AltRightType[G]]) extends AltType[Const[HEmpty], G, AltRightType[G]] with SingletonOption[G] {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[G[R]])(using RepType[R])(using Quotes): SanitiseExpr[AltRightType[G][R]] = {
+      sanitiseOpt(sanitisedRight)
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[Option[G[R]]], C], L, ?] = {
+      flattenOpt(right.tidyFunction, nodes, types)
+    }
+
+    override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[G[R], ?] = right.tidyFunction
+  }
+
+  /* (A)?|B */
+  private type AltLeftOptionType = SingletonOptionType
+  private class AltLeftOption[F[_ <: Rep] <: HNonEmpty](leftType: SingletonOption[F])(using Type[F], Type[AltLeftOptionType[F]]) extends AltType[AltLeftOptionType[F], Const[HEmpty], AltLeftOptionType[F]] with SingletonOption[F] {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[AltLeftOptionType[F][R]], sanitisedRight: => SanitiseExpr[Const[HEmpty][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltLeftOptionType[F][R]] = {
+      sanitisedLeft
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[Option[F[R]]], C], L, ?] = {
+      flattenOpt(tidyInner, nodes, types)
+    }
+
+    override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = leftType.tidyInner
+  }
+
+  /* A|(B)? */
+  private type AltRightOptionType = SingletonOptionType
+  private class AltRightOption[G[_ <: Rep] <: HNonEmpty](rightType: SingletonOption[G])(using Type[G], Type[AltRightOptionType[G]]) extends AltType[Const[HEmpty], AltRightOptionType[G], AltRightOptionType[G]] with SingletonOption[G] {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[Const[HEmpty][R]], sanitisedRight: => SanitiseExpr[AltRightOptionType[G][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltRightOptionType[G][R]] = {
+      sanitisedRight
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[Option[G[R]]], C], L, ?] = {
+      flattenOpt(tidyInner, nodes, types)
+    }
+
+    override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[G[R], ?] = rightType.tidyInner
+  }
+
+  /* (A)?|(B)? */
+  private type AltBothOptionType = AltSingletonOption
+  private class AltBothOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftType: SingletonOption[F], rightType: SingletonOption[G])(using Type[AltSingleton[F, G]], Type[AltBothOptionType[F, G]]) extends AltType[SingletonOptionType[F], SingletonOptionType[G], AltBothOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothOptionType[F, G][R]] = {
+      sanitiseAlt(
+        sanitisedLeft,
+        sanitisedRight,
+        '{ _.value.map(_.asLeft[G[R]].singleton) },
+        '{ _.value.map(_.asRight[F[R]].singleton) },
+        flattenSanitised,
+        flattenSanitised,
+      )
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[AltBothOptionType[F, G][R], C], L, ?] = {
+      given Type[InclusiveOr] = inclusiveOrType    
+
+      tidyInner match {
+        case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
+          case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[AltBothLeftOptionType[F, G][R], C], L, b] {
+            override def apply(chains: CCons[AltBothLeftOptionType[F, G][R], C], leaves: L)(using Quotes): Expr[b] = {
+              val opt = '{
+                ${ chains.head }.value.map { node => ${ tidy('node) } }
+              }
+              flatten(chains.tail, LCons(opt, leaves))
+            }
+          }
+        }
+      }
+    }
+
+    override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
+      tidyAlt(leftType.tidyInner, rightType.tidyInner)
+    }
+  }
+
+  /* (A)?|(B) */
+  private type AltBothLeftOptionType = AltSingletonOption
+  private class AltBothLeftOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftType: SingletonOption[F], rightRegex: Tidiable[G])(using Type[AltSingleton[F, G]], Type[AltBothLeftOptionType[F, G]]) extends AltType[SingletonOptionType[F], G, AltBothLeftOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[G[R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothLeftOptionType[F, G][R]] = {
+      sanitiseAlt(
+        sanitisedLeft,
+        sanitisedRight,
+        '{ _.value.map(_.asLeft[G[R]].singleton) },
+        '{ _.asRight[F[R]].singleton.some },
+        flattenSanitised,
+        identity,
+      )
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using rep: RepType[R])(using Quotes): FlattenFunction[CCons[AltBothLeftOptionType[F, G][R], C], L, ?] = {
+      given Type[InclusiveOr] = inclusiveOrType        
+
+      tidyInner match {
+        case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
+          case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[AltBothLeftOptionType[F, G][R], C], L, b] {
+            override def apply(chains: CCons[AltBothLeftOptionType[F, G][R], C], leaves: L)(using Quotes): Expr[b] = {
+              val opt = '{
+                ${ chains.head }.value.map { node => ${ tidy('node) } }
+              }
+              flatten(chains.tail, LCons(opt, leaves))
+            }
+          }
+        }
+      }
+    }
+
+    override def tidyInner[R <: Rep: Type](using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
+      tidyAlt(leftType.tidyInner, rightRegex.tidyFunction)
+    }
+  }
+
+  /* (A)|(B)? */
+  private type AltBothRightOptionType = AltSingletonOption
+  private class AltBothRightOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftRegex: Tidiable[F], rightType: SingletonOption[G])(using Type[AltSingleton[F, G]], Type[AltBothRightOptionType[F, G]]) extends AltType[F, SingletonOptionType[G], AltBothRightOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothRightOptionType[F, G][R]] = {
+      sanitiseAlt(
+        sanitisedLeft,
+        sanitisedRight,
+        '{ _.asLeft[G[R]].singleton.some },
+        '{ _.value.map(_.asRight[F[R]].singleton) },
+        identity,
+        flattenSanitised,
+      )
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[AltBothRightOptionType[F, G][R], C], L, ?] = {
+      given Type[InclusiveOr] = inclusiveOrType        
+
+      tidyInner match {
+        case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
+          case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[AltBothLeftOptionType[F, G][R], C], L, b] {
+            override def apply(chains: CCons[AltBothLeftOptionType[F, G][R], C], leaves: L)(using Quotes): Expr[b] = {
+              val opt = '{
+                ${ chains.head }.value.map { node => ${ tidy('node) } }
+              }
+              flatten(chains.tail, LCons(opt, leaves))
+            }
+          }
+        }
+      }
+    }
+
+    override def tidyInner[R <: Rep: Type](using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
+      tidyAlt(leftRegex.tidyFunction, rightType.tidyInner)
+    }
+  }
+
+  /* (A)|(B) */
+  private type AltBothType = AltSingleton
+  private class AltBoth[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](left: Tidiable[F], right: Tidiable[G])(using Type[AltBothType[F, G]]) extends AltType[F, G, AltBothType[F, G]] with HNonEmptyType[AltBothType[F, G]] {
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]])(using rep: RepType[R])(using Quotes): SanitiseExpr[AltBothType[F, G][R]] = {
+      given Type[InclusiveOr] = inclusiveOrType        
+
+      rep match {
+        case RepFalse => '{
+          val left = $sanitisedLeft.map(_.asLeft[G[R]])
+          val right = $sanitisedRight.map(_.asRight[F[R]])
+          (left max right).map(_.singleton)
+        }
+        case RepTrue => '{
+          val left = $sanitisedLeft.value.sequence
+          val right = $sanitisedRight.value.sequence
+          val caps = (left, right).mapN($fromOptions)
+          SanitisedT(caps.traverse(_.map(_.singleton)))
+        }
+      }
+    }
+
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[AltRep[F, G, R, InclusiveOr]], C], L, ?] = {
+      tidyAlt(left.tidyFunction, right.tidyFunction) match {
+        case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[a], types)) match {
+          case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[AltBothType[F, G][R], C], L, b] {
+            override def apply(chains: CCons[AltBothType[F, G][R], C], leaves: L)(using Quotes): Expr[b] = {
+              flatten(chains.tail, LCons(tidy(chains.head), leaves))
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private def sanitiseAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, H[_ <: Rep] <: HNonEmpty: Type, I[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](
+    sanitisedLeft: SanitiseExpr[F[R]],
+    sanitisedRight: SanitiseExpr[G[R]],
+    leftEither: Expr[F[R] => Option[HSingleton[Either[H[R], I[R]]]]],
+    rightEither: Expr[G[R] => Option[HSingleton[Either[H[R], I[R]]]]],
+    leftIor: Expr[Sanitised[Option[F[R]]]] => Quotes ?=> Expr[Sanitised[Option[H[R]]]],
+    rightIor: Expr[Sanitised[Option[G[R]]]] => Quotes ?=> Expr[Sanitised[Option[I[R]]]],
+  )(using rep: RepType[R])(using Quotes): SanitiseExpr[AltSingletonOption[H, I][R]] = {
+    given Type[InclusiveOr] = inclusiveOrType      
+
+    rep match {
+      case RepFalse => '{
+        val left = $sanitisedLeft.map($leftEither)
+        val right = $sanitisedRight.map($rightEither)
+        (left max right).map(_.singleton)
+      }
+      case RepTrue  => '{
+        val left = ${ leftIor('{ $sanitisedLeft.value.sequence }) }
+        val right = ${ rightIor('{ $sanitisedRight.value.sequence }) }
+        val caps = (left, right).mapN($fromOptions)
+        SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
+      }
+    }
+  }
+
+  private def flattenSanitised[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](expr: Expr[Sanitised[Option[HSingleton[Option[F[R]]]]]])(using Quotes): Expr[Sanitised[Option[F[R]]]] = {
+    '{ $expr.map(_.flatMap(_.value)) }
+  }
+
+  private def tidyAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type, A, B](tidyLeft: TidyFunction[F[R], A], tidyRight: TidyFunction[G[R], B])(using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
+    given Type[A] = tidyLeft.tpe
+    given Type[B] = tidyRight.tpe
+    given Type[InclusiveOr] = inclusiveOrType
+
+    rep match {
+      case RepFalse => new TidyFunction[AltSingleton[F, G][R], Either[A, B]] {
+        override def apply(chain: Expr[AltSingleton[F, G][R]])(using Quotes): Expr[Either[A, B]] = {
+          '{ $chain.value.bimap(left => ${ tidyLeft('left) }, right => ${ tidyRight('right) }) }
+        }
+      }
+      case RepTrue => new TidyFunction[AltSingleton[F, G][R], InclusiveOr[A, B]] {
+        override def apply(chain: Expr[AltSingleton[F, G][R]])(using Quotes): Expr[InclusiveOr[A, B]] = {
+          bimap(tidyLeft(_), tidyRight(_))('{ $chain.value })
+        }
+      }
+    }
+  }
+}
