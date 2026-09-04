@@ -65,7 +65,7 @@ object regex {
     }
   }
 
-  private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {      
+  private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {
     given Type[F] = regex.nodeType.tpe
 
     regex.nodeType match {
