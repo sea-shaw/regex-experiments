@@ -1,6 +1,6 @@
 package experiments.macros.ast
 
-import experiments.macros.hcollections.hchain.HChain
+import experiments.macros.hcollections.hchain.{HChain, HEmpty, HNonEmpty}
 import scala.quoted.{Expr, Type, Quotes}
 
 type Groups = Array[Option[String]]
@@ -27,6 +27,10 @@ trait Functions {
 
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?]
   }
+
+  sealed trait NodeType[F[_ <: Rep] <: HChain](using val tpe: Type[F])
+  trait HEmptyType extends NodeType[Const[HEmpty]]
+  trait HNonEmptyType[F[_ <: Rep] <: HNonEmpty] extends NodeType[F]
 
   protected sealed trait Nodes[C <: Chains] {
     def flattenFunction[L <: Leaves](types: Types[L])(using Quotes): FlattenFunction[C, L, ?]

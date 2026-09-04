@@ -19,10 +19,6 @@ trait AST extends Functions with BuildFunction {
   protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[InclusiveOr[A, B]]]
   protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
 
-  sealed trait NodeType[F[_ <: Rep] <: HChain](using val tpe: Type[F])
-  sealed trait HEmptyType extends NodeType[Const[HEmpty]]
-  sealed trait HNonEmptyType[F[_ <: Rep] <: HNonEmpty] extends NodeType[F]
-
   type SingletonOptionType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[F[R]]]
   sealed trait SingletonOption[F[_ <: Rep] <: HNonEmpty](using val innerType: Type[F]) extends HNonEmptyType[SingletonOptionType[F]] {
     def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?]
@@ -124,7 +120,7 @@ trait AST extends Functions with BuildFunction {
     }
   }
 
-  sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G] {
+  sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes): Expr[SanitisedT[Option, G[R]]]
     private [AST] def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R]): FlattenFunction[CCons[G[R], C], L, ?]
   }
@@ -172,17 +168,19 @@ trait AST extends Functions with BuildFunction {
     }
   }
 
+  // TODO: Use opaque type?
+  case class CapturingTypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](value: NodeType[G] & CapturingType[F, G])
   object CapturingType {
-    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): CapturingType[F, ?] = {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): CapturingTypeRes[F, ?] = {
       given Type[F] = inner.nodeType.tpe
       inner.nodeType match {
-        case _: HEmptyType       => CapturingSingleton()
-        case _: HNonEmptyType[_] => CapturingAppend(inner)
+        case _: HEmptyType       => CapturingTypeRes(CapturingSingleton())
+        case _: HNonEmptyType[_] => CapturingTypeRes(CapturingAppend(inner))
       }
     }
   }
 
-  sealed abstract class Capturing[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] protected (inner: Regex[F])(override final val nodeType: CapturingType[F, G]) extends Regex[G] {
+  sealed abstract class Capturing[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] protected (inner: Regex[F])(override final val nodeType: NodeType[G] & CapturingType[F, G]) extends Regex[G] {
     given Type[F] = inner.nodeType.tpe
     given Type[G] = nodeType.tpe
 
@@ -204,17 +202,17 @@ trait AST extends Functions with BuildFunction {
     }
   }
 
-  case class Capture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F])(nodeType: CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
+  case class Capture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F])(nodeType: NodeType[G] & CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
   object Capture {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Capture[F, ?] = {
-      new Capture(inner)(CapturingType(inner))
+      new Capture(inner)(CapturingType(inner).value)
     }
   }
 
-  case class NamedCapture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (name: String, inner: Regex[F])(nodeType: CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
+  case class NamedCapture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (name: String, inner: Regex[F])(nodeType: NodeType[G] & CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
   object NamedCapture {
     def apply[F[_ <: Rep] <: HChain](name: String, inner: Regex[F])(using Quotes): NamedCapture[F, ?] = {
-      new NamedCapture(name, inner)(CapturingType(inner))
+      new NamedCapture(name, inner)(CapturingType(inner).value)
     }
   }
 
@@ -237,7 +235,7 @@ trait AST extends Functions with BuildFunction {
   case class PositiveLookbehind[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
   case class Independent[F[_ <: Rep] <: HChain](inner: Regex[F]) extends Wrapper[F](inner)
 
-  sealed trait CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] extends NodeType[H] {
+  sealed trait CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] { this: NodeType[H] =>
     def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[H[R]]
     private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?]
   }
@@ -321,7 +319,7 @@ trait AST extends Functions with BuildFunction {
     }
   }
 
-  case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val nodeType: CatType[F, G, H]) extends Regex[H] {
+  case class Cat[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val nodeType: NodeType[H] & CatType[F, G, H]) extends Regex[H] {
     given Type[F] = left.nodeType.tpe
     given Type[G] = right.nodeType.tpe
     given Type[H] = nodeType.tpe
@@ -341,38 +339,41 @@ trait AST extends Functions with BuildFunction {
 
   object Cat {
     def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Cat[F, G, ?] = {
-      val nodeType: CatType[F, G, ?] = (left.nodeType, right.nodeType) match {
-        case (_: HEmptyType, _: HEmptyType) => CatEmpty()
+      // TODO: Use opaque type?
+      case class CatTypeRes[H[_ <: Rep] <: HChain](value: NodeType[H] & CatType[F, G, H])
+
+      val nodeType: CatTypeRes[?] = (left.nodeType, right.nodeType) match {
+        case (_: HEmptyType, _: HEmptyType) => CatTypeRes(CatEmpty())
         case (leftType: SingletonOption[f], _: HEmptyType) => {
           given Type[f] = leftType.innerType
-          CatLeftOption(leftType)
+          CatTypeRes(CatLeftOption(leftType))
         }
         case (_: HEmptyType, rightType: SingletonOption[f]) => {
           given Type[f] = rightType.innerType
-          CatRightOption(rightType)
+          CatTypeRes(CatRightOption(rightType))
         }
         case (leftType: HNonEmptyType[f], _: HEmptyType) => {
           given Type[f] = leftType.tpe
-          CatLeft(left)
+          CatTypeRes(CatLeft(left))
         }
         case (_: HEmptyType, rightType: HNonEmptyType[g]) => {
           given Type[g] = rightType.tpe
-          CatRight(right)
+          CatTypeRes(CatRight(right))
         }
         case (leftType: HNonEmptyType[f], rightType: HNonEmptyType[g]) => {
           given Type[f] = leftType.tpe
           given Type[g] = rightType.tpe
-          CatBoth(left, right)
+          CatTypeRes(CatBoth(left, right))
         }
       }
-      new Cat(left, right)(nodeType)
+      new Cat(left, right)(nodeType.value)
     }
   }
 
   private type AltSingleton[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[AltRep[F, G, R, InclusiveOr]]
   private type AltSingletonOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[AltSingleton[F, G][R]]]
 
-  sealed trait AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] extends NodeType[H] {
+  sealed trait AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] { this: NodeType[H] =>
     def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]])(using RepType[R])(using Quotes): SanitiseExpr[H[R]]
     private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?]
   }
@@ -634,7 +635,7 @@ trait AST extends Functions with BuildFunction {
     }
   }
 
-  case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val nodeType: AltType[F, G, H]) extends Regex[H] {
+  case class Alt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] private (left: Regex[F], right: Regex[G])(override val nodeType: NodeType[H] & AltType[F, G, H]) extends Regex[H] {
     given Type[F] = left.nodeType.tpe
     given Type[G] = right.nodeType.tpe
     given Type[H] = nodeType.tpe
@@ -655,52 +656,54 @@ trait AST extends Functions with BuildFunction {
 
   object Alt {
     def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Alt[F, G, ?] = {
+      case class AltTypeRes[H[_ <: Rep] <: HChain](value: NodeType[H] & AltType[F, G, H])
+
       given Type[InclusiveOr] = inclusiveOrType
 
-      val nodeType: AltType[F, G, ?] = (left.nodeType, right.nodeType) match {
-        case (_: HEmptyType, _: HEmptyType) => AltEmpty()
+      val nodeType: AltTypeRes[?] = (left.nodeType, right.nodeType) match {
+        case (_: HEmptyType, _: HEmptyType) => AltTypeRes(AltEmpty())
         case (leftType: SingletonOption[f], _: HEmptyType) => {
           given Type[f] = leftType.innerType
-          AltLeftOption(leftType)
+          AltTypeRes(AltLeftOption(leftType))
         }
         case (_: HEmptyType, rightType: SingletonOption[g]) => {
           given Type[g] = rightType.innerType
-          AltRightOption(rightType)
+          AltTypeRes(AltRightOption(rightType))
         }
         case (leftType: HNonEmptyType[f], _: HEmptyType) => {
           given Type[f] = leftType.tpe
-          AltLeft(left)
+          AltTypeRes(AltLeft(left))
         }
         case (_: HEmptyType, rightType: HNonEmptyType[g]) => {
           given Type[g] = rightType.tpe
-          AltRight(right)
+          AltTypeRes(AltRight(right))
         }
         case (leftType: SingletonOption[f], rightType: SingletonOption[g]) => {
           given Type[f] = leftType.innerType
           given Type[g] = rightType.innerType
-          AltBothOption(leftType, rightType)
+          AltTypeRes(AltBothOption(leftType, rightType))
         }
         case (leftType: SingletonOption[f], rightType: HNonEmptyType[g]) => {
           given Type[f] = leftType.innerType
           given Type[g] = rightType.tpe
-          AltBothLeftOption(leftType, right)
+          AltTypeRes(AltBothLeftOption(leftType, right))
         }
         case (leftType: HNonEmptyType[f], rightType: SingletonOption[g]) => {
           given Type[f] = leftType.tpe
           given Type[g] = rightType.innerType
-          AltBothRightOption(left, rightType)
+          AltTypeRes(AltBothRightOption(left, rightType))
         }
         case (leftType: HNonEmptyType[f], rightType: HNonEmptyType[g]) => {
           given Type[f] = leftType.tpe
           given Type[g] = rightType.tpe
-          AltBoth(left, right)
+          AltTypeRes(AltBoth(left, right))
         }
       }
-      new Alt(left, right)(nodeType)
+      new Alt(left, right)(nodeType.value)
     }
   }
 
-  sealed trait OptType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G] {
+  sealed trait OptType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[R]])(using RepType[R])(using Quotes): SanitiseExpr[G[R]]
     private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
   }
@@ -756,7 +759,7 @@ trait AST extends Functions with BuildFunction {
     override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = innerType.tidyInner
   }
 
-  case class Opt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(override val nodeType: OptType[F, G]) extends Regex[G] {
+  case class Opt[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(override val nodeType: NodeType[G] & OptType[F, G]) extends Regex[G] {
     given Type[F] = inner.nodeType.tpe
     given Type[G] = nodeType.tpe
 
@@ -775,22 +778,24 @@ trait AST extends Functions with BuildFunction {
 
   object Opt {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes): Opt[F, ?] = {
-      val nodeType: OptType[F, ?] = inner.nodeType match {
-        case _: HEmptyType => OptEmpty()
+      case class OptTypeRes[G[_ <: Rep] <: HChain](value: NodeType[G] & OptType[F, G])
+      
+      val nodeType: OptTypeRes[?] = inner.nodeType match {
+        case _: HEmptyType => OptTypeRes(OptEmpty())
         case singletonOption: SingletonOption[f] => {
           given Type[f] = singletonOption.innerType
-          OptNested(singletonOption)
+          OptTypeRes(OptNested(singletonOption))
         }
         case nonEmpty: HNonEmptyType[f] => {
           given Type[f] = nonEmpty.tpe
-          OptSingleton(inner)
+          OptTypeRes(OptSingleton(inner))
         }
       }
-      new Opt(inner, quantifierType)(nodeType)
+      new Opt(inner, quantifierType)(nodeType.value)
     }
   }
 
-  sealed trait Rep1Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G] {
+  sealed trait Rep1Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
     private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
   }
@@ -816,17 +821,18 @@ trait AST extends Functions with BuildFunction {
     }
   }
 
+  case class Rep1TypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](value: NodeType[G] & Rep1Type[F, G])
   object Rep1Type {
-    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep1Type[F, ?] = {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep1TypeRes[F, ?] = {
       given Type[F] = inner.nodeType.tpe
       inner.nodeType match {
-        case _: HEmptyType       => Rep1Empty()
-        case _: HNonEmptyType[_] => Rep1NonEmpty(inner)
+        case _: HEmptyType       => Rep1TypeRes(Rep1Empty())
+        case _: HNonEmptyType[_] => Rep1TypeRes(Rep1NonEmpty(inner))
       }
     }
   }
 
-  sealed abstract class Rep1[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F])(override final val nodeType: Rep1Type[F, G]) extends Regex[G] {
+  sealed abstract class Rep1[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F])(override final val nodeType: NodeType[G] & Rep1Type[F, G]) extends Regex[G] {
     override final val numCaptures: Int = inner.numCaptures
 
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
@@ -839,38 +845,38 @@ trait AST extends Functions with BuildFunction {
     }
   }
 
-  case class Plus[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(nodeType: Rep1Type[F, G]) extends Rep1(inner)(nodeType)
+  case class Plus[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep1Type[F, G]) extends Rep1(inner)(nodeType)
   object Plus {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes): Plus[F, ?] = {
-      new Plus(inner, quantifierType)(Rep1Type(inner))
+      new Plus(inner, quantifierType)(Rep1Type(inner).value)
     }
   }
 
   /* {n} for n >= 2. */
-  case class Exactly[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
+  case class Exactly[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
   object Exactly {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes): Exactly[F, ?] = {
-      new Exactly(inner, n, quantifierType)(Rep1Type(inner))
+      new Exactly(inner, n, quantifierType)(Rep1Type(inner).value)
     }
   }
 
   /* {n,} for n >= 1. Use `Star` for {0,} */
-  case class AtLeast[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
+  case class AtLeast[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
   object AtLeast {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes): AtLeast[F, ?] = {
-      new AtLeast(inner, n, quantifierType)(Rep1Type(inner))
+      new AtLeast(inner, n, quantifierType)(Rep1Type(inner).value)
     }
   }
 
   /* {n, m} for m > n >= 1. */
-  case class Between[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, m: Int, quantifierType: QuantifierType)(nodeType: Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
+  case class Between[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, m: Int, quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
   object Between {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, m: Int, quantifierType: QuantifierType)(using Quotes): Between[F, ?] = {
-      new Between(inner, n, m, quantifierType)(Rep1Type(inner))
+      new Between(inner, n, m, quantifierType)(Rep1Type(inner).value)
     }
   }
 
-  sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] extends NodeType[G] {
+  sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
     private [AST] def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
   }
@@ -919,21 +925,22 @@ trait AST extends Functions with BuildFunction {
     override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[true], ?] = inner.tidyFunction(using RepTrue)
   }
 
+  case class Rep0TypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](value: NodeType[G] & Rep0Type[F, G])
   object Rep0Type {
-    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep0Type[F, ?] = {
+    def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Rep0TypeRes[F, ?] = {
       given Type[F] = inner.nodeType.tpe
       inner.nodeType match {
-        case _: HEmptyType => Rep0Empty()
+        case _: HEmptyType => Rep0TypeRes(Rep0Empty())
         case option: SingletonOption[f] => {
           given Type[f] = option.innerType
-          Rep0Opt(option)
+          Rep0TypeRes(Rep0Opt(option))
         }
-        case _: HNonEmptyType[_] => Rep0NonEmpty(inner)
+        case _: HNonEmptyType[_] => Rep0TypeRes(Rep0NonEmpty(inner))
       }
     }
   }
 
-  sealed abstract class Rep0[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F])(override final val nodeType: Rep0Type[F, G]) extends Regex[G] {
+  sealed abstract class Rep0[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F])(override final val nodeType: NodeType[G] & Rep0Type[F, G]) extends Regex[G] {
     given Type[F] = inner.nodeType.tpe
     given Type[G] = nodeType.tpe
 
@@ -949,18 +956,18 @@ trait AST extends Functions with BuildFunction {
     }
   }
 
-  case class Star[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(nodeType: Rep0Type[F, G]) extends Rep0[F, G](inner)(nodeType)
+  case class Star[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep0Type[F, G]) extends Rep0[F, G](inner)(nodeType)
   object Star {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes) = {
-      new Star(inner, quantifierType)(Rep0Type(inner))
+      new Star(inner, quantifierType)(Rep0Type(inner).value)
     }
   }
 
   /* {0, m} for m >= 2. Use `Opt` for {0, 1}. */
-  case class AtMost[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: Rep0Type[F, G]) extends Rep0[F, G](inner)(nodeType)
+  case class AtMost[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep0Type[F, G]) extends Rep0[F, G](inner)(nodeType)
   object AtMost {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes) = {
-      new AtMost(inner, n, quantifierType)(Rep0Type(inner))
+      new AtMost(inner, n, quantifierType)(Rep0Type(inner).value)
     }
   }
 
