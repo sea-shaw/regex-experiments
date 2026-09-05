@@ -6,17 +6,17 @@ import scala.quoted.{Quotes, Type}
 
 trait Rep1Types { this: Functions =>
   sealed trait Rep1Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
+    final val asNodeType: NodeType[G] & Rep1Type[F, G] = this
     def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
   }
 
-  case class Rep1TypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](value: NodeType[G] & Rep1Type[F, G])
   object Rep1Type {
-    def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): Rep1TypeRes[F, ?] = {
+    def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): Rep1Type[F, ?] = {
       given Type[F] = inner.nodeType.tpe
       inner.nodeType match {
-        case _: HEmptyType       => Rep1TypeRes(Rep1Empty())
-        case _: HNonEmptyType[_] => Rep1TypeRes(Rep1NonEmpty(inner))
+        case _: HEmptyType       => Rep1Empty()
+        case _: HNonEmptyType[_] => Rep1NonEmpty(inner)
       }
     }
   }

@@ -15,52 +15,52 @@ trait AltTypes { this: Functions =>
   type AltSingletonOption[F[_ <: Rep] <: HNonEmpty, G[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HSingleton[Option[AltSingleton[F, G][R]]]
 
   sealed trait AltType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] { this: NodeType[H] =>
+    final val asNodeType: NodeType[H] & AltType[F, G, H] = this
     def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]])(using RepType[R])(using Quotes): SanitiseExpr[H[R]]
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?]
   }
 
-  case class AltTypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain](value: NodeType[H] & AltType[F, G, H])
   object AltType {
-    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Tidiable[F], right: Tidiable[G])(using Quotes): AltTypeRes[F, G, ?] = {
+    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Tidiable[F], right: Tidiable[G])(using Quotes): AltType[F, G, ?] = {
       given Type[InclusiveOr] = inclusiveOrType
 
       (left.nodeType, right.nodeType) match {
-        case (_: HEmptyType, _: HEmptyType) => AltTypeRes(AltEmpty())
+        case (_: HEmptyType, _: HEmptyType) => AltEmpty()
         case (leftType: SingletonOption[f], _: HEmptyType) => {
           given Type[f] = leftType.innerType
-          AltTypeRes(AltLeftOption(leftType))
+          AltLeftOption(leftType)
         }
         case (_: HEmptyType, rightType: SingletonOption[g]) => {
           given Type[g] = rightType.innerType
-          AltTypeRes(AltRightOption(rightType))
+          AltRightOption(rightType)
         }
         case (leftType: HNonEmptyType[f], _: HEmptyType) => {
           given Type[f] = leftType.tpe
-          AltTypeRes(AltLeft(left))
+          AltLeft(left)
         }
         case (_: HEmptyType, rightType: HNonEmptyType[g]) => {
           given Type[g] = rightType.tpe
-          AltTypeRes(AltRight(right))
+          AltRight(right)
         }
         case (leftType: SingletonOption[f], rightType: SingletonOption[g]) => {
           given Type[f] = leftType.innerType
           given Type[g] = rightType.innerType
-          AltTypeRes(AltBothOption(leftType, rightType))
+          AltBothOption(leftType, rightType)
         }
         case (leftType: SingletonOption[f], rightType: HNonEmptyType[g]) => {
           given Type[f] = leftType.innerType
           given Type[g] = rightType.tpe
-          AltTypeRes(AltBothLeftOption(leftType, right))
+          AltBothLeftOption(leftType, right)
         }
         case (leftType: HNonEmptyType[f], rightType: SingletonOption[g]) => {
           given Type[f] = leftType.tpe
           given Type[g] = rightType.innerType
-          AltTypeRes(AltBothRightOption(left, rightType))
+          AltBothRightOption(left, rightType)
         }
         case (leftType: HNonEmptyType[f], rightType: HNonEmptyType[g]) => {
           given Type[f] = leftType.tpe
           given Type[g] = rightType.tpe
-          AltTypeRes(AltBoth(left, right))
+          AltBoth(left, right)
         }
       }
     }

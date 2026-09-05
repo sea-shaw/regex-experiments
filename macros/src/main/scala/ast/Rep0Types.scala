@@ -6,8 +6,23 @@ import scala.quoted.{Expr, Quotes, Type}
 
 trait Rep0Types { this: Functions =>
   sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
+    final val asNodeType: NodeType[G] & Rep0Type[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
+  }
+
+  object Rep0Type {
+    def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): Rep0Type[F, ?] = {
+      given Type[F] = inner.nodeType.tpe
+      inner.nodeType match {
+        case _: HEmptyType => Rep0Empty()
+        case option: SingletonOption[f] => {
+          given Type[f] = option.innerType
+          Rep0Opt(option)
+        }
+        case _: HNonEmptyType[_] => Rep0NonEmpty(inner)
+      }
+    }
   }
 
   private class Rep0Empty(using Type[Const[HEmpty]]) extends Rep0Type[Const[HEmpty], Const[HEmpty]] with HEmptyType {
@@ -53,20 +68,5 @@ trait Rep0Types { this: Functions =>
     }
 
     override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[true], ?] = inner.tidyFunction(using RepTrue)
-  }
-
-  case class Rep0TypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](value: NodeType[G] & Rep0Type[F, G])
-  object Rep0Type {
-    def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): Rep0TypeRes[F, ?] = {
-      given Type[F] = inner.nodeType.tpe
-      inner.nodeType match {
-        case _: HEmptyType => Rep0TypeRes(Rep0Empty())
-        case option: SingletonOption[f] => {
-          given Type[f] = option.innerType
-          Rep0TypeRes(Rep0Opt(option))
-        }
-        case _: HNonEmptyType[_] => Rep0TypeRes(Rep0NonEmpty(inner))
-      }
-    }
   }
 }

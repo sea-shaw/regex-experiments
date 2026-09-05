@@ -126,14 +126,14 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
   case class Capture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F])(nodeType: NodeType[G] & CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
   object Capture {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Capture[F, ?] = {
-      new Capture(inner)(CapturingType(inner).value)
+      new Capture(inner)(CapturingType(inner).asNodeType)
     }
   }
 
   case class NamedCapture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (name: String, inner: Regex[F])(nodeType: NodeType[G] & CapturingType[F, G]) extends Capturing[F, G](inner)(nodeType)
   object NamedCapture {
     def apply[F[_ <: Rep] <: HChain](name: String, inner: Regex[F])(using Quotes): NamedCapture[F, ?] = {
-      new NamedCapture(name, inner)(CapturingType(inner).value)
+      new NamedCapture(name, inner)(CapturingType(inner).asNodeType)
     }
   }
 
@@ -176,8 +176,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
 
   object Cat {
     def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Cat[F, G, ?] = {
-      val nodeType = CatType(left, right)
-      new Cat(left, right)(nodeType.value)
+      new Cat(left, right)(CatType(left, right).asNodeType)
     }
   }
 
@@ -202,8 +201,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
 
   object Alt {
     def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Regex[F], right: Regex[G])(using Quotes): Alt[F, G, ?] = {
-      val nodeType = AltType(left, right)
-      new Alt(left, right)(nodeType.value)
+      new Alt(left, right)(AltType(left, right).asNodeType)
     }
   }
 
@@ -226,8 +224,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
 
   object Opt {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes): Opt[F, ?] = {
-      val nodeType = OptType(inner)
-      new Opt(inner, quantifierType)(nodeType.value)
+      new Opt(inner, quantifierType)(OptType(inner).asNodeType)
     }
   }
 
@@ -247,7 +244,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
   case class Plus[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep1Type[F, G]) extends Rep1(inner)(nodeType)
   object Plus {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes): Plus[F, ?] = {
-      new Plus(inner, quantifierType)(Rep1Type(inner).value)
+      new Plus(inner, quantifierType)(Rep1Type(inner).asNodeType)
     }
   }
 
@@ -255,7 +252,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
   case class Exactly[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
   object Exactly {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes): Exactly[F, ?] = {
-      new Exactly(inner, n, quantifierType)(Rep1Type(inner).value)
+      new Exactly(inner, n, quantifierType)(Rep1Type(inner).asNodeType)
     }
   }
 
@@ -263,7 +260,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
   case class AtLeast[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
   object AtLeast {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes): AtLeast[F, ?] = {
-      new AtLeast(inner, n, quantifierType)(Rep1Type(inner).value)
+      new AtLeast(inner, n, quantifierType)(Rep1Type(inner).asNodeType)
     }
   }
 
@@ -271,7 +268,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
   case class Between[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, m: Int, quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep1Type[F, G]) extends Rep1[F, G](inner)(nodeType)
   object Between {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, m: Int, quantifierType: QuantifierType)(using Quotes): Between[F, ?] = {
-      new Between(inner, n, m, quantifierType)(Rep1Type(inner).value)
+      new Between(inner, n, m, quantifierType)(Rep1Type(inner).asNodeType)
     }
   }
 
@@ -294,7 +291,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
   case class Star[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep0Type[F, G]) extends Rep0[F, G](inner)(nodeType)
   object Star {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], quantifierType: QuantifierType)(using Quotes) = {
-      new Star(inner, quantifierType)(Rep0Type(inner).value)
+      new Star(inner, quantifierType)(Rep0Type(inner).asNodeType)
     }
   }
 
@@ -302,7 +299,7 @@ trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, 
   case class AtMost[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F], n: Int, quantifierType: QuantifierType)(nodeType: NodeType[G] & Rep0Type[F, G]) extends Rep0[F, G](inner)(nodeType)
   object AtMost {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F], n: Int, quantifierType: QuantifierType)(using Quotes) = {
-      new AtMost(inner, n, quantifierType)(Rep0Type(inner).value)
+      new AtMost(inner, n, quantifierType)(Rep0Type(inner).asNodeType)
     }
   }
 }

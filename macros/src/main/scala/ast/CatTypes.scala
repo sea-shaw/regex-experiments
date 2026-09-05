@@ -7,35 +7,35 @@ import scala.quoted.{Expr, Quotes, Type}
 
 trait CatTypes { this: Functions =>
   sealed trait CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] { this: NodeType[H] =>
+    final val asNodeType: NodeType[H] & CatType[F, G, H] = this
     def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[H[R]]
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?]
   }
 
-  case class CatTypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain](value: NodeType[H] & CatType[F, G, H])
   object CatType {
-    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Tidiable[F], right: Tidiable[G])(using Quotes): CatTypeRes[F, G, ?] = {
+    def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Tidiable[F], right: Tidiable[G])(using Quotes): CatType[F, G, ?] = {
       (left.nodeType, right.nodeType) match {
-        case (_: HEmptyType, _: HEmptyType) => CatTypeRes(CatEmpty())
+        case (_: HEmptyType, _: HEmptyType) => CatEmpty()
         case (leftType: SingletonOption[f], _: HEmptyType) => {
           given Type[f] = leftType.innerType
-          CatTypeRes(CatLeftOption(leftType))
+          CatLeftOption(leftType)
         }
         case (_: HEmptyType, rightType: SingletonOption[f]) => {
           given Type[f] = rightType.innerType
-          CatTypeRes(CatRightOption(rightType))
+          CatRightOption(rightType)
         }
         case (leftType: HNonEmptyType[f], _: HEmptyType) => {
           given Type[f] = leftType.tpe
-          CatTypeRes(CatLeft(left))
+          CatLeft(left)
         }
         case (_: HEmptyType, rightType: HNonEmptyType[g]) => {
           given Type[g] = rightType.tpe
-          CatTypeRes(CatRight(right))
+          CatRight(right)
         }
         case (leftType: HNonEmptyType[f], rightType: HNonEmptyType[g]) => {
           given Type[f] = leftType.tpe
           given Type[g] = rightType.tpe
-          CatTypeRes(CatBoth(left, right))
+          CatBoth(left, right)
         }
       }
     }

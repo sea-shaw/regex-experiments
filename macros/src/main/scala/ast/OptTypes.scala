@@ -7,23 +7,22 @@ import scala.quoted.{Expr, Quotes, Type}
 
 trait OptTypes { this: Functions =>
   sealed trait OptType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
+    final val asNodeType: NodeType[G] & OptType[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[R]])(using RepType[R])(using Quotes): SanitiseExpr[G[R]]
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
   }
 
-  case class OptTypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](value: NodeType[G] & OptType[F, G])
-
   object OptType {
-    def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): OptTypeRes[F, ?] = {
+    def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): OptType[F, ?] = {
       inner.nodeType match {
-        case _: HEmptyType => OptTypeRes(OptEmpty())
+        case _: HEmptyType => OptEmpty()
         case singletonOption: SingletonOption[f] => {
           given Type[f] = singletonOption.innerType
-          OptTypeRes(OptNested(singletonOption))
+          OptNested(singletonOption)
         }
         case nonEmpty: HNonEmptyType[f] => {
           given Type[f] = nonEmpty.tpe
-          OptTypeRes(OptSingleton(inner))
+          OptSingleton(inner)
         }
       }
     }

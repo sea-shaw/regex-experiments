@@ -7,17 +7,17 @@ import scala.quoted.{Expr, Quotes, Type}
 
 trait CapturingTypes { this: Functions =>
   sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
+    final val asNodeType: NodeType[G] & CapturingType[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes): Expr[SanitisedT[Option, G[R]]]
     def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R]): FlattenFunction[CCons[G[R], C], L, ?]
   }
 
-  case class CapturingTypeRes[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](value: NodeType[G] & CapturingType[F, G])
   object CapturingType {
-    def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): CapturingTypeRes[F, ?] = {
+    def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): CapturingType[F, ?] = {
       given Type[F] = inner.nodeType.tpe
       inner.nodeType match {
-        case _: HEmptyType       => CapturingTypeRes(CapturingSingleton())
-        case _: HNonEmptyType[_] => CapturingTypeRes(CapturingAppend(inner))
+        case _: HEmptyType       => CapturingSingleton()
+        case _: HNonEmptyType[_] => CapturingAppend(inner)
       }
     }
   }
