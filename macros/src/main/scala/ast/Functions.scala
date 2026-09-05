@@ -20,8 +20,7 @@ trait Functions {
   protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[InclusiveOr[A, B]]]
   protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
 
-  abstract class Tidiable[F[_ <: Rep] <: HChain] {
-    val nodeType: NodeType[F]
+  abstract class Tidiable[F[_ <: Rep] <: HChain](final val nodeType: NodeType[F]) {
 
     final def tidyFunction[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = {
       flattenFunction(NNil, TNil) match {
