@@ -10,7 +10,7 @@ object tuples {
     |
     |import scala.quoted.{Expr, Quotes, Type, quotes}
     |
-    |trait BuildFunction { this: Functions =>
+    |trait BuildFunction { this: Tidy =>
     |  override protected final def buildFunction[L <: Leaves](types: Types[L])(using Quotes): BuildFunction[L, ?] = {
     |    types match {
     |      case TNil => new BuildFunction[LNil, Unit] {

@@ -4,7 +4,7 @@ import experiments.macros.hcollections.hchain.*
 import experiments.macros.sanitised.*
 import scala.quoted.{Expr, Quotes, Type}
 
-trait Rep0Types { this: Functions =>
+trait Rep0Types { this: Tidy =>
   sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & Rep0Type[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]

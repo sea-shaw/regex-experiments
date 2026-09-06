@@ -14,7 +14,7 @@ case object RepFalse extends RepType[false]
 
 type Const[+A] = [_] =>> A
 
-trait Functions {
+trait Tidy {
   type InclusiveOr[+_, +_]
   protected def inclusiveOrType(using Quotes): Type[InclusiveOr]
   protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[InclusiveOr[A, B]]]

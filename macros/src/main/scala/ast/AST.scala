@@ -5,7 +5,7 @@ import experiments.macros.hcollections.hchain.*
 import experiments.macros.sanitised.{SanitiseExpr, Sanitised, SanitisedT}
 import scala.quoted.{Expr, Type, Quotes}
 
-trait AST extends Functions, BuildFunction, CapturingTypes, CatTypes, AltTypes, OptTypes, Rep1Types, Rep0Types {
+trait AST extends Tidy, BuildFunction, CapturingTypes, CatTypes, AltTypes, OptTypes, Rep1Types, Rep0Types {
   sealed abstract class Regex[F[_ <: Rep] <: HChain](nodeType: NodeType[F]) extends Tidiable[F](nodeType) {
     val numCaptures: Int
 
