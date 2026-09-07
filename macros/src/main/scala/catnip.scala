@@ -1,13 +1,13 @@
 package experiments.macros
 
 import cats.data.Ior
-import experiments.macros.tidy.Tidy
+import experiments.macros.ast.AST
 import experiments.macros.regex.{Regex, isInlineable}
 import scala.quoted.{Expr, Quotes, Type}
 
 object catnip {
 
-  private object Catnip extends Tidy {
+  private object Catnip extends AST {
     type InclusiveOr = Ior
 
     override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
