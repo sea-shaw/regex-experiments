@@ -35,7 +35,7 @@ trait Tidy {
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?]
   }
 
-  sealed into trait NodeType[F[_ <: Rep] <: HChain](using val tpe: Type[F])
+  sealed trait NodeType[F[_ <: Rep] <: HChain](using val tpe: Type[F])
   trait HEmptyType extends NodeType[Const[HEmpty]]
   trait HNonEmptyType[F[_ <: Rep] <: HNonEmpty] extends NodeType[F]
 
