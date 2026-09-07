@@ -3,6 +3,7 @@ package experiments.macros.ast
 import cats.syntax.all.*
 import experiments.macros.hcollections.hchain.*
 import experiments.macros.sanitised.*
+import scala.compiletime.deferred
 import scala.quoted.{Expr, Type, Quotes}
 
 type Groups = Array[Option[String]]
@@ -15,8 +16,8 @@ case object RepFalse extends RepType[false]
 type Const[+A] = [_] =>> A
 
 trait Tidy {
-  type InclusiveOr[+_, +_]
-  protected def inclusiveOrType(using Quotes): Type[InclusiveOr]
+  type InclusiveOr[+_, +_]: Type
+
   protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[InclusiveOr[A, B]]]
   protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
 

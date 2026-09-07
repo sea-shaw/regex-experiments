@@ -7,12 +7,10 @@ import experiments.macros.regex.{Regex, isInlineable}
 import scala.quoted.{Expr, Quotes, Type}
 
 object oregano {
+  type EitherIor[+A, +B] = Either[Either[A, B], (A, B)]
 
-  private object Oregano extends AST {
-    type InclusiveOr[+A, +B] = Either[Either[A, B], (A, B)]
-
-    override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
-
+  private class Oregano(using Type[EitherIor]) extends AST {
+    type InclusiveOr = EitherIor
     override protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[Either[Either[A, B], (A, B)]]] = {
       '{ Ior.fromOptions(_, _).map(_.unwrap) }
     }
@@ -31,6 +29,6 @@ object oregano {
   }
 
   private def regexCode(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
-    isInlineable(sc, Oregano)
+    isInlineable(sc, Oregano())
   }
 }

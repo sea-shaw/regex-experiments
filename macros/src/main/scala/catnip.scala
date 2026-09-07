@@ -7,10 +7,8 @@ import scala.quoted.{Expr, Quotes, Type}
 
 object catnip {
 
-  private object Catnip extends AST {
+  private class Catnip(using Type[Ior]) extends AST {
     type InclusiveOr = Ior
-
-    override protected def inclusiveOrType(using Quotes): Type[InclusiveOr] = Type.of[InclusiveOr]
 
     override protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[InclusiveOr[A, B]]] = {
       '{ Ior.fromOptions }
@@ -26,10 +24,10 @@ object catnip {
   }
 
   private def regexCode(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
-    isInlineable(sc, Catnip)
+    isInlineable(sc, Catnip())
   }
 
   inline def code(inline s: String) = ${ codeCode('s) }
 
-  private def codeCode(s: Expr[String])(using Quotes): Expr[String] = regex.code(s, Catnip)
+  private def codeCode(s: Expr[String])(using Quotes): Expr[String] = regex.code(s, Catnip())
 }

@@ -22,8 +22,6 @@ trait AltTypes { this: Tidy =>
 
   object AltType {
     def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Tidiable[F], right: Tidiable[G])(using Quotes): AltType[F, G, ?] = {
-      given Type[InclusiveOr] = inclusiveOrType
-
       (left.nodeType, right.nodeType) match {
         case (_: HEmptyType, _: HEmptyType) => AltEmpty()
         case (leftType: SingletonOption[f], _: HEmptyType) => {
@@ -148,8 +146,6 @@ trait AltTypes { this: Tidy =>
     }
 
     override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[AltBothOptionType[F, G][R], C], L, ?] = {
-      given Type[InclusiveOr] = inclusiveOrType
-
       tidyInner match {
         case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
           case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[AltBothLeftOptionType[F, G][R], C], L, b] {
@@ -184,8 +180,6 @@ trait AltTypes { this: Tidy =>
     }
 
     override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using rep: RepType[R])(using Quotes): FlattenFunction[CCons[AltBothLeftOptionType[F, G][R], C], L, ?] = {
-      given Type[InclusiveOr] = inclusiveOrType
-
       tidyInner match {
         case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
           case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[AltBothLeftOptionType[F, G][R], C], L, b] {
@@ -220,8 +214,6 @@ trait AltTypes { this: Tidy =>
     }
 
     override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[AltBothRightOptionType[F, G][R], C], L, ?] = {
-      given Type[InclusiveOr] = inclusiveOrType
-
       tidyInner match {
         case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
           case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[AltBothLeftOptionType[F, G][R], C], L, b] {
@@ -245,8 +237,6 @@ trait AltTypes { this: Tidy =>
   private type AltBothType = AltSingleton
   private class AltBoth[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](left: Tidiable[F], right: Tidiable[G])(using Type[AltBothType[F, G]]) extends AltType[F, G, AltBothType[F, G]] with HNonEmptyType[AltBothType[F, G]] {
     override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]])(using rep: RepType[R])(using Quotes): SanitiseExpr[AltBothType[F, G][R]] = {
-      given Type[InclusiveOr] = inclusiveOrType
-
       rep match {
         case RepFalse => '{
           val left = $sanitisedLeft.map(_.asLeft[G[R]])
@@ -283,8 +273,6 @@ trait AltTypes { this: Tidy =>
     leftIor: Expr[Sanitised[Option[F[R]]]] => Quotes ?=> Expr[Sanitised[Option[H[R]]]],
     rightIor: Expr[Sanitised[Option[G[R]]]] => Quotes ?=> Expr[Sanitised[Option[I[R]]]],
   )(using rep: RepType[R])(using Quotes): SanitiseExpr[AltSingletonOption[H, I][R]] = {
-    given Type[InclusiveOr] = inclusiveOrType
-
     rep match {
       case RepFalse => '{
         val left = $sanitisedLeft.map($leftEither)
@@ -307,7 +295,6 @@ trait AltTypes { this: Tidy =>
   private def tidyAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type, A, B](tidyLeft: TidyFunction[F[R], A], tidyRight: TidyFunction[G[R], B])(using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
     given Type[A] = tidyLeft.tpe
     given Type[B] = tidyRight.tpe
-    given Type[InclusiveOr] = inclusiveOrType
 
     rep match {
       case RepFalse => new TidyFunction[AltSingleton[F, G][R], Either[A, B]] {
