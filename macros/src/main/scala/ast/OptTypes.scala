@@ -6,13 +6,13 @@ import experiments.macros.sanitised.*
 import scala.quoted.{Expr, Quotes, Type}
 
 trait OptTypes { this: Tidy =>
-  sealed trait OptType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
+  protected sealed trait OptType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & OptType[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[R]])(using RepType[R])(using Quotes): SanitiseExpr[G[R]]
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
   }
 
-  object OptType {
+  protected object OptType {
     def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): OptType[F, ?] = {
       inner.nodeType match {
         case _: HEmptyType => OptEmpty()

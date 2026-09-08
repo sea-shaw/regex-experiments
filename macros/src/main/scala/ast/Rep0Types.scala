@@ -5,13 +5,13 @@ import experiments.macros.sanitised.*
 import scala.quoted.{Expr, Quotes, Type}
 
 trait Rep0Types { this: Tidy =>
-  sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
+  protected sealed trait Rep0Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & Rep0Type[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
   }
 
-  object Rep0Type {
+  protected object Rep0Type {
     def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): Rep0Type[F, ?] = {
       given Type[F] = inner.nodeType.tpe
       inner.nodeType match {

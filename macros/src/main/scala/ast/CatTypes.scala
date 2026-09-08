@@ -6,13 +6,13 @@ import experiments.macros.sanitised.*
 import scala.quoted.{Expr, Quotes, Type}
 
 trait CatTypes { this: Tidy =>
-  sealed trait CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] { this: NodeType[H] =>
+  protected sealed trait CatType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, H[_ <: Rep] <: HChain] { this: NodeType[H] =>
     final val asNodeType: NodeType[H] & CatType[F, G, H] = this
     def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[H[R]]
     def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?]
   }
 
-  object CatType {
+  protected object CatType {
     def apply[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain](left: Tidiable[F], right: Tidiable[G])(using Quotes): CatType[F, G, ?] = {
       (left.nodeType, right.nodeType) match {
         case (_: HEmptyType, _: HEmptyType) => CatEmpty()

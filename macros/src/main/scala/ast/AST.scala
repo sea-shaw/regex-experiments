@@ -5,16 +5,11 @@ import experiments.macros.hcollections.hchain.*
 import experiments.macros.sanitised.{SanitiseExpr, Sanitised, SanitisedT}
 import scala.quoted.{Expr, Type, Quotes}
 
-trait AST extends Tidy, BuildFunction, CapturingTypes, CatTypes, AltTypes, OptTypes, Rep1Types, Rep0Types {
+trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, AltTypes, OptTypes, Rep1Types, Rep0Types {
   sealed abstract class Regex[F[_ <: Rep] <: HChain](nodeType: NodeType[F]) extends Tidiable[F](nodeType) {
     val numCaptures: Int
 
     def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[F[R]]
-  }
-
-  class EmptyType(using Type[Const[HEmpty]]) extends HEmptyType
-  object EmptyType {
-    given Quotes => EmptyType = EmptyType()
   }
 
   sealed abstract class Empty protected (using emptyType: EmptyType) extends Regex[Const[HEmpty]](emptyType) {

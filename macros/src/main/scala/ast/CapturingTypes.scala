@@ -6,13 +6,13 @@ import experiments.macros.sanitised.*
 import scala.quoted.{Expr, Quotes, Type}
 
 trait CapturingTypes { this: Tidy =>
-  sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
+  protected sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & CapturingType[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes): Expr[SanitisedT[Option, G[R]]]
     def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R]): FlattenFunction[CCons[G[R], C], L, ?]
   }
 
-  object CapturingType {
+  protected object CapturingType {
     def apply[F[_ <: Rep] <: HChain](inner: Tidiable[F])(using Quotes): CapturingType[F, ?] = {
       given Type[F] = inner.nodeType.tpe
       inner.nodeType match {
