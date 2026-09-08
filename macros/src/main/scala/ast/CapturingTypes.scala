@@ -1,7 +1,7 @@
 package experiments.macros.ast
 
 import cats.syntax.all.*
-import experiments.macros.hcollections.hchain.*
+import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
 import scala.quoted.{Expr, Quotes, Type}
 

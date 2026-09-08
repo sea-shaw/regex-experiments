@@ -1,6 +1,6 @@
 package experiments.macros.ast
 
-import experiments.macros.hcollections.hchain.*
+import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
 import scala.quoted.{Quotes, Type}
 

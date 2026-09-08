@@ -1,7 +1,7 @@
 package experiments.macros.ast
 
 import cats.collections.Diet
-import experiments.macros.hcollections.hchain.*
+import experiments.macros.hchain.*
 import experiments.macros.sanitised.{SanitiseExpr, Sanitised, SanitisedT}
 import scala.quoted.{Expr, Type, Quotes}
 

@@ -1,6 +1,6 @@
 package experiments.macros.ast
 
-import experiments.macros.hcollections.hchain.HEmpty
+import experiments.macros.hchain.HEmpty
 import scala.quoted.{Quotes, Type}
 
 trait EmptyTypes { this: Tidy =>

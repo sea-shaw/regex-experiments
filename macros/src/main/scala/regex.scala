@@ -1,7 +1,7 @@
 package experiments.macros
 
 import experiments.macros.ast.{AST, Rep, RepFalse}
-import experiments.macros.hcollections.hchain.HChain
+import experiments.macros.hchain.HChain
 import experiments.macros.parsing.errors.{Pos, PosError, PosErrorBuilder}
 import experiments.macros.parsing.parser.parse
 import experiments.macros.sanitised.Sanitised

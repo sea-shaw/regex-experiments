@@ -1,4 +1,4 @@
-package experiments.macros.hcollections
+package experiments.macros
 
 object hchain {
   sealed trait HChain
