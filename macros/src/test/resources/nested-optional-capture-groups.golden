@@ -19,10 +19,10 @@
           SanitisedT.apply[[A >: Nothing <: Any] =>> Option[A], HSingleton[Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]]](catsSyntaxOptionId[Sanitised[HSingleton[Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]]]](toFunctorOps[Sanitised, Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]](toTraverseOps[Option, Sanitised[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]](caps.value)(catsTraverseForOption).sequence[Sanitised, HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]](refl[Sanitised[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]], given_Applicative_Sanitised))(given_Functor_Sanitised).map[HSingleton[Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]]](((`_$₂`: Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]) => singleton[Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]](`_$₂`)))).some)
         }
         sanitised.value.map[Option[Tuple2[String, Option[String]]]](((x$1: Sanitised[HSingleton[Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]]]) => x$1 match {
-          case Sanitised(captures, _) =>
-            captures.value.map[Tuple2[String, Option[String]]](((node: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]) => {
-              val `node₂`: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]] = node
-              Tuple2.apply[String, Option[String]](`node₂`.left.value, `node₂`.right.value.map[String](((`node₃`: HSingleton[String]) => `node₃`.value)))
+          case Sanitised(node, _) =>
+            node.value.map[Tuple2[String, Option[String]]](((`node₂`: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]) => {
+              val `node₃`: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]] = `node₂`
+              Tuple2.apply[String, Option[String]](`node₃`.left.value, `node₃`.right.value.map[String](((`node₄`: HSingleton[String]) => `node₄`.value)))
             }))
         }))
       } else None

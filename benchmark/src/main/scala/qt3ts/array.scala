@@ -187,7 +187,7 @@ class ArrayQT3TSBenchmarks {
 
   def arrayOfOptions(pattern: Pattern, s: String): Option[Array[Option[String]]] = {
     val matcher = pattern.matcher(s)
-    if (matcher.matches) {
+    if (matcher.matches()) {
       Some(Array.tabulate(matcher.groupCount) { i => Option(matcher.group(i + 1)) })
     } else None
   }
