@@ -17,9 +17,9 @@
         }
         sanitised.value.map[Option[Tuple2[String, String]]](((x$1: Sanitised[HSingleton[Option[HAppend[HSingleton[String], HSingleton[String]]]]]) => x$1 match {
           case Sanitised(captures, _) =>
-            captures.value.map[Tuple2[String, String]](((value: HAppend[HSingleton[String], HSingleton[String]]) => {
-              val node: HAppend[HSingleton[String], HSingleton[String]] = value
-              Tuple2.apply[String, String](node.left.value, node.right.value)
+            captures.value.map[Tuple2[String, String]](((node: HAppend[HSingleton[String], HSingleton[String]]) => {
+              val `node₂`: HAppend[HSingleton[String], HSingleton[String]] = node
+              Tuple2.apply[String, String](`node₂`.left.value, `node₂`.right.value)
             }))
         }))
       } else None

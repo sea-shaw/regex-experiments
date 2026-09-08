@@ -9,7 +9,6 @@ trait CapturingTypes { this: Tidy =>
   protected sealed trait CapturingType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & CapturingType[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[Option, HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Option, F[R]]])(using Quotes): Expr[SanitisedT[Option, G[R]]]
-    def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R]): FlattenFunction[CCons[G[R], C], L, ?]
   }
 
   protected object CapturingType {
@@ -28,7 +27,7 @@ trait CapturingTypes { this: Tidy =>
       sanitisedCapture
     }
 
-    override def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R]): FlattenFunction[CCons[HSingleton[String], C], L, ?] = {
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[String], C], L, ?] = {
       nodes.flattenFunction(TCons(Type.of[String], types)) match {
         case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[HSingleton[String], C], L, a] {
           override def apply(chains: CCons[HSingleton[String], C], leaves: L)(using Quotes): Expr[a] = {
@@ -51,7 +50,7 @@ trait CapturingTypes { this: Tidy =>
       }
     }
 
-    override def flattenFunction[R <: Rep: Type, C <: Chains, L <: Leaves](nodes: Nodes[C], types: Types[L])(using Quotes, RepType[R]): FlattenFunction[CCons[CapturingAppendType[F][R], C], L, ?] = {
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[CapturingAppendType[F][R], C], L, ?] = {
       inner.flattenFunction(nodes, TCons(Type.of[String], types)) match {
         case flatten @ FlattenFunction(given Type[a]) => new FlattenFunction[CCons[CapturingAppendType[F][R], C], L, a] {
           override def apply(chains: CCons[CapturingAppendType[F][R], C], leaves: L)(using Quotes): Expr[a] = {

@@ -16,10 +16,6 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
       sanitiseEmpty
     }
-
-    override final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HEmpty, C], L, ?] = {
-      flattenEmpty(nodes, types)
-    }
   }
 
   sealed abstract class EmptyLeaf protected (using EmptyType) extends Empty {
@@ -109,10 +105,6 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
 
       capturingType.sanitiseCode(sanitisedCapture, inner.sanitiseCode(groups, i + 1))
     }
-
-    override final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
-      capturingType.flattenFunction(nodes, types)
-    }
   }
 
   case class Capture[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] private (inner: Regex[F])(capturingType: CapturingType[F, G]) extends Capturing[F, G](inner)(capturingType)
@@ -135,10 +127,6 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[F[R]] = {
       inner.sanitiseCode(groups, i)
     }
-
-    override final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[R], C], L, ?] = {
-      inner.flattenFunction(nodes, types)
-    }
   }
 
   case class NonCapture[F[_ <: Rep] <: HChain](flagsOn: Set[Char], flagsOff: Set[Char], inner: Regex[F]) extends Wrapper[F](inner)
@@ -153,10 +141,6 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
       lazy val sanitisedLeft = left.sanitiseCode(groups, i)
       lazy val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
       catType.sanitiseCode(sanitisedLeft, sanitisedRight, groups, i)
-    }
-
-    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using rep: RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?] = {
-      catType.flattenFunction(nodes, types)
     }
   }
 
@@ -175,10 +159,6 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
 
       altType.sanitiseCode(sanitisedLeft, sanitisedRight)
     }
-
-    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using rep: RepType[R])(using Quotes): FlattenFunction[CCons[H[R], C], L, ?] = {
-      altType.flattenFunction(nodes, types)
-    }
   }
 
   object Alt {
@@ -194,10 +174,6 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
       lazy val sanitisedInner = inner.sanitiseCode(groups, i)
       optType.sanitiseCode(sanitisedInner)
     }
-
-    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
-      optType.flattenFunction(nodes, types)
-    }
   }
 
   object Opt {
@@ -212,10 +188,6 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
       lazy val sanitisedInner = inner.sanitiseCode(groups, i)(using RepTrue)
       rep1Type.sanitiseCode(sanitisedInner)
-    }
-
-    override final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
-      rep1Type.flattenFunction(nodes, types)
     }
   }
 
@@ -256,10 +228,6 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
       lazy val sanitisedInner = inner.sanitiseCode(groups, i)(using RepTrue)
       rep0Type.sanitiseCode(sanitisedInner)
-    }
-
-    override final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?] = {
-      rep0Type.flattenFunction(nodes, types)
     }
   }
 

@@ -8,7 +8,6 @@ trait Rep1Types { this: Tidy =>
   protected sealed trait Rep1Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & Rep1Type[F, G] = this
     def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
-    def flattenFunction[C <: Chains, L <: Leaves, R <: Rep](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[G[R], C], L, ?]
   }
 
   protected object Rep1Type {
@@ -25,10 +24,6 @@ trait Rep1Types { this: Tidy =>
     override def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[Const[HEmpty][true]])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
       sanitiseEmpty
     }
-
-    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[HEmpty, C], L, ?] = {
-      flattenEmpty(nodes, types)
-    }
   }
 
   private type Rep1NonEmptyType[F[_ <: Rep] <: HNonEmpty] = Const[F[true]]
@@ -37,7 +32,7 @@ trait Rep1Types { this: Tidy =>
       sanitisedInner
     }
 
-    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep](nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[F[true], C], L, ?] = {
+    override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[true], C], L, ?] = {
       inner.flattenFunction(nodes, types)(using RepTrue)
     }
   }
