@@ -5,6 +5,7 @@ import experiments.macros.sanitised.*
 import scala.quoted.{Quotes, Type}
 
 trait OptTypes { this: Tidy =>
+  /* Type of an `Opt` node. */
   protected sealed trait OptType[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & OptType[F, G] = this
     def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[R]])(using RepType[R])(using Quotes): SanitiseExpr[G[R]]

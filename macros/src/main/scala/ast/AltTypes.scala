@@ -5,6 +5,11 @@ import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
 import scala.quoted.{Expr, Quotes, Type}
 
+/* Use `Either` if the node is not repeated and `InclusiveOr` if it is. The
+   pattern (A)|(B) can only capture exactly one of A or B, but (?:(A)|(B))+ can
+   capture A, B, or both.
+   This needs to be oustide the trait otherwise the compiler complains about
+   a missing `Type` instance. */
 type AltRep[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain, R <: Rep, InclusiveOr[+_ <: HChain, +_ <: HChain]] = R match {
   case false => Either[F[R], G[R]]
   case true  => InclusiveOr[F[R], G[R]]
@@ -136,8 +141,8 @@ trait AltTypes { this: Tidy =>
       sanitiseAlt(
         sanitisedLeft,
         sanitisedRight,
-        '{ _.value.map(_.asLeft[G[R]].singleton) },
-        '{ _.asRight[F[R]].singleton.some },
+        '{ _.value.map(_.asLeft.singleton) },
+        '{ _.asRight.singleton.some },
         flattenSanitised,
         identity,
       )
@@ -155,8 +160,8 @@ trait AltTypes { this: Tidy =>
       sanitiseAlt(
         sanitisedLeft,
         sanitisedRight,
-        '{ _.asLeft[G[R]].singleton.some },
-        '{ _.value.map(_.asRight[F[R]].singleton) },
+        '{ _.asLeft.singleton.some },
+        '{ _.value.map(_.asRight.singleton) },
         identity,
         flattenSanitised,
       )
@@ -199,13 +204,14 @@ trait AltTypes { this: Tidy =>
     }
   }
 
+  /* Sanitises left and right when at least one of them is optional. */
   private def sanitiseAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, H[_ <: Rep] <: HNonEmpty: Type, I[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](
-    sanitisedLeft: SanitiseExpr[F[R]],
-    sanitisedRight: SanitiseExpr[G[R]],
-    leftEither: Expr[F[R] => Option[HSingleton[Either[H[R], I[R]]]]],
-    rightEither: Expr[G[R] => Option[HSingleton[Either[H[R], I[R]]]]],
-    leftIor: Expr[Sanitised[Option[F[R]]]] => Quotes ?=> Expr[Sanitised[Option[H[R]]]],
-    rightIor: Expr[Sanitised[Option[G[R]]]] => Quotes ?=> Expr[Sanitised[Option[I[R]]]],
+    sanitisedLeft: SanitiseExpr[F[R]], /* Sanitised left-hand side. */
+    sanitisedRight: SanitiseExpr[G[R]], /* Sanitised right-hand side. */
+    leftEither: Expr[F[R] => Option[HSingleton[Either[H[R], I[R]]]]], /* Turn left into Either for non-repeated. */
+    rightEither: Expr[G[R] => Option[HSingleton[Either[H[R], I[R]]]]], /* Turn right into Either for non-repeated. */
+    leftIor: Expr[Sanitised[Option[F[R]]]] => Quotes ?=> Expr[Sanitised[Option[H[R]]]], /* Turn left into option for repeated. */
+    rightIor: Expr[Sanitised[Option[G[R]]]] => Quotes ?=> Expr[Sanitised[Option[I[R]]]], /* Turn right into option for repeated. */
   )(using rep: RepType[R])(using Quotes): SanitiseExpr[AltSingletonOption[H, I][R]] = {
     rep match {
       case RepFalse => '{

@@ -5,6 +5,7 @@ import experiments.macros.sanitised.*
 import scala.quoted.{Quotes, Type}
 
 trait Rep1Types { this: Tidy =>
+  /* Type of a `Rep1` node. */
   protected sealed trait Rep1Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & Rep1Type[F, G] = this
     def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
@@ -20,12 +21,14 @@ trait Rep1Types { this: Tidy =>
     }
   }
 
+  /* A+ */
   private class Rep1Empty(using Type[Const[HEmpty]]) extends Rep1Type[Const[HEmpty], Const[HEmpty]] with HEmptyType {
     override def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[Const[HEmpty][true]])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
       sanitiseEmpty
     }
   }
 
+  /* (A)+ */
   private type Rep1NonEmptyType[F[_ <: Rep] <: HNonEmpty] = Const[F[true]]
   private class Rep1NonEmpty[F[_ <: Rep] <: HNonEmpty](inner: Tidiable[F])(using Type[Rep1NonEmptyType[F]]) extends Rep1Type[F, Rep1NonEmptyType[F]] with HNonEmptyType[Rep1NonEmptyType[F]] {
     override def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[Rep1NonEmptyType[F][R]] = {
