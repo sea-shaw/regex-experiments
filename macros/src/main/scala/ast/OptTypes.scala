@@ -1,6 +1,5 @@
 package experiments.macros.ast
 
-import cats.syntax.all.*
 import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
 import scala.quoted.{Quotes, Type}
@@ -38,10 +37,7 @@ trait OptTypes { this: Tidy =>
   private type OptSingletonType = SingletonOptionType
   private class OptSingleton[F[_ <: Rep] <: HNonEmpty](inner: Tidiable[F])(using Type[F], Type[OptSingletonType[F]]) extends OptType[F, OptSingletonType[F]] with SingletonOption[F] {
     override def sanitiseCode[R <: Rep: Type](sanitisedInner: => SanitiseExpr[F[R]])(using RepType[R])(using Quotes): SanitiseExpr[OptSingletonType[F][R]] = {
-      '{
-        val innerCaps = $sanitisedInner
-        SanitisedT(Some(innerCaps.value.sequence.map(HSingleton(_))))
-      }
+      sanitiseOpt(sanitisedInner)
     }
 
     override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?] = inner.tidyFunction
