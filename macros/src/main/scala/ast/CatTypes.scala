@@ -96,7 +96,7 @@ trait CatTypes { this: Tidy =>
         for {
           left <- $sanitisedLeft
           right <- $sanitisedRight
-        } yield HAppend(left, right)
+        } yield left ++ right
       }
     }
 

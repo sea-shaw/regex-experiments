@@ -57,7 +57,7 @@ trait CapturingTypes { this: Tidy =>
         for {
           capture <- $sanitisedCapture
           inner <- $sanitisedInner
-        } yield HAppend(capture, inner)
+        } yield capture ++ inner
       }
     }
 
