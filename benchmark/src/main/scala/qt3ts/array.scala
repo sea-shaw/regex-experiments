@@ -185,7 +185,7 @@ class ArrayQT3TSBenchmarks {
   val r182: Pattern = Pattern.compile(raw"X(\w+)(?=\s)|X(\w+)")
   val r183: Pattern = Pattern.compile(raw"x(~~)*(?:(?:F)?)?")
 
-  inline def arrayOfOptions(inline pattern: Pattern, inline s: String): Option[Array[Option[String]]] = {
+  def arrayOfOptions(pattern: Pattern, s: String): Option[Array[Option[String]]] = {
     val matcher = pattern.matcher(s)
     if (matcher.matches) {
       Some(Array.tabulate(matcher.groupCount) { i => Option(matcher.group(i + 1)) })
