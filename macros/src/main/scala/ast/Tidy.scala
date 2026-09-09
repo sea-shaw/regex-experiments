@@ -84,7 +84,18 @@ trait Tidy {
     def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[F[R], ?]
 
     override final def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[Option[F[R]]], C], L, ?] = {
-      flattenOpt(tidyInner, nodes, types)
+      tidyInner match {
+        case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
+          case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[SingletonOptionType[F][R], C], L, b] {
+            override def apply(chains: CCons[SingletonOptionType[F][R], C], leaves: L)(using Quotes): Expr[b] = {
+              val opt = '{
+                ${ chains.head }.value.map(node => ${ tidy('node) })
+              }
+              flatten(chains.tail, LCons(opt, leaves))
+            }
+          }
+        }
+      }
     }
   }
 
@@ -177,22 +188,6 @@ trait Tidy {
     '{
       val caps = $sanitised
       SanitisedT(caps.value.sequence.map(_.singleton).some)
-    }
-  }
-
-  /* Result of `flattenFunction` for a node with type `HSingleton[Option[_]]` */
-  protected final def flattenOpt[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type, A, C <: Chains, L <: Leaves](tidy: TidyFunction[F[R], A], nodes: Nodes[C], types: Types[L])(using Quotes): FlattenFunction[CCons[SingletonOptionType[F][R], C], L, ?] = {
-    given Type[A] = tidy.tpe
-
-    nodes.flattenFunction(TCons(Type.of[Option[A]], types)) match {
-      case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[SingletonOptionType[F][R], C], L, b] {
-        override def apply(chains: CCons[SingletonOptionType[F][R], C], leaves: L)(using Quotes): Expr[b] = {
-          val opt = '{
-            ${ chains.head }.value.map(node => ${ tidy('node) })
-          }
-          flatten(chains.tail, LCons(opt, leaves))
-        }
-      }
     }
   }
 }
