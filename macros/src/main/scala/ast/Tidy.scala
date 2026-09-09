@@ -1,8 +1,8 @@
 package experiments.macros.ast
 
-import cats.syntax.all.*
 import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
+import experiments.macros.utils.some
 import scala.compiletime.deferred
 import scala.quoted.{Expr, Type, Quotes}
 
@@ -178,7 +178,7 @@ trait Tidy {
   protected def buildFunction[L <: Leaves](types: Types[L])(using Quotes): BuildFunction[L, ?]
 
   /* Result of `sanitiseCode` for an empty node. Equivalent to `pure(HEmpty)`
-     for the `SanitisedT[Option, _]` applicative. */
+     for the `SanitisedT[_]` applicative. */
   protected final def sanitiseEmpty(using Quotes): SanitiseExpr[HEmpty] = {
     '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
   }

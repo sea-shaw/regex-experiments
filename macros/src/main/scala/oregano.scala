@@ -1,9 +1,9 @@
 package experiments.macros
 
 import cats.data.Ior
-import cats.syntax.all.*
 import experiments.macros.ast.AST
 import experiments.macros.regex.{Regex, isInlineable}
+import experiments.macros.utils.bimap
 import scala.quoted.{Expr, Quotes, Type}
 
 object oregano {

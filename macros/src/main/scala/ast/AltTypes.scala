@@ -1,8 +1,8 @@
 package experiments.macros.ast
 
-import cats.syntax.all.*
 import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
+import experiments.macros.utils.*
 import scala.quoted.{Expr, Quotes, Type}
 
 /* Use `Either` if the node is not repeated and `InclusiveOr` if it is. The
@@ -185,7 +185,7 @@ trait AltTypes { this: Tidy =>
         case RepTrue => '{
           val left = $sanitisedLeft.value.sequence
           val right = $sanitisedRight.value.sequence
-          val caps = (left, right).mapN($fromOptions)
+          val caps = left.map2(right)($fromOptions)
           SanitisedT(caps.traverse(_.map(_.singleton)))
         }
       }
@@ -222,7 +222,7 @@ trait AltTypes { this: Tidy =>
       case RepTrue  => '{
         val left = ${ leftIor('{ $sanitisedLeft.value.sequence }) }
         val right = ${ rightIor('{ $sanitisedRight.value.sequence }) }
-        val caps = (left, right).mapN($fromOptions)
+        val caps = left.map2(right)($fromOptions)
         SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
       }
     }

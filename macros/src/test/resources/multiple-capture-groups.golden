@@ -5,17 +5,17 @@
       val m: (Matcher)? = $anon.this.pattern.matcher(s)
       if (m.matches()) {
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
-        val sanitised: SanitisedT[[A >: Nothing <: Any] =>> Option[A], HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]] = toFlatMapOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HAppend[HSingleton[String], HSingleton[String]]](toFlatMapOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HSingleton[String]]({
+        val sanitised: SanitisedT[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]] = flatMap[HAppend[HSingleton[String], HSingleton[String]]](flatMap[HSingleton[String]]({
           val `sanitised₂`: Option[Sanitised[HSingleton[String]]] = groups.apply(0).map[Sanitised[HSingleton[String]]](((`s₂`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₂`), true)))
-          SanitisedT.apply[Option, HSingleton[String]](`sanitised₂`)
-        })(given_Monad_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).flatMap[HAppend[HSingleton[String], HSingleton[String]]](((left: HSingleton[String]) => toFunctorOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HSingleton[String]]({
+          SanitisedT.apply[HSingleton[String]](`sanitised₂`)
+        })[HAppend[HSingleton[String], HSingleton[String]]](((left: HSingleton[String]) => map[HSingleton[String]]({
           val `sanitised₃`: Option[Sanitised[HSingleton[String]]] = groups.apply(1).map[Sanitised[HSingleton[String]]](((`s₃`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₃`), true)))
-          SanitisedT.apply[Option, HSingleton[String]](`sanitised₃`)
-        })(given_Functor_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).map[HAppend[HSingleton[String], HSingleton[String]]](((right: HSingleton[String]) => ++[HSingleton[String]](left)[HSingleton[String]](right))))))(given_Monad_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).flatMap[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]](((`left₂`: HAppend[HSingleton[String], HSingleton[String]]) => toFunctorOps[[A >: Nothing <: Any] =>> SanitisedT[[A >: Nothing <: Any] =>> Option[A], A], HSingleton[String]]({
+          SanitisedT.apply[HSingleton[String]](`sanitised₃`)
+        })[HAppend[HSingleton[String], HSingleton[String]]](((right: HSingleton[String]) => ++[HSingleton[String]](left)[HSingleton[String]](right))))))[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]](((`left₂`: HAppend[HSingleton[String], HSingleton[String]]) => map[HSingleton[String]]({
           val `sanitised₄`: Option[Sanitised[HSingleton[String]]] = groups.apply(2).map[Sanitised[HSingleton[String]]](((`s₄`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₄`), true)))
-          SanitisedT.apply[Option, HSingleton[String]](`sanitised₄`)
-        })(given_Functor_SanitisedT[[A >: Nothing <: Any] =>> Option[A]](catsInstancesForOption)).map[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]](((`right₂`: HSingleton[String]) => ++[HAppend[HSingleton[String], HSingleton[String]]](`left₂`)[HSingleton[String]](`right₂`)))))
-        sanitised.value[[A >: Nothing <: Any] =>> Option[A], HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]](sanitised).map[Tuple3[String, String, String]](((x$1: Sanitised[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]]) => x$1 match {
+          SanitisedT.apply[HSingleton[String]](`sanitised₄`)
+        })[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]](((`right₂`: HSingleton[String]) => ++[HAppend[HSingleton[String], HSingleton[String]]](`left₂`)[HSingleton[String]](`right₂`)))))
+        sanitised.value[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]](sanitised).map[Tuple3[String, String, String]](((x$1: Sanitised[HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]]]) => x$1 match {
           case Sanitised(node, _) =>
             {
               val node: HAppend[HAppend[HSingleton[String], HSingleton[String]], HSingleton[String]] = `node₂`
