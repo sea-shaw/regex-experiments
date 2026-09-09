@@ -20,8 +20,8 @@ trait CatTypes { this: Tidy =>
           given Type[f] = leftType.innerType
           CatLeftOption(leftType)
         }
-        case (_: HEmptyType, rightType: SingletonOption[f]) => {
-          given Type[f] = rightType.innerType
+        case (_: HEmptyType, rightType: SingletonOption[g]) => {
+          given Type[g] = rightType.innerType
           CatRightOption(rightType)
         }
         case (leftType: HNonEmptyType[f], _: HEmptyType) => {

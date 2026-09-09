@@ -30,7 +30,7 @@ class CatnipUnitTests extends AnyFlatSpec {
   }
 
   it should "match optional patterns" in {
-    val r = r"a?" // TODO: Make type `Unit` instead of `Option[Unit]`
+    val r = r"a?"
     "a" should matchPattern { case r(()) => }
     "" should matchPattern { case r(()) => }
   }
