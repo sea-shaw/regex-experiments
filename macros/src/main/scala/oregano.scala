@@ -1,6 +1,5 @@
 package experiments.macros
 
-import cats.data.Ior
 import experiments.macros.ast.AST
 import experiments.macros.regex.{Regex, isInlineable}
 import experiments.macros.utils.bimap
@@ -11,8 +10,17 @@ object oregano {
 
   private class Oregano(using Type[EitherIor]) extends AST {
     type InclusiveOr = EitherIor
-    override protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[Either[Either[A, B], (A, B)]]] = {
-      '{ Ior.fromOptions(_, _).map(_.unwrap) }
+    
+    protected def fromLeft[A: Type](left: Expr[A])(using Quotes): Expr[InclusiveOr[A, Nothing]] = {
+      '{ Left(Left($left)) }
+    }
+
+    protected def fromRight[B: Type](right: Expr[B])(using Quotes): Expr[InclusiveOr[Nothing, B]] = {
+      '{ Left(Right($right)) }
+    }
+
+    protected def fromBoth[A: Type, B: Type](left: Expr[A], right: Expr[B])(using Quotes): Expr[InclusiveOr[A, B]] = {
+      '{ Right(($left, $right)) }
     }
 
     override protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {

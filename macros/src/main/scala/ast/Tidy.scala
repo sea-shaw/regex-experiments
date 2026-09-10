@@ -2,7 +2,6 @@ package experiments.macros.ast
 
 import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
-import experiments.macros.utils.some
 import scala.compiletime.deferred
 import scala.quoted.{Expr, Type, Quotes}
 
@@ -24,8 +23,10 @@ trait Tidy {
   /* Type to use to combine A and B in (?:(A)|(B))+ or similar. */
   type InclusiveOr[+_, +_]: Type
 
-  /* Construct `InclusiveOr` from two `Option`s. */
-  protected def fromOptions[A: Type, B: Type](using Quotes): Expr[(Option[A], Option[B]) => Option[InclusiveOr[A, B]]]
+  /* Construct `InclusiveOr` */
+  protected def fromLeft[A: Type](left: Expr[A])(using Quotes): Expr[InclusiveOr[A, Nothing]]
+  protected def fromRight[B: Type](right: Expr[B])(using Quotes): Expr[InclusiveOr[Nothing, B]]
+  protected def fromBoth[A: Type, B: Type](left: Expr[A], right: Expr[B])(using Quotes): Expr[InclusiveOr[A, B]]
 
   /* Bimap over `InclusiveOr`. */
   protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[InclusiveOr[A, B]])(using Quotes): Expr[InclusiveOr[C, D]]
@@ -180,14 +181,18 @@ trait Tidy {
   /* Result of `sanitiseCode` for an empty node. Equivalent to `pure(HEmpty)`
      for the `SanitisedT[_]` applicative. */
   protected final def sanitiseEmpty(using Quotes): SanitiseExpr[HEmpty] = {
-    '{ SanitisedT(Some(Sanitised(HEmpty, false))) }
+    '{ Some(Sanitised(HEmpty, false)) }
   }
 
   /* Result of `sanitiseCode` for a node with type `HSingleton[Option[_]]` */
   protected final def sanitiseOpt[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](sanitised: SanitiseExpr[F[R]])(using Quotes): SanitiseExpr[SingletonOptionType[F][R]] = {
     '{
       val caps = $sanitised
-      SanitisedT(caps.value.sequence.map(_.singleton).some)
+      if (caps.isDefined) {
+        Some(Sanitised(HSingleton(Some(caps.get.captures)), caps.get.any))
+      } else {
+        Some(Sanitised(HSingleton(None), false))
+      }
     }
   }
 }

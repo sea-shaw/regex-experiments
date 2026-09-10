@@ -92,10 +92,13 @@ trait CatTypes { this: Tidy =>
   private class CatBoth[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](left: Tidiable[F], right: Tidiable[G])(using Type[CatBothType[F, G]]) extends CatType[F, G, CatBothType[F, G]] with HNonEmptyType[CatBothType[F, G]] {
     override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]], groups: Expr[Groups], i: Int)(using Quotes): SanitiseExpr[CatBothType[F, G][R]] = {
       '{
-        for {
-          left <- $sanitisedLeft
-          right <- $sanitisedRight
-        } yield left ++ right
+        val left = $sanitisedLeft
+        val right = $sanitisedRight
+        if (left.isDefined && right.isDefined) {
+          Some(Sanitised(left.get.captures ++ right.get.captures, left.get.any || right.get.any))
+        } else {
+          None
+        }
       }
     }
 

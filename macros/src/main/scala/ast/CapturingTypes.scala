@@ -12,7 +12,7 @@ trait CapturingTypes { this: Tidy =>
     final val asNodeType: NodeType[G] & CapturingType[F, G] = this
 
     /* Construct an HChain from the capture and the captures of the inner node. */
-    def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[F[R]]])(using Quotes): Expr[SanitisedT[G[R]]]
+    def sanitiseCode[R <: Rep: Type](sanitisedCapture: SanitiseExpr[HSingleton[String]], sanitisedInner: => SanitiseExpr[F[R]])(using Quotes): SanitiseExpr[G[R]]
   }
 
   protected object CapturingType {
@@ -30,7 +30,7 @@ trait CapturingTypes { this: Tidy =>
   /* (A) */
   private type CapturingSingletonType = Const[HSingleton[String]]
   private class CapturingSingleton(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
-    override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[Const[HEmpty][R]]])(using Quotes): Expr[SanitisedT[HSingleton[String]]] = {
+    override def sanitiseCode[R <: Rep: Type](sanitisedCapture: SanitiseExpr[HSingleton[String]], sanitisedInner: => SanitiseExpr[Const[HEmpty][R]])(using Quotes): SanitiseExpr[HSingleton[String]] = {
       sanitisedCapture
     }
 
@@ -49,14 +49,15 @@ trait CapturingTypes { this: Tidy =>
   /* Type when the inner node contains more capturing groups, e.g. ((A)). */
   private type CapturingAppendType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[HSingleton[String], F[R]]
   private class CapturingAppend[F[_ <: Rep] <: HNonEmpty: Type](inner: Tidiable[F])(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]] {
-    override def sanitiseCode[R <: Rep: Type](sanitisedCapture: Expr[SanitisedT[HSingleton[String]]], sanitisedInner: => Expr[SanitisedT[F[R]]])(using Quotes): Expr[SanitisedT[HAppend[HSingleton[String], F[R]]]] = {
-      /* Use the `SanitisedT[_]` monad so it short-circuits if the outer
-         capture fails. */
+    override def sanitiseCode[R <: Rep: Type](sanitisedCapture: SanitiseExpr[HSingleton[String]], sanitisedInner: => SanitiseExpr[F[R]])(using Quotes): SanitiseExpr[HAppend[HSingleton[String], F[R]]] = {
       '{
-        for {
-          capture <- $sanitisedCapture
-          inner <- $sanitisedInner
-        } yield capture ++ inner
+        val capture = $sanitisedCapture
+        val inner = $sanitisedInner
+        if (capture.isDefined && inner.isDefined) {
+          Some(Sanitised(capture.get.captures ++ inner.get.captures, capture.get.any || inner.get.any))
+        } else {
+          None
+        }
       }
     }
 

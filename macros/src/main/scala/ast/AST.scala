@@ -2,7 +2,7 @@ package experiments.macros.ast
 
 import cats.collections.Diet
 import experiments.macros.hchain.*
-import experiments.macros.sanitised.{SanitiseExpr, Sanitised, SanitisedT}
+import experiments.macros.sanitised.*
 import scala.quoted.{Expr, Type, Quotes}
 
 /* Trait containig the definition of the `AST` nodes. Implemented by `Oregano`
@@ -114,10 +114,12 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
 
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
       val sanitisedCapture = '{
-        val sanitised = $groups(${ Expr(i) }).map { s =>
-          Sanitised(HSingleton(s), true)
+        val capture = $groups(${ Expr(i) })
+        if (capture.isDefined) {
+          Some(Sanitised(HSingleton(capture.get), true))
+        } else {
+          None
         }
-        SanitisedT(sanitised)
       }
 
       capturingType.sanitiseCode(sanitisedCapture, inner.sanitiseCode(groups, i + 1))

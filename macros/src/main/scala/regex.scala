@@ -4,7 +4,6 @@ import experiments.macros.ast.{AST, Rep, RepFalse}
 import experiments.macros.hchain.HChain
 import experiments.macros.parsing.errors.{Pos, PosError, PosErrorBuilder}
 import experiments.macros.parsing.parser.parse
-import experiments.macros.sanitised.Sanitised
 import java.util.regex.Pattern
 import parsley.{Failure, Success}
 import parsley.errors.ErrorBuilder
@@ -104,8 +103,10 @@ object regex {
                   Option(m.group(i + 1))
                 }
                 val sanitised = ${ regex.sanitiseCode('groups, 0)(using RepFalse) }
-                sanitised.value.map { case Sanitised(node, _) =>
-                  ${ tidy('node) }
+                if (sanitised.isDefined) {
+                  Some(${ tidy('{ sanitised.get.captures }) })
+                } else {
+                  None
                 }
               } else {
                 None

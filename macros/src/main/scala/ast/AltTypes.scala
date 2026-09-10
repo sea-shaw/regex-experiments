@@ -118,15 +118,33 @@ trait AltTypes { this: Tidy =>
   /* (A)?|(B)? */
   private type AltBothOptionType = AltSingletonOption
   private class AltBothOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftType: SingletonOption[F], rightType: SingletonOption[G])(using Type[AltSingleton[F, G]], Type[AltBothOptionType[F, G]]) extends AltType[SingletonOptionType[F], SingletonOptionType[G], AltBothOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
-    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothOptionType[F, G][R]] = {
-      sanitiseAlt(
-        sanitisedLeft,
-        sanitisedRight,
-        '{ _.value.map(_.asLeft[G[R]].singleton) },
-        '{ _.value.map(_.asRight[F[R]].singleton) },
-        flattenSanitised,
-        flattenSanitised,
-      )
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]])(using rep: RepType[R])(using Quotes): SanitiseExpr[AltBothOptionType[F, G][R]] = {
+      rep match {
+        case RepFalse => '{
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          if (left.isDefined && left.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(Left(left.get.captures.value.get)))), true))
+          } else if (right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(Right(right.get.captures.value.get)))), true))
+          } else {
+            Some(Sanitised(HSingleton(None), false))
+          }
+        }
+        case RepTrue => '{
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          if (left.isDefined && left.get.any && right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromBoth('{ left.get.captures.value.get }, '{ right.get.captures.value.get }) }))), true))
+          } else if (left.isDefined && left.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromLeft('{ left.get.captures.value.get }) }))), true))
+          } else if (right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromRight('{ right.get.captures.value.get }) }))), true))
+          } else {
+            Some(Sanitised(HSingleton(None), false))
+          }
+        }
+      }
     }
 
     override def tidyInner[R <: Rep: Type](using RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
@@ -137,15 +155,33 @@ trait AltTypes { this: Tidy =>
   /* (A)?|(B) */
   private type AltBothLeftOptionType = AltSingletonOption
   private class AltBothLeftOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftType: SingletonOption[F], rightRegex: Tidiable[G])(using Type[AltSingleton[F, G]], Type[AltBothLeftOptionType[F, G]]) extends AltType[SingletonOptionType[F], G, AltBothLeftOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
-    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[G[R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothLeftOptionType[F, G][R]] = {
-      sanitiseAlt(
-        sanitisedLeft,
-        sanitisedRight,
-        '{ _.value.map(_.asLeft.singleton) },
-        '{ _.asRight.singleton.some },
-        flattenSanitised,
-        identity,
-      )
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[SingletonOptionType[F][R]], sanitisedRight: => SanitiseExpr[G[R]])(using rep: RepType[R])(using Quotes): SanitiseExpr[AltBothLeftOptionType[F, G][R]] = {
+      rep match {
+        case RepFalse => '{
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          if (left.isDefined && left.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(Left(left.get.captures.value.get)))), true))
+          } else if (right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(Right(right.get.captures)))), right.get.any))
+          } else {
+            Some(Sanitised(HSingleton(None), false))
+          }
+        }
+        case RepTrue => '{
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          if (left.isDefined && left.get.any && right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromBoth('{ left.get.captures.value.get }, '{ right.get.captures }) }))), true))
+          } else if (left.isDefined && left.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromLeft('{ left.get.captures.value.get }) }))), true))
+          } else if (right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromRight('{ right.get.captures }) }))), right.get.any))
+          } else {
+            Some(Sanitised(HSingleton(None), false))
+          }
+        }
+      }
     }
 
     override def tidyInner[R <: Rep: Type](using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
@@ -156,15 +192,33 @@ trait AltTypes { this: Tidy =>
   /* (A)|(B)? */
   private type AltBothRightOptionType = AltSingletonOption
   private class AltBothRightOption[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type](leftRegex: Tidiable[F], rightType: SingletonOption[G])(using Type[AltSingleton[F, G]], Type[AltBothRightOptionType[F, G]]) extends AltType[F, SingletonOptionType[G], AltBothRightOptionType[F, G]] with SingletonOption[AltSingleton[F, G]] {
-    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]])(using RepType[R])(using Quotes): SanitiseExpr[AltBothRightOptionType[F, G][R]] = {
-      sanitiseAlt(
-        sanitisedLeft,
-        sanitisedRight,
-        '{ _.asLeft.singleton.some },
-        '{ _.value.map(_.asRight.singleton) },
-        identity,
-        flattenSanitised,
-      )
+    override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[SingletonOptionType[G][R]])(using rep: RepType[R])(using Quotes): SanitiseExpr[AltBothRightOptionType[F, G][R]] = {
+      rep match {
+        case RepFalse => '{
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          if (left.isDefined && left.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(Left(left.get.captures)))), true))
+          } else if (right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(Right(right.get.captures.value.get)))), true))
+          } else {
+            Some(Sanitised(HSingleton(None), false))
+          }
+        }
+        case RepTrue => '{
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          if (left.isDefined && left.get.any && right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromBoth('{ left.get.captures }, '{ right.get.captures.value.get }) }))), true))
+          } else if (left.isDefined && left.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromLeft('{ left.get.captures }) }))), true))
+          } else if (right.isDefined && right.get.any) {
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromRight('{ right.get.captures.value.get }) }))), right.get.any))
+          } else {
+            Some(Sanitised(HSingleton(None), false))
+          }
+        }
+      }
     }
 
     override def tidyInner[R <: Rep: Type](using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
@@ -178,15 +232,28 @@ trait AltTypes { this: Tidy =>
     override def sanitiseCode[R <: Rep: Type](sanitisedLeft: => SanitiseExpr[F[R]], sanitisedRight: => SanitiseExpr[G[R]])(using rep: RepType[R])(using Quotes): SanitiseExpr[AltBothType[F, G][R]] = {
       rep match {
         case RepFalse => '{
-          val left = $sanitisedLeft.map(_.asLeft[G[R]])
-          val right = $sanitisedRight.map(_.asRight[F[R]])
-          (left max right).map(_.singleton)
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          if (left.isDefined && left.get.any) {
+            Some(Sanitised(HSingleton(Left(left.get.captures)), true))
+          } else if (right.isDefined) {
+            Some(Sanitised(HSingleton(Right(right.get.captures)), right.get.any))
+          } else {
+            None
+          }
         }
         case RepTrue => '{
-          val left = $sanitisedLeft.value.sequence
-          val right = $sanitisedRight.value.sequence
-          val caps = left.map2(right)($fromOptions)
-          SanitisedT(caps.traverse(_.map(_.singleton)))
+          val left = $sanitisedLeft
+          val right = $sanitisedRight
+          if (left.isDefined && right.isDefined) {
+            Some(Sanitised(HSingleton(${ fromBoth('{ left.get.captures }, '{ right.get.captures }) }), left.get.any || right.get.any))
+          } else if (left.isDefined) {
+            Some(Sanitised(HSingleton(${ fromLeft('{ left.get.captures }) }), left.get.any))
+          } else if (right.isDefined) {
+            Some(Sanitised(HSingleton(${ fromRight('{ right.get.captures }) }), right.get.any))
+          } else {
+            None
+          }
         }
       }
     }
@@ -205,32 +272,32 @@ trait AltTypes { this: Tidy =>
   }
 
   /* Sanitises left and right when at least one of them is optional. */
-  private def sanitiseAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, H[_ <: Rep] <: HNonEmpty: Type, I[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](
-    sanitisedLeft: SanitiseExpr[F[R]], /* Sanitised left-hand side. */
-    sanitisedRight: SanitiseExpr[G[R]], /* Sanitised right-hand side. */
-    leftEither: Expr[F[R] => Option[HSingleton[Either[H[R], I[R]]]]], /* Turn left into Either for non-repeated. */
-    rightEither: Expr[G[R] => Option[HSingleton[Either[H[R], I[R]]]]], /* Turn right into Either for non-repeated. */
-    leftIor: Expr[Sanitised[Option[F[R]]]] => Quotes ?=> Expr[Sanitised[Option[H[R]]]], /* Turn left into option for repeated. */
-    rightIor: Expr[Sanitised[Option[G[R]]]] => Quotes ?=> Expr[Sanitised[Option[I[R]]]], /* Turn right into option for repeated. */
-  )(using rep: RepType[R])(using Quotes): SanitiseExpr[AltSingletonOption[H, I][R]] = {
-    rep match {
-      case RepFalse => '{
-        val left = $sanitisedLeft.map($leftEither)
-        val right = $sanitisedRight.map($rightEither)
-        (left max right).map(_.singleton)
-      }
-      case RepTrue  => '{
-        val left = ${ leftIor('{ $sanitisedLeft.value.sequence }) }
-        val right = ${ rightIor('{ $sanitisedRight.value.sequence }) }
-        val caps = left.map2(right)($fromOptions)
-        SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
-      }
-    }
-  }
+  // private def sanitiseAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, H[_ <: Rep] <: HNonEmpty: Type, I[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](
+  //   sanitisedLeft: SanitiseExpr[F[R]], /* Sanitised left-hand side. */
+  //   sanitisedRight: SanitiseExpr[G[R]], /* Sanitised right-hand side. */
+  //   leftEither: Expr[F[R] => Option[HSingleton[Either[H[R], I[R]]]]], /* Turn left into Either for non-repeated. */
+  //   rightEither: Expr[G[R] => Option[HSingleton[Either[H[R], I[R]]]]], /* Turn right into Either for non-repeated. */
+  //   leftIor: Expr[Sanitised[Option[F[R]]]] => Quotes ?=> Expr[Sanitised[Option[H[R]]]], /* Turn left into option for repeated. */
+  //   rightIor: Expr[Sanitised[Option[G[R]]]] => Quotes ?=> Expr[Sanitised[Option[I[R]]]], /* Turn right into option for repeated. */
+  // )(using rep: RepType[R])(using Quotes): SanitiseExpr[AltSingletonOption[H, I][R]] = {
+  //   rep match {
+  //     case RepFalse => '{
+  //       val left = $sanitisedLeft.map($leftEither)
+  //       val right = $sanitisedRight.map($rightEither)
+  //       (left max right).map(_.singleton)
+  //     }
+  //     case RepTrue  => '{
+  //       val left = ${ leftIor('{ $sanitisedLeft.value.sequence }) }
+  //       val right = ${ rightIor('{ $sanitisedRight.value.sequence }) }
+  //       val caps = left.map2(right)($fromOptions)
+  //       SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
+  //     }
+  //   }
+  // }
 
-  private def flattenSanitised[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](expr: Expr[Sanitised[Option[HSingleton[Option[F[R]]]]]])(using Quotes): Expr[Sanitised[Option[F[R]]]] = {
-    '{ $expr.map(_.flatMap(_.value)) }
-  }
+  // private def flattenSanitised[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](expr: Expr[Sanitised[Option[HSingleton[Option[F[R]]]]]])(using Quotes): Expr[Sanitised[Option[F[R]]]] = {
+  //   '{ $expr.map(_.flatMap(_.value)) }
+  // }
 
   private def tidyAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type, A, B](tidyLeft: TidyFunction[F[R], A], tidyRight: TidyFunction[G[R], B])(using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
     given Type[A] = tidyLeft.tpe

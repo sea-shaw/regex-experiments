@@ -5,28 +5,28 @@
       val m: (Matcher)? = $anon.this.pattern.matcher(s)
       if (m.matches()) {
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
-        val sanitised: SanitisedT[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]] = flatMap[HSingleton[String]]({
-          val `sanitised₂`: Option[Sanitised[HSingleton[String]]] = groups.apply(0).map[Sanitised[HSingleton[String]]](((`s₂`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₂`), true)))
-          SanitisedT.apply[HSingleton[String]](`sanitised₂`)
-        })[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]](((capture: HSingleton[String]) => map[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]({
-          val left: Sanitised[Option[HSingleton[String]]] = sequence[HSingleton[String]](value[HSingleton[String]]({
-            val `sanitised₃`: Option[Sanitised[HSingleton[String]]] = groups.apply(1).map[Sanitised[HSingleton[String]]](((`s₃`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₃`), true)))
-            SanitisedT.apply[HSingleton[String]](`sanitised₃`)
-          }))
-          val right: Sanitised[Option[HSingleton[String]]] = sequence[HSingleton[String]](value[HSingleton[String]]({
-            val `sanitised₄`: Option[Sanitised[HSingleton[String]]] = groups.apply(2).map[Sanitised[HSingleton[String]]](((`s₄`: String) => Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`s₄`), true)))
-            SanitisedT.apply[HSingleton[String]](`sanitised₄`)
-          }))
-          val caps: Sanitised[Option[Ior[HSingleton[String], HSingleton[String]]]] = left.map2[Option[HSingleton[String]]](right)[Option[Ior[HSingleton[String], HSingleton[String]]]](((oa: Option[HSingleton[String]], ob: Option[HSingleton[String]]) => Ior.fromOptions[HSingleton[String], HSingleton[String]](oa, ob)))
-          SanitisedT.apply[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]](caps.traverse[HSingleton[Ior[HSingleton[String], HSingleton[String]]]](((_$: Option[Ior[HSingleton[String], HSingleton[String]]]) => _$.map[HSingleton[Ior[HSingleton[String], HSingleton[String]]]](((_$: Ior[HSingleton[String], HSingleton[String]]) => singleton[Ior[HSingleton[String], HSingleton[String]]](_$))))).$asInstanceOf$[Option[Sanitised[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]]).$asInstanceOf$[SanitisedT[HSingleton[Ior[HSingleton[String], HSingleton[String]]]]]
-        })[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]](((inner: HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]) => ++[HSingleton[String]](capture)[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]](inner)))))
-        sanitised.value[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]](sanitised).map[Tuple2[String, Ior[String, String]]](((x$1: Sanitised[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]) => x$1 match {
-          case Sanitised(node, _) =>
-            {
-              val node: HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]] = `node₂`
-              Tuple2.apply[String, Ior[String, String]](node.left.value, node.right.value.bimap[String, String](((`left₂`: HSingleton[String]) => `left₂`.value), ((`right₂`: HSingleton[String]) => `right₂`.value)))
+        val sanitised: Option[Sanitised[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]] = {
+          val capture: Option[Sanitised[HSingleton[String]]] = {
+            val `capture₂`: Option[String] = groups.apply(0)
+            if (`capture₂`.isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`capture₂`.get), true)) else None
+          }
+          val inner: Option[Sanitised[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]] = {
+            val left: Option[Sanitised[HSingleton[String]]] = {
+              val `capture₃`: Option[String] = groups.apply(1)
+              if (`capture₃`.isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`capture₃`.get), true)) else None
             }
-        }))
+            val right: Option[Sanitised[HSingleton[String]]] = {
+              val `capture₄`: Option[String] = groups.apply(2)
+              if (`capture₄`.isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`capture₄`.get), true)) else None
+            }
+            if (left.isDefined.&&(right.isDefined)) Some.apply[Sanitised[HSingleton[Ior[HSingleton[String], HSingleton[String]]]]](Sanitised.apply[HSingleton[Ior[HSingleton[String], HSingleton[String]]]](HSingleton.apply[Ior[HSingleton[String], HSingleton[String]]](Ior.Both.apply[HSingleton[String], HSingleton[String]](left.get.captures, right.get.captures)), left.get.any.||(right.get.any))) else if (left.isDefined) Some.apply[Sanitised[HSingleton[Ior[HSingleton[String], Nothing]]]](Sanitised.apply[HSingleton[Ior[HSingleton[String], Nothing]]](HSingleton.apply[Ior[HSingleton[String], Nothing]](Ior.Left.apply[HSingleton[String]](left.get.captures)), left.get.any)) else if (right.isDefined) Some.apply[Sanitised[HSingleton[Ior[Nothing, HSingleton[String]]]]](Sanitised.apply[HSingleton[Ior[Nothing, HSingleton[String]]]](HSingleton.apply[Ior[Nothing, HSingleton[String]]](Ior.Right.apply[HSingleton[String]](right.get.captures)), right.get.any)) else None
+          }
+          if (capture.isDefined.&&(inner.isDefined)) Some.apply[Sanitised[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]](Sanitised.apply[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]](++[HSingleton[String]](capture.get.captures)[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]](inner.get.captures), capture.get.any.||(inner.get.any))) else None
+        }
+        if (sanitised.isDefined) Some.apply[Tuple2[String, Ior[String, String]]]({
+          val node: HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]] = sanitised.get.captures
+          Tuple2.apply[String, Ior[String, String]](node.left.value, node.right.value.bimap[String, String](((`left₂`: HSingleton[String]) => `left₂`.value), ((`right₂`: HSingleton[String]) => `right₂`.value)))
+        }) else None
       } else None
     }
   }
