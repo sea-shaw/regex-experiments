@@ -28,16 +28,38 @@ object ast2 {
       case (elem0 @ Elem(given Type[t0])) :: tail0 => tail0 match {
         case Nil => elem0
         case (elem1 @ Elem(given Type[t1])) :: tail1 => tail1 match {
-          case Nil => new Elem[(t0, t1)] {
+          case Nil => new Elem[Tuple2[t0, t1]] {
             override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
               '{ ${ elem0.any(groups) } || ${ elem1.any(groups) } }
             }
 
-            override def apply(groups: Expr[Groups])(using Quotes): Expr[(t0, t1)] = {
-              '{ (${ elem0(groups) }, ${ elem1(groups) }) }
+            override def apply(groups: Expr[Groups])(using Quotes): Expr[Tuple2[t0, t1]] = {
+              '{ Tuple2(${ elem0(groups) }, ${ elem1(groups) }) }
             }
           }
-          case _   => ???
+          case (elem2 @ Elem(given Type[t2])) :: tail1 => tail1 match {
+            case Nil => new Elem[Tuple3[t0, t1, t2]] {
+              override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
+                '{ ${ elem0.any(groups) } || ${ elem1.any(groups) } || ${ elem2.any(groups) } }
+              }
+
+              override def apply(groups: Expr[Groups])(using Quotes): Expr[Tuple3[t0, t1, t2]] = {
+                '{ Tuple3(${ elem0(groups) }, ${ elem1(groups) }, ${ elem2(groups) }) }
+              }
+            }
+            case (elem3 @ Elem(given Type[t3])) :: tail1 => tail1 match {
+              case Nil => new Elem[Tuple4[t0, t1, t2, t3]] {
+                override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
+                  '{ ${ elem0.any(groups) } || ${ elem1.any(groups) } || ${ elem2.any(groups) } }
+                }
+
+                override def apply(groups: Expr[Groups])(using Quotes): Expr[Tuple4[t0, t1, t2, t3]] = {
+                  '{ Tuple4(${ elem0(groups) }, ${ elem1(groups) }, ${ elem2(groups) }, ${ elem3(groups) }) }
+                }
+              }
+              case _   => ???
+            }
+          }
         }
       }
     }
