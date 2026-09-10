@@ -23,7 +23,13 @@ object catnip {
     }
 
     override protected def bimap[A: Type, B: Type, C: Type, D: Type](f: Expr[A] => Quotes ?=> Expr[C], g: Expr[B] => Quotes ?=> Expr[D])(expr: Expr[Ior[A, B]])(using Quotes): Expr[InclusiveOr[C, D]] = {
-      '{ $expr.bimap(left => ${ f('left) }, right => ${ g('right) }) }
+      '{
+        $expr match {
+          case Ior.Left(left)        => Ior.Left(${ f('left) })
+          case Ior.Right(right)      => Ior.Right(${ g('right) })
+          case Ior.Both(left, right) => Ior.Both(${ f('left) }, ${ g('right) })
+        }
+      }
     }
   }
 

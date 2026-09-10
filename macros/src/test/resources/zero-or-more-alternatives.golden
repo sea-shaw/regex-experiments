@@ -30,7 +30,14 @@
           val opt: Option[HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]] = sanitised.get.captures.value
           if (opt.isDefined) Some.apply[Tuple2[String, Ior[String, String]]]({
             val node: HAppend[HSingleton[String], HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], true, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]] = opt.get
-            Tuple2.apply[String, Ior[String, String]](node.left.value, node.right.value.bimap[String, String](((`left₂`: HSingleton[String]) => `left₂`.value), ((`right₂`: HSingleton[String]) => `right₂`.value)))
+            Tuple2.apply[String, Ior[String, String]](node.left.value, node.right.value match {
+              case Ior.Left(left) =>
+                Ior.Left.apply[String](`left₂`.value)
+              case Ior.Right(right) =>
+                Ior.Right.apply[String](`right₂`.value)
+              case Ior.Both(left, right) =>
+                Ior.Both.apply[String, String](`left₃`.value, `right₃`.value)
+            })
           }) else None
         }) else None
       } else None
