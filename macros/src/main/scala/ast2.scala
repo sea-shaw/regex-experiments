@@ -118,24 +118,30 @@ object ast2 {
   case class Opt(inner: Regex) extends Regex {
     override val numCaptures: Int = inner.numCaptures
 
-    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = inner.tidyFunction(i) match {
-      case elem @ Elem(given Type[a]) => {
-        val optElem = new Elem[Option[a]] {
-          override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
-            elem.any(groups)
-          }
+    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = {
+      if (numCaptures == 0) {
+        Chain.nil
+      } else {
+        inner.tidyFunction(i) match {
+          case elem @ Elem(given Type[a]) => {
+            val optElem = new Elem[Option[a]] {
+              override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
+                elem.any(groups)
+              }
 
-          override def apply(groups: Expr[Groups])(using Quotes): Expr[Option[a]] = {
-            '{
-              if (${ elem.any(groups) }) {
-                Some(${ elem(groups) })
-              } else {
-                None
+              override def apply(groups: Expr[Groups])(using Quotes): Expr[Option[a]] = {
+                '{
+                  if (${ elem.any(groups) }) {
+                    Some(${ elem(groups) })
+                  } else {
+                    None
+                  }
+                }
               }
             }
+            Chain.one(optElem)
           }
         }
-        Chain.one(optElem)
       }
     }
   }
@@ -144,24 +150,30 @@ object ast2 {
   case class Alt(left: Regex, right: Regex) extends Regex {
     override val numCaptures: Int = left.numCaptures + right.numCaptures
 
-    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = (left.tidyFunction(i), right.tidyFunction(i + left.numCaptures)) match {
-      case (leftElem @ Elem(given Type[a]), rightElem @ Elem(given Type[b])) => {
-        val altElem = new Elem[Either[a, b]] {
-          override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
-            '{ ${ leftElem.any(groups) } || ${ rightElem.any(groups) } }
-          }
+    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = {
+      if (numCaptures == 0) {
+        Chain.nil
+      } else {
+        (left.tidyFunction(i), right.tidyFunction(i + left.numCaptures)) match {
+          case (leftElem @ Elem(given Type[a]), rightElem @ Elem(given Type[b])) => {
+            val altElem = new Elem[Either[a, b]] {
+              override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
+                '{ ${ leftElem.any(groups) } || ${ rightElem.any(groups) } }
+              }
 
-          override def apply(groups: Expr[Groups])(using Quotes): Expr[Either[a, b]] = {
-            '{
-              if (${ leftElem.any(groups) }) {
-                Left(${ leftElem(groups) })
-              } else {
-                Right(${ rightElem(groups) })
+              override def apply(groups: Expr[Groups])(using Quotes): Expr[Either[a, b]] = {
+                '{
+                  if (${ leftElem.any(groups) }) {
+                    Left(${ leftElem(groups) })
+                  } else {
+                    Right(${ rightElem(groups) })
+                  }
+                }
               }
             }
+            Chain.one(altElem)
           }
         }
-        Chain.one(altElem)
       }
     }
   }
