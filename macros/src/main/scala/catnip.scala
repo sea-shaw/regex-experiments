@@ -24,10 +24,10 @@ object catnip {
   }
 
   private def regexCode(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
-    isInlineable(sc, Catnip())
+    isInlineable(sc /*, Catnip() */)
   }
 
   inline def code(inline s: String) = ${ codeCode('s) }
 
-  private def codeCode(s: Expr[String])(using Quotes): Expr[String] = regex.code(s, Catnip())
+  private def codeCode(s: Expr[String])(using Quotes): Expr[String] = regex.code(s /*, Catnip() */)
 }

@@ -1,11 +1,9 @@
 package experiments.macros
 
-import experiments.macros.ast.{AST, Rep, RepFalse}
-import experiments.macros.hchain.HChain
+import experiments.macros.ast2.{Elem, Regex => RegexAST}
 import experiments.macros.parsing.errors.{Pos, PosError, PosErrorBuilder}
 import experiments.macros.parsing.parser.parse
-import experiments.macros.sanitised.Sanitised
-import java.util.regex.Pattern
+import java.util.regex.{Matcher, Pattern}
 import parsley.{Failure, Success}
 import parsley.errors.ErrorBuilder
 import scala.quoted.{Expr, Quotes, quotes}
@@ -16,14 +14,14 @@ object regex {
     def unapply(s: String): Option[A]
   }
 
-  def isInlineable(sc: Expr[StringContext], ast: AST)(using Quotes): Expr[Regex[?]] = {
+  def isInlineable(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
     import quotes.reflect.report
 
     given ErrorBuilder[PosError] = PosErrorBuilder
 
     sc match {
-      case '{ StringContext(${ strExpr @ Expr(s) }) } => parse(s, ast) match {
-        case Success(regex)              => regexCode(strExpr, ast)(regex)
+      case '{ StringContext(${ strExpr @ Expr(s) }) } => parse(s) match {
+        case Success(regex)              => regexCode(strExpr, regex)
         case Failure(PosError(msg, pos)) => report.errorAndAbort(msg, errPos(strExpr, s, pos))
       }
       case _ => report.errorAndAbort("Regex string must be compile-time constant.", sc)
@@ -60,12 +58,12 @@ object regex {
 
   /* Returns a string containing a representation of the inlined code generated
      for the regex `exprStr`. */
-  def code(exprStr: Expr[String], ast: AST)(using Quotes): Expr[String] = {
+  def code(exprStr: Expr[String])(using Quotes): Expr[String] = {
     exprStr match {
-      case Expr(s) => parse(s, ast) match {
+      case Expr(s) => parse(s) match {
         case Success(regex) => {
           import quotes.reflect.{Printer, asTerm}
-          val codeExpr = regexCode(exprStr, ast)(regex)
+          val codeExpr = regexCode(exprStr, regex)
           val codeStr = codeExpr.asTerm.show(using Printer.TreeShortCode)
 
           /* `_`s used in lambdas and type lambdas are given numeric identifiers
@@ -79,37 +77,21 @@ object regex {
   }
 
   /* Returns the inlined code for a `Regex` */
-  private def regexCode[F[_ <: Rep] <: HChain](regexStr: Expr[String], ast: AST)(regex: ast.Regex[F])(using Quotes): Expr[Regex[?]] = {
-    given Type[F] = regex.nodeType.tpe
-
-    regex.nodeType match {
-      /* Don't generate an array or `HChain` for a regex with 0 capturing groups. */
-      case _: ast.HEmptyType => '{
-        new Regex[Unit] {
+  private def regexCode(regexStr: Expr[String], regex: RegexAST)(using Quotes): Expr[Regex[?]] = {
+    regex.tidyFunction(0) match {
+      case tidy @ Elem(given Type[a]) => '{
+        new Regex[a] {
           private val pattern: Pattern = Pattern.compile($regexStr)
-          override def unapply(s: String): Option[Unit] = {
-            Option.when(pattern.matcher(s).matches())(())
-          }
-        }
-      }
-      case _: ast.HNonEmptyType[_] => regex.tidyFunction(using RepFalse) match {
-        case tidy @ ast.TidyFunction(given Type[a]) => '{
-          new Regex[a] {
-            private val pattern: Pattern = Pattern.compile($regexStr)
 
-            override def unapply(s: String): Option[a] = {
-              val m = pattern.matcher(s)
-              if (m.matches()) {
-                val groups = Array.tabulate(m.groupCount) {i =>
-                  Option(m.group(i + 1))
-                }
-                val sanitised = ${ regex.sanitiseCode('groups, 0)(using RepFalse) }
-                sanitised.value.map { case Sanitised(node, _) =>
-                  ${ tidy('node) }
-                }
-              } else {
-                None
+          override def unapply(s: String): Option[a] = {
+            val matcher: Matcher = pattern.matcher(s)    
+            if (matcher.matches()) {
+              val captures = Array.tabulate(matcher.groupCount()) { i =>
+                Option(matcher.group(i + 1))
               }
+              Some(${ tidy('captures) })
+            } else {
+              None
             }
           }
         }

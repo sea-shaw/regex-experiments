@@ -29,6 +29,6 @@ object oregano {
   }
 
   private def regexCode(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
-    isInlineable(sc, Oregano())
+    isInlineable(sc /*, Oregano() */)
   }
 }

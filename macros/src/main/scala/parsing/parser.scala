@@ -2,62 +2,61 @@ package experiments.macros.parsing
 
 import cats.collections.{Diet, Range}
 import cats.data.NonEmptyList
-import experiments.macros.ast.{AST, Greedy, Reluctant, Possessive}
-import experiments.macros.parsing.bridges.*
+import experiments.macros.ast2.*
 import parsley.{Parsley, Result}
 import parsley.character.{hexDigit, octDigit}
 import parsley.combinator.{choice, option, range, sepBy1}
 import parsley.errors.ErrorBuilder
 import parsley.errors.combinator.*
 import parsley.expr.chain
-import parsley.quick.{atomic, empty, eof, many, noneOf, oneOf, notFollowedBy, pure}
+import parsley.quick.{atomic, empty, eof, many, noneOf/*,  oneOf */,notFollowedBy/*, pure */}
 import parsley.syntax.character.{charLift, stringLift}
 import parsley.syntax.all.*
-import parsley.token.Lexer
-import parsley.token.descriptions.{LexicalDesc, NumericDesc}
+// import parsley.token.Lexer
+// import parsley.token.descriptions.{LexicalDesc, NumericDesc}
 import scala.quoted.Quotes
 
 object parser {
 
-  def parse[Err: ErrorBuilder](s: String, ast: AST)(using q: Quotes): Result[Err, ast.Regex[?]] = {
-    regex.parse(s).map(_(using ast, q))
+  def parse[Err: ErrorBuilder](s: String)(using q: Quotes): Result[Err, Regex] = {
+    regex.parse(s)
   }
 
   private def some[A](p: Parsley[A]): Parsley[NonEmptyList[A]] = (p, many(p)).zipped(NonEmptyList(_, _))
 
-  private val regexDesc = LexicalDesc.plain.copy(
-    numericDesc = NumericDesc.plain.copy(
-      integerNumbersCanBeOctal = false,
-      integerNumbersCanBeHexadecimal = false,
-    )
-  )
+  // private val regexDesc = LexicalDesc.plain.copy(
+  //   numericDesc = NumericDesc.plain.copy(
+  //     integerNumbersCanBeOctal = false,
+  //     integerNumbersCanBeHexadecimal = false,
+  //   )
+  // )
 
-  private val lexer = Lexer(regexDesc)
+  // private val lexer = Lexer(regexDesc)
 
   private lazy val regex = expr <~ eof
-  private lazy val expr: Parsley[ToRegex] = chain.right1(term)(Alt from '|')
+  private lazy val expr: Parsley[Regex] = chain.right1(term)(Alt from '|')
   private lazy val term = Cat(some(atom))
-  private lazy val atom = boundary | quantified
+  private lazy val atom = /* boundary | */ quantified
 
-  private lazy val boundary = (LineStart from '^') | (LineEnd from '$')
+  // private lazy val boundary = (LineStart from '^') | (LineEnd from '$')
 
-  private lazy val quantified: Parsley[ToRegex] = quantifiable <~> option(postfixOps <~> quantifierType) map {
+  private lazy val quantified: Parsley[Regex] = quantifiable <~> option(postfixOps /* <~> quantifierType */) map {
     case (regex, None)                 => regex
-    case (regex, Some(postfix, qType)) => postfix(regex, qType)
+    case (regex, Some(postfix /*, qType */)) => postfix(regex /*, qType */)
   }
-  private lazy val quantifiable = choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
+  private lazy val quantifiable = capture | lit | dot | predefinedEsc | cls // choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
 
-  private lazy val positiveLookahead = PositiveLookahead(atomic("(?=") ~> expr <~ ')')
-  private lazy val negativeLookahead = NegativeLookahead(atomic("(?!" ~> expr <~ ')'))
-  private lazy val positiveLookbehind = PositiveLookbehind(atomic("(?<=") ~> expr <~ ')')
-  private lazy val negativeLookbehind = NegativeLookbehind(atomic("(?<!" ~> expr <~ ')'))
-  private lazy val independent = Independent(atomic("(?>") ~> expr <~ ')')
-  private lazy val withFlags = WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(':' ~> expr) <~ ')')
+  // private lazy val positiveLookahead = PositiveLookahead(atomic("(?=") ~> expr <~ ')')
+  // private lazy val negativeLookahead = NegativeLookahead(atomic("(?!" ~> expr <~ ')'))
+  // private lazy val positiveLookbehind = PositiveLookbehind(atomic("(?<=") ~> expr <~ ')')
+  // private lazy val negativeLookbehind = NegativeLookbehind(atomic("(?<!" ~> expr <~ ')'))
+  // private lazy val independent = Independent(atomic("(?>") ~> expr <~ ')')
+  // private lazy val withFlags = WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(':' ~> expr) <~ ')')
   private lazy val capture = Capture('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars).map(_.toInt) | charEsc)
   private lazy val dot = Dot from '.'
 
-  private lazy val flag = oneOf('i', 'd', 'm', 's', 'u', 'x', 'U') // TODO: U is not allowed for non-capturing groups
+  // private lazy val flag = oneOf('i', 'd', 'm', 's', 'u', 'x', 'U') // TODO: U is not allowed for non-capturing groups
 
   private lazy val charEsc: Parsley[Int] = {
     // corresponds with \x{ ... }
@@ -132,15 +131,15 @@ object parser {
     )
   )
 
-  private lazy val backreference = Backreference(atomic('\\' ~> int))
+  // private lazy val backreference = Backreference(atomic('\\' ~> int))
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 
-  private lazy val postfixOps = (Opt from '?') | (Star from '*') | (Plus from '+') | numericalQuantifier
-  private lazy val quantifierType = ('?' as Reluctant) | ('+' as Possessive) | pure(Greedy)
+  private lazy val postfixOps = (Opt from '?') // | (Star from '*') | (Plus from '+') | numericalQuantifier
+  // private lazy val quantifierType = ('?' as Reluctant) | ('+' as Possessive) | pure(Greedy)
 
-  private lazy val numericalQuantifier = NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
-  private lazy val int = lexer.lexeme.natural.decimal32[Int]
+  // private lazy val numericalQuantifier = NumericalQuantifier('{' ~> int, option(',' ~> option(int)) <~ '}')
+  // private lazy val int = lexer.lexeme.natural.decimal32[Int]
 
   private val allSet = Diet.fromRange(Range(0x00000, 0x1ffff))
 }
