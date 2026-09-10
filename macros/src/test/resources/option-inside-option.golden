@@ -12,7 +12,10 @@
           }
           if (caps.isDefined) Some.apply[Sanitised[HSingleton[Some[HSingleton[String]]]]](Sanitised.apply[HSingleton[Some[HSingleton[String]]]](HSingleton.apply[Some[HSingleton[String]]](Some.apply[HSingleton[String]](caps.get.captures)), caps.get.any)) else Some.apply[Sanitised[HSingleton[None]]](Sanitised.apply[HSingleton[None]](HSingleton.apply[None.type](None), false))
         }
-        if (sanitised.isDefined) Some.apply[Option[String]](sanitised.get.captures.value.map[String](((node: HSingleton[String]) => node.value))) else None
+        if (sanitised.isDefined) Some.apply[Option[String]]({
+          val opt: Option[HSingleton[String]] = sanitised.get.captures.value
+          if (opt.isDefined) Some.apply[String](opt.get.value) else None
+        }) else None
       } else None
     }
   }

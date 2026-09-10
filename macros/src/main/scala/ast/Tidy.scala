@@ -89,10 +89,15 @@ trait Tidy {
         case tidy @ TidyFunction(given Type[a]) => nodes.flattenFunction(TCons(Type.of[Option[a]], types)) match {
           case flatten @ FlattenFunction(given Type[b]) => new FlattenFunction[CCons[SingletonOptionType[F][R], C], L, b] {
             override def apply(chains: CCons[SingletonOptionType[F][R], C], leaves: L)(using Quotes): Expr[b] = {
-              val opt = '{
-                ${ chains.head }.value.map(node => ${ tidy('node) })
+              val optExpr = '{
+                val opt = ${ chains.head }.value
+                if (opt.isDefined) {
+                  Some(${ tidy('{ opt.get }) })
+                } else {
+                  None
+                }
               }
-              flatten(chains.tail, LCons(opt, leaves))
+              flatten(chains.tail, LCons(optExpr, leaves))
             }
           }
         }

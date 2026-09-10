@@ -19,7 +19,15 @@
           }
           if (caps.isDefined) Some.apply[Sanitised[HSingleton[Some[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]]](Sanitised.apply[HSingleton[Some[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]](HSingleton.apply[Some[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]](Some.apply[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]](caps.get.captures)), caps.get.any)) else Some.apply[Sanitised[HSingleton[None]]](Sanitised.apply[HSingleton[None]](HSingleton.apply[None.type](None), false))
         }
-        if (sanitised.isDefined) Some.apply[Option[Either[String, String]]](sanitised.get.captures.value.map[Either[String, String]](((node: HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]) => bimap[HSingleton[String], HSingleton[String]](node.value)[String, String](((`left₂`: HSingleton[String]) => `left₂`.value), ((`right₂`: HSingleton[String]) => `right₂`.value))))) else None
+        if (sanitised.isDefined) Some.apply[Option[Either[String, String]]]({
+          val opt: Option[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]] = sanitised.get.captures.value
+          if (opt.isDefined) Some.apply[Either[String, String]]((opt.get.value: Either[HSingleton[String], HSingleton[String]]) match {
+            case Left(left) =>
+              Left.apply[String, Nothing](`left₂`.value)
+            case Right(right) =>
+              Right.apply[Nothing, String](`right₂`.value)
+          }) else None
+        }) else None
       } else None
     }
   }

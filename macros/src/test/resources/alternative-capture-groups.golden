@@ -16,7 +16,12 @@
           }
           if (left.isDefined.&&(left.get.any)) Some.apply[Sanitised[HSingleton[Left[HSingleton[String], Nothing]]]](Sanitised.apply[HSingleton[Left[HSingleton[String], Nothing]]](HSingleton.apply[Left[HSingleton[String], Nothing]](Left.apply[HSingleton[String], Nothing](left.get.captures)), true)) else if (right.isDefined) Some.apply[Sanitised[HSingleton[Right[Nothing, HSingleton[String]]]]](Sanitised.apply[HSingleton[Right[Nothing, HSingleton[String]]]](HSingleton.apply[Right[Nothing, HSingleton[String]]](Right.apply[Nothing, HSingleton[String]](right.get.captures)), right.get.any)) else None
         }
-        if (sanitised.isDefined) Some.apply[Either[String, String]](bimap[HSingleton[String], HSingleton[String]](sanitised.get.captures.value)[String, String](((`left₂`: HSingleton[String]) => `left₂`.value), ((`right₂`: HSingleton[String]) => `right₂`.value))) else None
+        if (sanitised.isDefined) Some.apply[Either[String, String]]((sanitised.get.captures.value: Either[HSingleton[String], HSingleton[String]]) match {
+          case Left(left) =>
+            Left.apply[String, Nothing](`left₂`.value)
+          case Right(right) =>
+            Right.apply[Nothing, String](`right₂`.value)
+        }) else None
       } else None
     }
   }

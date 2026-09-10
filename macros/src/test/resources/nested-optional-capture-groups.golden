@@ -22,10 +22,16 @@
           }
           if (caps.isDefined) Some.apply[Sanitised[HSingleton[Some[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]]]](Sanitised.apply[HSingleton[Some[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]]](HSingleton.apply[Some[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]]](Some.apply[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]](caps.get.captures)), caps.get.any)) else Some.apply[Sanitised[HSingleton[None]]](Sanitised.apply[HSingleton[None]](HSingleton.apply[None.type](None), false))
         }
-        if (sanitised.isDefined) Some.apply[Option[Tuple2[String, Option[String]]]](sanitised.get.captures.value.map[Tuple2[String, Option[String]]](((node: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]) => {
-          val `node₂`: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]] = node
-          Tuple2.apply[String, Option[String]](`node₂`.left.value, `node₂`.right.value.map[String](((`node₃`: HSingleton[String]) => `node₃`.value)))
-        }))) else None
+        if (sanitised.isDefined) Some.apply[Option[Tuple2[String, Option[String]]]]({
+          val opt: Option[HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]]] = sanitised.get.captures.value
+          if (opt.isDefined) Some.apply[Tuple2[String, Option[String]]]({
+            val node: HAppend[HSingleton[String], HSingleton[Option[HSingleton[String]]]] = opt.get
+            Tuple2.apply[String, Option[String]](node.left.value, {
+              val `opt₂`: Option[HSingleton[String]] = node.right.value
+              if (`opt₂`.isDefined) Some.apply[String](`opt₂`.get.value) else None
+            })
+          }) else None
+        }) else None
       } else None
     }
   }

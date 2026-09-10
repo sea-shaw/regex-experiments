@@ -2,7 +2,6 @@ package experiments.macros.ast
 
 import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
-import experiments.macros.utils.*
 import scala.quoted.{Expr, Quotes, Type}
 
 /* Use `Either` if the node is not repeated and `InclusiveOr` if it is. The
@@ -271,34 +270,6 @@ trait AltTypes { this: Tidy =>
     }
   }
 
-  /* Sanitises left and right when at least one of them is optional. */
-  // private def sanitiseAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, H[_ <: Rep] <: HNonEmpty: Type, I[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](
-  //   sanitisedLeft: SanitiseExpr[F[R]], /* Sanitised left-hand side. */
-  //   sanitisedRight: SanitiseExpr[G[R]], /* Sanitised right-hand side. */
-  //   leftEither: Expr[F[R] => Option[HSingleton[Either[H[R], I[R]]]]], /* Turn left into Either for non-repeated. */
-  //   rightEither: Expr[G[R] => Option[HSingleton[Either[H[R], I[R]]]]], /* Turn right into Either for non-repeated. */
-  //   leftIor: Expr[Sanitised[Option[F[R]]]] => Quotes ?=> Expr[Sanitised[Option[H[R]]]], /* Turn left into option for repeated. */
-  //   rightIor: Expr[Sanitised[Option[G[R]]]] => Quotes ?=> Expr[Sanitised[Option[I[R]]]], /* Turn right into option for repeated. */
-  // )(using rep: RepType[R])(using Quotes): SanitiseExpr[AltSingletonOption[H, I][R]] = {
-  //   rep match {
-  //     case RepFalse => '{
-  //       val left = $sanitisedLeft.map($leftEither)
-  //       val right = $sanitisedRight.map($rightEither)
-  //       (left max right).map(_.singleton)
-  //     }
-  //     case RepTrue  => '{
-  //       val left = ${ leftIor('{ $sanitisedLeft.value.sequence }) }
-  //       val right = ${ rightIor('{ $sanitisedRight.value.sequence }) }
-  //       val caps = left.map2(right)($fromOptions)
-  //       SanitisedT(caps.traverse(_.map(_.singleton.some.singleton)))
-  //     }
-  //   }
-  // }
-
-  // private def flattenSanitised[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](expr: Expr[Sanitised[Option[HSingleton[Option[F[R]]]]]])(using Quotes): Expr[Sanitised[Option[F[R]]]] = {
-  //   '{ $expr.map(_.flatMap(_.value)) }
-  // }
-
   private def tidyAlt[F[_ <: Rep] <: HNonEmpty: Type, G[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type, A, B](tidyLeft: TidyFunction[F[R], A], tidyRight: TidyFunction[G[R], B])(using rep: RepType[R])(using Quotes): TidyFunction[AltSingleton[F, G][R], ?] = {
     given Type[A] = tidyLeft.tpe
     given Type[B] = tidyRight.tpe
@@ -306,7 +277,12 @@ trait AltTypes { this: Tidy =>
     rep match {
       case RepFalse => new TidyFunction[AltSingleton[F, G][R], Either[A, B]] {
         override def apply(chain: Expr[AltSingleton[F, G][R]])(using Quotes): Expr[Either[A, B]] = {
-          '{ $chain.value.bimap(left => ${ tidyLeft('left) }, right => ${ tidyRight('right) }) }
+          '{
+            ($chain.value: Either[F[R], G[R]]) match {
+              case Left(left) => Left(${ tidyLeft('left) })
+              case Right(right) => Right(${ tidyRight('right) })
+            }
+          }
         }
       }
       case RepTrue => new TidyFunction[AltSingleton[F, G][R], InclusiveOr[A, B]] {
