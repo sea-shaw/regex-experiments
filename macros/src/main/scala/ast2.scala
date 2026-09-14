@@ -10,7 +10,6 @@ object ast2 {
   type Groups = Array[Option[String]]
 
   sealed abstract class Elem[A](using val tpe: Type[A]) {
-    def any(groups: Expr[Groups])(using Quotes): Expr[Boolean]
     def apply(groups: Expr[Groups])(using Quotes): Expr[A]
   }
   object Elem {
@@ -19,40 +18,29 @@ object ast2 {
 
   sealed abstract class Regex {
     val numCaptures: Int
-    def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]]
-    final def tidyFunction(i: Int)(using Quotes): Elem[?] = elemFunctions(i).toList match {
+    def any(groups: Expr[Groups], i: Int)(using Quotes): Chain[Expr[Boolean]]
+    def anyExpr(groups: Expr[Groups], i: Int)(using Quotes): Expr[Boolean] = any(groups, i).foldLeft('{ false })((left, right) => '{ $left || $right })
+    def elems(i: Int)(using Quotes): Chain[Elem[?]]
+    final def tidyFunction(i: Int)(using Quotes): Elem[?] = elems(i).toList match {
       case Nil => new Elem[Unit] {
-        override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = '{ false }
         override def apply(groups: Expr[Groups])(using Quotes): Expr[Unit] = '{ () }
       }
       case (elem0 @ Elem(given Type[t0])) :: tail0 => tail0 match {
         case Nil => elem0
         case (elem1 @ Elem(given Type[t1])) :: tail1 => tail1 match {
           case Nil => new Elem[Tuple2[t0, t1]] {
-            override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
-              '{ ${ elem0.any(groups) } || ${ elem1.any(groups) } }
-            }
-
             override def apply(groups: Expr[Groups])(using Quotes): Expr[Tuple2[t0, t1]] = {
               '{ Tuple2(${ elem0(groups) }, ${ elem1(groups) }) }
             }
           }
           case (elem2 @ Elem(given Type[t2])) :: tail1 => tail1 match {
             case Nil => new Elem[Tuple3[t0, t1, t2]] {
-              override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
-                '{ ${ elem0.any(groups) } || ${ elem1.any(groups) } || ${ elem2.any(groups) } }
-              }
-
               override def apply(groups: Expr[Groups])(using Quotes): Expr[Tuple3[t0, t1, t2]] = {
                 '{ Tuple3(${ elem0(groups) }, ${ elem1(groups) }, ${ elem2(groups) }) }
               }
             }
             case (elem3 @ Elem(given Type[t3])) :: tail1 => tail1 match {
               case Nil => new Elem[Tuple4[t0, t1, t2, t3]] {
-                override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
-                  '{ ${ elem0.any(groups) } || ${ elem1.any(groups) } || ${ elem2.any(groups) } }
-                }
-
                 override def apply(groups: Expr[Groups])(using Quotes): Expr[Tuple4[t0, t1, t2, t3]] = {
                   '{ Tuple4(${ elem0(groups) }, ${ elem1(groups) }, ${ elem2(groups) }, ${ elem3(groups) }) }
                 }
@@ -66,7 +54,8 @@ object ast2 {
   }
 
   sealed abstract class Empty extends Regex {
-    override final def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = Chain.nil
+    override def any(groups: Expr[Groups], i: Int)(using Quotes): Chain[Expr[Boolean]] = Chain.nil
+    override final def elems(i: Int)(using Quotes): Chain[Elem[?]] = Chain.nil
   }
 
   sealed abstract class EmptyLeaf extends Empty {
@@ -85,18 +74,18 @@ object ast2 {
   case class Capture(inner: Regex) extends Regex {
     override val numCaptures: Int = 1 + inner.numCaptures
 
-    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = {
+    override def any(groups: Expr[Groups], i: Int)(using Quotes): Chain[Expr[Boolean]] = {
+      Chain.one('{ $groups(${ Expr(i) }).isDefined })
+    }
+
+    override def elems(i: Int)(using Quotes): Chain[Elem[?]] = {
       val head = new Elem[String] {
-        override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
-          val idx = Expr(i)
-          '{ $groups($idx).isDefined }
-        }
         override def apply(groups: Expr[Groups])(using Quotes): Expr[String] = {
           val idx = Expr(i)
           '{ $groups($idx).get }
         }
       }
-      val tail = inner.elemFunctions(i + 1)
+      val tail = inner.elems(i + 1)
       head +: tail
     }
   }
@@ -104,15 +93,20 @@ object ast2 {
 
   case class NonCapture(inner: Regex) extends Regex {
     override val numCaptures: Int = inner.numCaptures
-    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = inner.elemFunctions(i)
+    override def any(groups: Expr[Groups], i: Int)(using Quotes): Chain[Expr[Boolean]] = inner.any(groups, i)
+    override def elems(i: Int)(using Quotes): Chain[Elem[?]] = inner.elems(i)
   }
   object NonCapture extends PureParserBridge1[Regex, NonCapture]
 
   case class Cat(left: Regex, right: Regex) extends Regex {
     override val numCaptures: Int = left.numCaptures + right.numCaptures
 
-    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = {
-      left.elemFunctions(i) ++ right.elemFunctions(i + left.numCaptures)
+    override def any(groups: Expr[Groups], i: Int)(using Quotes): Chain[Expr[Boolean]] = {
+      left.any(groups, i) ++ right.any(groups, i + left.numCaptures)
+    }
+
+    override def elems(i: Int)(using Quotes): Chain[Elem[?]] = {
+      left.elems(i) ++ right.elems(i + left.numCaptures)
     }
   }
   object Cat extends PureParserBridge1[NonEmptyList[Regex], Regex] {
@@ -124,20 +118,18 @@ object ast2 {
   case class Opt(inner: Regex) extends Regex {
     override val numCaptures: Int = inner.numCaptures
 
-    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = {
+    override def any(groups: Expr[Groups], i: Int)(using Quotes): Chain[Expr[Boolean]] = inner.any(groups, i)
+
+    override def elems(i: Int)(using Quotes): Chain[Elem[?]] = {
       if (numCaptures == 0) {
         Chain.nil
       } else {
         inner.tidyFunction(i) match {
           case elem @ Elem(given Type[a]) => {
             val optElem = new Elem[Option[a]] {
-              override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
-                elem.any(groups)
-              }
-
               override def apply(groups: Expr[Groups])(using Quotes): Expr[Option[a]] = {
                 '{
-                  if (${ elem.any(groups) }) {
+                  if (${ inner.anyExpr(groups, i) }) {
                     Some(${ elem(groups) })
                   } else {
                     None
@@ -156,20 +148,20 @@ object ast2 {
   case class Alt(left: Regex, right: Regex) extends Regex {
     override val numCaptures: Int = left.numCaptures + right.numCaptures
 
-    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = {
+    override def any(groups: Expr[Groups], i: Int)(using Quotes): Chain[Expr[Boolean]] = {
+      left.any(groups, i) ++ right.any(groups, i + left.numCaptures)
+    }
+
+    override def elems(i: Int)(using Quotes): Chain[Elem[?]] = {
       if (numCaptures == 0) {
         Chain.nil
       } else {
         (left.tidyFunction(i), right.tidyFunction(i + left.numCaptures)) match {
           case (leftElem @ Elem(given Type[a]), rightElem @ Elem(given Type[b])) => {
             val altElem = new Elem[Either[a, b]] {
-              override def any(groups: Expr[Groups])(using Quotes): Expr[Boolean] = {
-                '{ ${ leftElem.any(groups) } || ${ rightElem.any(groups) } }
-              }
-
               override def apply(groups: Expr[Groups])(using Quotes): Expr[Either[a, b]] = {
                 '{
-                  if (${ leftElem.any(groups) }) {
+                  if (${ left.anyExpr(groups, i) }) {
                     Left(${ leftElem(groups) })
                   } else {
                     Right(${ rightElem(groups) })
