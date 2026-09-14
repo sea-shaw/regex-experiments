@@ -44,7 +44,7 @@ object parser {
     case (regex, None)                 => regex
     case (regex, Some(postfix /*, qType */)) => postfix(regex /*, qType */)
   }
-  private lazy val quantifiable = capture | lit | dot | predefinedEsc | cls // choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
+  private lazy val quantifiable = nonCapture | capture | lit | dot | predefinedEsc | cls // choice(positiveLookahead, negativeLookahead, positiveLookbehind, negativeLookbehind, independent, withFlags, capture, lit, dot, predefinedEsc, cls, backreference)
 
   // private lazy val positiveLookahead = PositiveLookahead(atomic("(?=") ~> expr <~ ')')
   // private lazy val negativeLookahead = NegativeLookahead(atomic("(?!" ~> expr <~ ')'))
@@ -52,6 +52,7 @@ object parser {
   // private lazy val negativeLookbehind = NegativeLookbehind(atomic("(?<!" ~> expr <~ ')'))
   // private lazy val independent = Independent(atomic("(?>") ~> expr <~ ')')
   // private lazy val withFlags = WithFlags(atomic("(?") ~> many(flag), option('-' ~> some(flag)), option(':' ~> expr) <~ ')')
+  private lazy val nonCapture = NonCapture(atomic("(?:" ~> expr <~ ')'))
   private lazy val capture = Capture('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars).map(_.toInt) | charEsc)
   private lazy val dot = Dot from '.'

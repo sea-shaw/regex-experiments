@@ -102,6 +102,12 @@ object ast2 {
   }
   object Capture extends PureParserBridge1[Regex, Capture]
 
+  case class NonCapture(inner: Regex) extends Regex {
+    override val numCaptures: Int = inner.numCaptures
+    override def elemFunctions(i: Int)(using Quotes): Chain[Elem[?]] = inner.elemFunctions(i)
+  }
+  object NonCapture extends PureParserBridge1[Regex, NonCapture]
+
   case class Cat(left: Regex, right: Regex) extends Regex {
     override val numCaptures: Int = left.numCaptures + right.numCaptures
 
