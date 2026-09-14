@@ -6,10 +6,7 @@
       if (m.matches()) {
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
         val hchain: HSingleton[Option[HSingleton[String]]] = {
-          val opt: Option[Sanitised[HSingleton[String]]] = {
-            val capture: Option[String] = groups.apply(0)
-            if (capture.isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](capture.get), true)) else None
-          }
+          val opt: Option[Sanitised[HSingleton[String]]] = if (groups.apply(0).isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](groups.apply(0).get), true)) else None
           HSingleton.apply[Option[HSingleton[String]]](if (opt.isDefined) Some.apply[HSingleton[String]](opt.get.captures) else None)
         }
         Some.apply[Option[String]]({

@@ -12,7 +12,7 @@ trait CapturingTypes { this: Tidy =>
     final val asNodeType: NodeType[G] & CapturingType[F, G] = this
 
     /* Construct an HChain from the capture and the captures of the inner node. */
-    def sanitiseCode[R <: Rep: Type](sanitisedCapture: SanitiseExpr[HSingleton[String]], sanitisedInner: => SanitiseExpr[F[R]])(using Quotes): SanitiseExpr[G[R]]
+    def sanitiseCode[R <: Rep: Type](capture: Expr[Option[String]], sanitisedInner: => Expr[F[R]])(using Quotes): SanitiseExpr[G[R]]
     def getCode[R <: Rep: Type](capture: Expr[HSingleton[String]], inner: => Expr[F[R]])(using Quotes): Expr[G[R]]
   }
 
@@ -31,8 +31,14 @@ trait CapturingTypes { this: Tidy =>
   /* (A) */
   private type CapturingSingletonType = Const[HSingleton[String]]
   private class CapturingSingleton(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
-    override def sanitiseCode[R <: Rep: Type](sanitisedCapture: SanitiseExpr[HSingleton[String]], sanitisedInner: => SanitiseExpr[Const[HEmpty][R]])(using Quotes): SanitiseExpr[HSingleton[String]] = {
-      sanitisedCapture
+    override def sanitiseCode[R <: Rep: Type](capture: Expr[Option[String]], sanitisedInner: => Expr[Const[HEmpty][R]])(using Quotes): SanitiseExpr[CapturingSingletonType[R]] = {
+      '{
+        if ($capture.isDefined) {
+          Some(Sanitised(HSingleton($capture.get), true))
+        } else {
+          None
+        }
+      }
     }
 
     override def getCode[R <: Rep: Type](capture: Expr[HSingleton[String]], inner: => Expr[Const[HEmpty][R]])(using Quotes): Expr[HSingleton[String]] = {
@@ -54,12 +60,10 @@ trait CapturingTypes { this: Tidy =>
   /* Type when the inner node contains more capturing groups, e.g. ((A)). */
   private type CapturingAppendType[F[_ <: Rep] <: HNonEmpty] = [R <: Rep] =>> HAppend[HSingleton[String], F[R]]
   private class CapturingAppend[F[_ <: Rep] <: HNonEmpty: Type](inner: Tidiable[F])(using Type[CapturingAppendType[F]]) extends CapturingType[F, CapturingAppendType[F]] with HNonEmptyType[CapturingAppendType[F]] {
-    override def sanitiseCode[R <: Rep: Type](sanitisedCapture: SanitiseExpr[HSingleton[String]], sanitisedInner: => SanitiseExpr[F[R]])(using Quotes): SanitiseExpr[HAppend[HSingleton[String], F[R]]] = {
+    override def sanitiseCode[R <: Rep: Type](capture: Expr[Option[String]], sanitisedInner: => Expr[F[R]])(using Quotes): SanitiseExpr[CapturingAppendType[F][R]] = {
       '{
-        val capture = $sanitisedCapture
-        val inner = $sanitisedInner
-        if (capture.isDefined && inner.isDefined) {
-          Some(Sanitised(capture.get.captures ++ inner.get.captures, capture.get.any || inner.get.any))
+        if ($capture.isDefined) {
+          Some(Sanitised(HSingleton($capture.get) ++ $sanitisedInner, true))
         } else {
           None
         }

@@ -7,17 +7,11 @@
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
         val hchain: HSingleton[Option[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]] = {
           val left: Option[Sanitised[HSingleton[Option[HSingleton[String]]]]] = {
-            val caps: Option[Sanitised[HSingleton[String]]] = {
-              val capture: Option[String] = groups.apply(0)
-              if (capture.isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](capture.get), true)) else None
-            }
+            val caps: Option[Sanitised[HSingleton[String]]] = if (groups.apply(0).isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](groups.apply(0).get), true)) else None
             if (caps.isDefined) Some.apply[Sanitised[HSingleton[Some[HSingleton[String]]]]](Sanitised.apply[HSingleton[Some[HSingleton[String]]]](HSingleton.apply[Some[HSingleton[String]]](Some.apply[HSingleton[String]](caps.get.captures)), caps.get.any)) else Some.apply[Sanitised[HSingleton[None]]](Sanitised.apply[HSingleton[None]](HSingleton.apply[None.type](None), false))
           }
           val right: Option[Sanitised[HSingleton[Option[HSingleton[String]]]]] = {
-            val `caps₂`: Option[Sanitised[HSingleton[String]]] = {
-              val `capture₂`: Option[String] = groups.apply(1)
-              if (`capture₂`.isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](`capture₂`.get), true)) else None
-            }
+            val `caps₂`: Option[Sanitised[HSingleton[String]]] = if (groups.apply(1).isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](groups.apply(1).get), true)) else None
             if (`caps₂`.isDefined) Some.apply[Sanitised[HSingleton[Some[HSingleton[String]]]]](Sanitised.apply[HSingleton[Some[HSingleton[String]]]](HSingleton.apply[Some[HSingleton[String]]](Some.apply[HSingleton[String]](`caps₂`.get.captures)), `caps₂`.get.any)) else Some.apply[Sanitised[HSingleton[None]]](Sanitised.apply[HSingleton[None]](HSingleton.apply[None.type](None), false))
           }
           if (left.isDefined.&&(left.get.any)) Some.apply[Sanitised[HSingleton[Some[HSingleton[Left[HSingleton[String], Nothing]]]]]](Sanitised.apply[HSingleton[Some[HSingleton[Left[HSingleton[String], Nothing]]]]](HSingleton.apply[Some[HSingleton[Left[HSingleton[String], Nothing]]]](Some.apply[HSingleton[Left[HSingleton[String], Nothing]]](HSingleton.apply[Left[HSingleton[String], Nothing]](Left.apply[HSingleton[String], Nothing](left.get.captures.value.get)))), true)) else if (right.isDefined.&&(right.get.any)) Some.apply[Sanitised[HSingleton[Some[HSingleton[Right[Nothing, HSingleton[String]]]]]]](Sanitised.apply[HSingleton[Some[HSingleton[Right[Nothing, HSingleton[String]]]]]](HSingleton.apply[Some[HSingleton[Right[Nothing, HSingleton[String]]]]](Some.apply[HSingleton[Right[Nothing, HSingleton[String]]]](HSingleton.apply[Right[Nothing, HSingleton[String]]](Right.apply[Nothing, HSingleton[String]](right.get.captures.value.get)))), true)) else Some.apply[Sanitised[HSingleton[None]]](Sanitised.apply[HSingleton[None]](HSingleton.apply[None.type](None), false))

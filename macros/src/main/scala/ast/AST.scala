@@ -119,16 +119,7 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override final val numCaptures: Int = inner.numCaptures + 1
 
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
-      val sanitisedCapture = '{
-        val capture = $groups(${ Expr(i) })
-        if (capture.isDefined) {
-          Some(Sanitised(HSingleton(capture.get), true))
-        } else {
-          None
-        }
-      }
-
-      capturingType.sanitiseCode(sanitisedCapture, inner.sanitiseCode(groups, i + 1))
+      capturingType.sanitiseCode('{ $groups(${ Expr(i) }) }, inner.getCode(groups, i + 1))
     }
 
     override final def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[G[R]] = {
