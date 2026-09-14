@@ -5,7 +5,7 @@
       val m: (Matcher)? = $anon.this.pattern.matcher(s)
       if (m.matches()) {
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
-        val sanitised: Option[Sanitised[HSingleton[AltRep[[R >: Nothing <: Boolean] =>> HAppend[HSingleton[String], HSingleton[String]], [R >: Nothing <: Boolean] =>> HAppend[HSingleton[String], HSingleton[String]], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]] = {
+        val hchain: HSingleton[AltRep[[R >: Nothing <: Boolean] =>> HAppend[HSingleton[String], HSingleton[String]], [R >: Nothing <: Boolean] =>> HAppend[HSingleton[String], HSingleton[String]], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]] = {
           val left: Option[Sanitised[HAppend[HSingleton[String], HSingleton[String]]]] = {
             val `left₂`: Option[Sanitised[HSingleton[String]]] = {
               val capture: Option[String] = groups.apply(0)
@@ -29,8 +29,8 @@
             if (`left₃`.isDefined.&&(`right₃`.isDefined)) Some.apply[Sanitised[HAppend[HSingleton[String], HSingleton[String]]]](Sanitised.apply[HAppend[HSingleton[String], HSingleton[String]]](++[HSingleton[String]](`left₃`.get.captures)[HSingleton[String]](`right₃`.get.captures), `left₃`.get.any.||(`right₃`.get.any))) else None
           }
           if (left.isDefined.&&(left.get.any)) Some.apply[Sanitised[HSingleton[Left[HAppend[HSingleton[String], HSingleton[String]], Nothing]]]](Sanitised.apply[HSingleton[Left[HAppend[HSingleton[String], HSingleton[String]], Nothing]]](HSingleton.apply[Left[HAppend[HSingleton[String], HSingleton[String]], Nothing]](Left.apply[HAppend[HSingleton[String], HSingleton[String]], Nothing](left.get.captures)), true)) else if (`right₂`.isDefined) Some.apply[Sanitised[HSingleton[Right[Nothing, HAppend[HSingleton[String], HSingleton[String]]]]]](Sanitised.apply[HSingleton[Right[Nothing, HAppend[HSingleton[String], HSingleton[String]]]]](HSingleton.apply[Right[Nothing, HAppend[HSingleton[String], HSingleton[String]]]](Right.apply[Nothing, HAppend[HSingleton[String], HSingleton[String]]](`right₂`.get.captures)), `right₂`.get.any)) else None
-        }
-        if (sanitised.isDefined) Some.apply[Either[Tuple2[String, String], Tuple2[String, String]]]((sanitised.get.captures.value: Either[HAppend[HSingleton[String], HSingleton[String]], HAppend[HSingleton[String], HSingleton[String]]]) match {
+        }.get.captures
+        Some.apply[Either[Tuple2[String, String], Tuple2[String, String]]]((hchain.value: Either[HAppend[HSingleton[String], HSingleton[String]], HAppend[HSingleton[String], HSingleton[String]]]) match {
           case Left(left) =>
             Left.apply[Tuple2[String, String], Nothing]({
               val node: HAppend[HSingleton[String], HSingleton[String]] = `left₄`
@@ -41,7 +41,7 @@
               val `node₂`: HAppend[HSingleton[String], HSingleton[String]] = `right₄`
               Tuple2.apply[String, String](`node₂`.left.value, `node₂`.right.value)
             })
-        }) else None
+        })
       } else None
     }
   }

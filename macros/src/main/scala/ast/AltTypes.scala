@@ -162,7 +162,7 @@ trait AltTypes { this: Tidy =>
           if (left.isDefined && left.get.any) {
             Some(Sanitised(HSingleton(Some(HSingleton(Left(left.get.captures.value.get)))), true))
           } else if (right.isDefined && right.get.any) {
-            Some(Sanitised(HSingleton(Some(HSingleton(Right(right.get.captures)))), right.get.any))
+            Some(Sanitised(HSingleton(Some(HSingleton(Right(right.get.captures)))), true))
           } else {
             Some(Sanitised(HSingleton(None), false))
           }
@@ -175,7 +175,7 @@ trait AltTypes { this: Tidy =>
           } else if (left.isDefined && left.get.any) {
             Some(Sanitised(HSingleton(Some(HSingleton(${ fromLeft('{ left.get.captures.value.get }) }))), true))
           } else if (right.isDefined && right.get.any) {
-            Some(Sanitised(HSingleton(Some(HSingleton(${ fromRight('{ right.get.captures }) }))), right.get.any))
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromRight('{ right.get.captures }) }))), true))
           } else {
             Some(Sanitised(HSingleton(None), false))
           }
@@ -212,7 +212,7 @@ trait AltTypes { this: Tidy =>
           } else if (left.isDefined && left.get.any) {
             Some(Sanitised(HSingleton(Some(HSingleton(${ fromLeft('{ left.get.captures }) }))), true))
           } else if (right.isDefined && right.get.any) {
-            Some(Sanitised(HSingleton(Some(HSingleton(${ fromRight('{ right.get.captures.value.get }) }))), right.get.any))
+            Some(Sanitised(HSingleton(Some(HSingleton(${ fromRight('{ right.get.captures.value.get }) }))), true))
           } else {
             Some(Sanitised(HSingleton(None), false))
           }

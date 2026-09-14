@@ -200,4 +200,11 @@ trait Tidy {
       }
     }
   }
+
+  protected final def getOpt[F[_ <: Rep] <: HNonEmpty: Type, R <: Rep: Type](sanitised: SanitiseExpr[F[R]])(using Quotes): Expr[SingletonOptionType[F][R]] = {
+    '{
+      val opt = $sanitised
+      HSingleton(if opt.isDefined then Some(opt.get.captures) else None)
+    }
+  }
 }

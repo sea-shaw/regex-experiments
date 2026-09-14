@@ -5,11 +5,8 @@
       val m: (Matcher)? = $anon.this.pattern.matcher(s)
       if (m.matches()) {
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
-        val sanitised: Option[Sanitised[HSingleton[String]]] = {
-          val capture: Option[String] = groups.apply(0)
-          if (capture.isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](capture.get), true)) else None
-        }
-        if (sanitised.isDefined) Some.apply[String](sanitised.get.captures.value) else None
+        val hchain: HSingleton[String] = HSingleton.apply[String](groups.apply(0).get)
+        Some.apply[String](hchain.value)
       } else None
     }
   }

@@ -2,13 +2,14 @@ package experiments.macros.ast
 
 import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
-import scala.quoted.{Quotes, Type}
+import scala.quoted.{Expr, Quotes, Type}
 
 trait Rep1Types { this: Tidy =>
   /* Type of a `Rep1` node. */
   protected sealed trait Rep1Type[F[_ <: Rep] <: HChain, G[_ <: Rep] <: HChain] { this: NodeType[G] =>
     final val asNodeType: NodeType[G] & Rep1Type[F, G] = this
     def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[G[R]]
+    def getCode[R <: Rep](getInner: => Expr[F[true]])(using Quotes): Expr[G[R]]
   }
 
   protected object Rep1Type {
@@ -26,6 +27,10 @@ trait Rep1Types { this: Tidy =>
     override def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[Const[HEmpty][true]])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
       sanitiseEmpty
     }
+
+    override def getCode[R <: Rep](getInner: => Expr[Const[HEmpty][true]])(using Quotes): Expr[HEmpty] = {
+      '{ HEmpty }
+    }
   }
 
   /* (A)+ */
@@ -33,6 +38,10 @@ trait Rep1Types { this: Tidy =>
   private class Rep1NonEmpty[F[_ <: Rep] <: HNonEmpty](inner: Tidiable[F])(using Type[Rep1NonEmptyType[F]]) extends Rep1Type[F, Rep1NonEmptyType[F]] with HNonEmptyType[Rep1NonEmptyType[F]] {
     override def sanitiseCode[R <: Rep](sanitisedInner: => SanitiseExpr[F[true]])(using Quotes): SanitiseExpr[Rep1NonEmptyType[F][R]] = {
       sanitisedInner
+    }
+
+    override def getCode[R <: Rep](getInner: => Expr[F[true]])(using Quotes): Expr[F[true]] = {
+      getInner
     }
 
     override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[F[true], C], L, ?] = {

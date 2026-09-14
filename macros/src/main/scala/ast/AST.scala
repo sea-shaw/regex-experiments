@@ -15,12 +15,18 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     /* Returns the code to construct an `HChain` from `groups` starting with
        group `i`. `R` is true if this node is repeated and false otherwise. */
     def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[F[R]]
+
+    def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[F[R]]
   }
 
   /* Node with no capturing groups. */
   sealed abstract class Empty protected (using emptyType: EmptyType) extends Regex[Const[HEmpty]](emptyType) {
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[Const[HEmpty][R]] = {
       sanitiseEmpty
+    }
+
+    override final def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[HEmpty] = {
+      '{ HEmpty }
     }
   }
 
@@ -124,6 +130,11 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
 
       capturingType.sanitiseCode(sanitisedCapture, inner.sanitiseCode(groups, i + 1))
     }
+
+    override final def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[G[R]] = {
+      val capture = '{ HSingleton($groups(${ Expr(i) }).get) }
+      capturingType.getCode(capture, inner.getCode(groups, i + 1))
+    }
   }
 
   /* (A) */
@@ -149,6 +160,10 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[F[R]] = {
       inner.sanitiseCode(groups, i)
     }
+
+    override final def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[F[R]] = {
+      inner.getCode(groups, i)
+    }
   }
 
   /* (?:A) */
@@ -164,7 +179,13 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[H[R]] = {
       lazy val sanitisedLeft = left.sanitiseCode(groups, i)
       lazy val sanitisedRight = right.sanitiseCode(groups, i + left.numCaptures)
-      catType.sanitiseCode(sanitisedLeft, sanitisedRight, groups, i)
+      catType.sanitiseCode(sanitisedLeft, sanitisedRight)
+    }
+
+    override def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[H[R]] = {
+      lazy val getLeft = left.getCode(groups, i)
+      lazy val getRight = right.getCode(groups, i + left.numCaptures)
+      catType.getCode(getLeft, getRight)
     }
   }
 
@@ -184,6 +205,11 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
 
       altType.sanitiseCode(sanitisedLeft, sanitisedRight)
     }
+
+    override def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[H[R]] = {
+      given Type[H] = nodeType.tpe
+      '{ ${ sanitiseCode(groups, i) }.get.captures }
+    }
   }
 
   object Alt {
@@ -200,6 +226,11 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
       lazy val sanitisedInner = inner.sanitiseCode(groups, i)
       optType.sanitiseCode(sanitisedInner)
     }
+
+    override def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[G[R]] = {
+      lazy val sanitisedInner = inner.sanitiseCode(groups, i)
+      optType.getCode(sanitisedInner)
+    }
   }
 
   object Opt {
@@ -215,6 +246,11 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
       lazy val sanitisedInner = inner.sanitiseCode(groups, i)(using RepTrue)
       rep1Type.sanitiseCode(sanitisedInner)
+    }
+
+    override final def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[G[R]] = {
+      lazy val getInner = inner.getCode(groups, i)(using RepTrue)
+      rep1Type.getCode(getInner)
     }
   }
 
@@ -257,6 +293,11 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
     override final def sanitiseCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): SanitiseExpr[G[R]] = {
       lazy val sanitisedInner = inner.sanitiseCode(groups, i)(using RepTrue)
       rep0Type.sanitiseCode(sanitisedInner)
+    }
+
+    override final def getCode[R <: Rep: Type](groups: Expr[Groups], i: Int)(using RepType[R])(using Quotes): Expr[G[R]] = {
+      lazy val sanitisedInner = inner.sanitiseCode(groups, i)(using RepTrue)
+      rep0Type.getCode(sanitisedInner)
     }
   }
 

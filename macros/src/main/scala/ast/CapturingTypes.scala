@@ -13,6 +13,7 @@ trait CapturingTypes { this: Tidy =>
 
     /* Construct an HChain from the capture and the captures of the inner node. */
     def sanitiseCode[R <: Rep: Type](sanitisedCapture: SanitiseExpr[HSingleton[String]], sanitisedInner: => SanitiseExpr[F[R]])(using Quotes): SanitiseExpr[G[R]]
+    def getCode[R <: Rep: Type](capture: Expr[HSingleton[String]], inner: => Expr[F[R]])(using Quotes): Expr[G[R]]
   }
 
   protected object CapturingType {
@@ -32,6 +33,10 @@ trait CapturingTypes { this: Tidy =>
   private class CapturingSingleton(using Type[CapturingSingletonType]) extends CapturingType[Const[HEmpty], CapturingSingletonType] with HNonEmptyType[CapturingSingletonType] {
     override def sanitiseCode[R <: Rep: Type](sanitisedCapture: SanitiseExpr[HSingleton[String]], sanitisedInner: => SanitiseExpr[Const[HEmpty][R]])(using Quotes): SanitiseExpr[HSingleton[String]] = {
       sanitisedCapture
+    }
+
+    override def getCode[R <: Rep: Type](capture: Expr[HSingleton[String]], inner: => Expr[Const[HEmpty][R]])(using Quotes): Expr[HSingleton[String]] = {
+      capture
     }
 
     override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[HSingleton[String], C], L, ?] = {
@@ -59,6 +64,10 @@ trait CapturingTypes { this: Tidy =>
           None
         }
       }
+    }
+
+    override def getCode[R <: Rep: Type](capture: Expr[HSingleton[String]], inner: => Expr[F[R]])(using Quotes): Expr[HAppend[HSingleton[String], F[R]]] = {
+      '{ HAppend($capture, $inner) }
     }
 
     override def flattenFunction[C <: Chains, L <: Leaves, R <: Rep: Type](nodes: Nodes[C], types: Types[L])(using RepType[R])(using Quotes): FlattenFunction[CCons[CapturingAppendType[F][R], C], L, ?] = {

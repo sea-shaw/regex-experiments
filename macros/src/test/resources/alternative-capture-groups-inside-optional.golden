@@ -5,8 +5,8 @@
       val m: (Matcher)? = $anon.this.pattern.matcher(s)
       if (m.matches()) {
         val groups: Array[Option[(String)?]] = Array.tabulate[Option[(String)?]](m.groupCount())(((i: Int) => Option.apply[(String)?](m.group(i.+(1)))))(ClassTag.apply[Option[(String)?]](classOf[Option]))
-        val sanitised: Option[Sanitised[HSingleton[Option[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]]] = {
-          val caps: Option[Sanitised[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]] = {
+        val hchain: HSingleton[Option[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]] = {
+          val opt: Option[Sanitised[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]] = {
             val left: Option[Sanitised[HSingleton[String]]] = {
               val capture: Option[String] = groups.apply(0)
               if (capture.isDefined) Some.apply[Sanitised[HSingleton[String]]](Sanitised.apply[HSingleton[String]](HSingleton.apply[String](capture.get), true)) else None
@@ -17,17 +17,17 @@
             }
             if (left.isDefined.&&(left.get.any)) Some.apply[Sanitised[HSingleton[Left[HSingleton[String], Nothing]]]](Sanitised.apply[HSingleton[Left[HSingleton[String], Nothing]]](HSingleton.apply[Left[HSingleton[String], Nothing]](Left.apply[HSingleton[String], Nothing](left.get.captures)), true)) else if (right.isDefined) Some.apply[Sanitised[HSingleton[Right[Nothing, HSingleton[String]]]]](Sanitised.apply[HSingleton[Right[Nothing, HSingleton[String]]]](HSingleton.apply[Right[Nothing, HSingleton[String]]](Right.apply[Nothing, HSingleton[String]](right.get.captures)), right.get.any)) else None
           }
-          if (caps.isDefined) Some.apply[Sanitised[HSingleton[Some[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]]](Sanitised.apply[HSingleton[Some[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]]](HSingleton.apply[Some[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]](Some.apply[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]](caps.get.captures)), caps.get.any)) else Some.apply[Sanitised[HSingleton[None]]](Sanitised.apply[HSingleton[None]](HSingleton.apply[None.type](None), false))
+          HSingleton.apply[Option[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]]](if (opt.isDefined) Some.apply[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]](opt.get.captures) else None)
         }
-        if (sanitised.isDefined) Some.apply[Option[Either[String, String]]]({
-          val opt: Option[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]] = sanitised.get.captures.value
-          if (opt.isDefined) Some.apply[Either[String, String]]((opt.get.value: Either[HSingleton[String], HSingleton[String]]) match {
+        Some.apply[Option[Either[String, String]]]({
+          val `opt₂`: Option[HSingleton[AltRep[[_$ >: Nothing <: Any] =>> HSingleton[String], [_$ >: Nothing <: Any] =>> HSingleton[String], false, [A >: Nothing <: Any, B >: Nothing <: Any] =>> Ior[A, B]]]] = hchain.value
+          if (`opt₂`.isDefined) Some.apply[Either[String, String]]((`opt₂`.get.value: Either[HSingleton[String], HSingleton[String]]) match {
             case Left(left) =>
               Left.apply[String, Nothing](`left₂`.value)
             case Right(right) =>
               Right.apply[Nothing, String](`right₂`.value)
           }) else None
-        }) else None
+        })
       } else None
     }
   }

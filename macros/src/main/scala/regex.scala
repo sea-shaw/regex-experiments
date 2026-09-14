@@ -102,12 +102,8 @@ object regex {
                 val groups = Array.tabulate(m.groupCount) {i =>
                   Option(m.group(i + 1))
                 }
-                val sanitised = ${ regex.sanitiseCode('groups, 0)(using RepFalse) }
-                if (sanitised.isDefined) {
-                  Some(${ tidy('{ sanitised.get.captures }) })
-                } else {
-                  None
-                }
+                val hchain = ${ regex.getCode('groups, 0)(using RepFalse) }
+                Some(${ tidy('{ hchain }) })
               } else {
                 None
               }
