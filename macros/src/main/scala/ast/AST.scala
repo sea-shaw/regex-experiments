@@ -86,12 +86,12 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
   }
 
   /* Wrapper that discards the capturing groups of `inner`. */
-  sealed abstract class EmptyWithInner[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using EmptyType) extends Empty {
+  sealed abstract class EmptyWrapper[F[_ <: Rep] <: HChain] protected (inner: Regex[F])(using EmptyType) extends Empty {
     override final val numCaptures: Int = inner.numCaptures
   }
 
   /* A{0} or A{0,0} */
-  case class Zero[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWithInner[F](inner)
+  case class Zero[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWrapper[F](inner)
   object Zero {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): Zero[F] = {
       new Zero(inner)
@@ -99,7 +99,7 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
   }
 
   /* (?!A) */
-  case class NegativeLookahead[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWithInner[F](inner)
+  case class NegativeLookahead[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWrapper[F](inner)
   object NegativeLookahead {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): NegativeLookahead[F] = {
       new NegativeLookahead(inner)
@@ -107,7 +107,7 @@ trait AST extends Tidy, BuildFunction, EmptyTypes, CapturingTypes, CatTypes, Alt
   }
 
   /* (?<!A) */
-  case class NegativeLookbehind[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWithInner[F](inner)
+  case class NegativeLookbehind[F[_ <: Rep] <: HChain] private (inner: Regex[F])(using EmptyType) extends EmptyWrapper[F](inner)
   object NegativeLookbehind {
     def apply[F[_ <: Rep] <: HChain](inner: Regex[F])(using Quotes): NegativeLookbehind[F] = {
       new NegativeLookbehind(inner)
