@@ -96,8 +96,11 @@ object bridges {
       case (n, None)                 => Right(ast.Exactly(_, n, _))
       case (0, Some(None))           => Right(ast.Star(_, _))
       case (n, Some(None))           => Right(ast.AtLeast(_, n, _))
+      case (0, Some(Some(1)))        => Right(ast.Opt(_, _))
       case (0, Some(Some(m)))        => Right(ast.AtMost(_, m, _))
-      case (n, Some(Some(m)))        => if n <= m then Right(ast.Between(_, n, m, _)) else Left(Seq("Upper bound cannot be less than lower bound"))
+      case (n, Some(Some(m)))        => if n == m then Right(ast.Exactly(_, n, _))
+                                        else if n <= m then Right(ast.Between(_, n, m, _))
+                                        else Left(Seq("Upper bound cannot be less than lower bound"))
     }
   }
 
