@@ -167,7 +167,7 @@ trait Tidy {
     def apply(chains: C, leaves: L)(using Quotes): Expr[A]
   }
   protected object FlattenFunction {
-    def unapply[C <: Chains, L <: Leaves, A](tidyFunction: FlattenFunction[C, L, A]): Tuple1[Type[A]] = Tuple1(tidyFunction.tpe)
+    def unapply[C <: Chains, L <: Leaves, A](flattenFunction: FlattenFunction[C, L, A]): Tuple1[Type[A]] = Tuple1(flattenFunction.tpe)
   }
 
   /* Constructs `Unit`, a single value, or a tuple from leaves of type L. */
