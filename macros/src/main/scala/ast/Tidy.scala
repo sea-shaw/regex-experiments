@@ -2,7 +2,6 @@ package experiments.macros.ast
 
 import experiments.macros.hchain.*
 import experiments.macros.sanitised.*
-import scala.compiletime.deferred
 import scala.quoted.{Expr, Type, Quotes}
 
 type Groups = Array[Option[String]]
