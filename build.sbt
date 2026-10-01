@@ -18,9 +18,25 @@ ThisBuild / scalacOptions ++= Seq(
   // "-Vprint:postInlining", // Enable and use `console` to better see generated code
 )
 
+val goldenScalatest = "com.github.j-mie6" %% "golden-scalatest" % "0.1.0-M2"
+val parsley = "com.github.j-mie6" %% "parsley" % "5.0.0-M19"
+val scalatest = "org.scalatest" %% "scalatest" % "3.2.20" % "test"
+val cats = "org.typelevel" %% "cats-core" % "2.13.0"
+val catsCollections = "org.typelevel" %% "cats-collections-core" % "0.9.10"
+
 lazy val root = project
   .in(file("."))
-  .aggregate(macros, matchtypes)
+  .aggregate(cps, macros, matchtypes)
+
+lazy val cps = project
+  .in(file("cps"))
+  .settings(
+    name := "cps",
+    libraryDependencies ++= Seq(
+      parsley,
+      scalatest,
+    )
+  )
 
 lazy val macros = project
   .in(file("macros"))
@@ -28,12 +44,11 @@ lazy val macros = project
     name := "macros",
 
     libraryDependencies ++= Seq(
-      "com.github.j-mie6" %% "golden-scalatest" % "0.1.0-M2",
-      "com.github.j-mie6" %% "parsley" % "5.0.0-M19",
-      // "com.github.j-mie6" %% "parsley-cats" % "1.5.0",
-      "org.scalatest" %% "scalatest" % "3.2.20" % "test",
-      "org.typelevel" %% "cats-core" % "2.13.0",
-      "org.typelevel" %% "cats-collections-core" % "0.9.10",
+      cats,
+      catsCollections,
+      goldenScalatest,
+      parsley,
+      scalatest,
     ),
   )
 
@@ -42,8 +57,8 @@ lazy val matchtypes = project
   .settings(
     name := "matchtypes",
     libraryDependencies ++= Seq(
-      "org.scalatest" %% "scalatest" % "3.2.20" % "test",
-      "org.typelevel" %% "cats-core" % "2.13.0",
+      scalatest,
+      cats,
     ),
   )
 
