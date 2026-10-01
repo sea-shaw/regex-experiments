@@ -1,0 +1,2 @@
+#/!/bin/sh
+sbt "benchmark / Jmh / run experiments\.benchmark\.qt3ts\.(Oregano|Array)QT3TSBenchmarks\.* -o qt3ts.out -rff qt3ts.csv" &> qt3ts.err
