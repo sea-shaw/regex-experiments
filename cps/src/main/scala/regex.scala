@@ -1,13 +1,8 @@
-object ast {
-  type Tidy[T <: Tuple] = T match {
-    case EmptyTuple    => Unit
-    case NonEmptyTuple => TidyNonEmpty[T]
-  }
-  type TidyNonEmpty[T <: NonEmptyTuple] = T match {
-    case Tuple1[a] => a
-    case _         => T
-  }
+package experiments.cps
 
+import experiments.cps.tidy.{Tidy, TidyNonEmpty}
+
+object ast {
   sealed trait TupleTag[T <: Tuple]
   case object EmptyTag extends TupleTag[EmptyTuple]
   case class NonEmptyTag[T <: NonEmptyTuple]() extends TupleTag[T]
