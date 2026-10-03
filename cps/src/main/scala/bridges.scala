@@ -15,8 +15,16 @@ object bridges {
     }
   }
 
-  object Cap extends PureParserBridge1[Reg[? <: Tuple], Cap[? <: Tuple]] {
-    override def apply(reg: Reg[? <: Tuple]): Cap[? <: Tuple] = new Cap(reg)
+  object Cap extends PureParserBridge1[Reg[? <: Tuple], Reg[? <: Tuple]] {
+    override def apply(reg: Reg[? <: Tuple]): Reg[? <: Tuple] = {
+      /* Need a type parameter for flow-typing. */
+      def cap[A <: Tuple](reg: Reg[A]): Reg[?] = reg.tag match {
+        case EmptyTag      => new CapEmpty(reg)
+        case NonEmptyTag() => new CapNonEmpty(reg)
+      }
+
+      cap(reg)
+    }
   }
 
   object Opt extends PureParserBridge1[Reg[? <: Tuple], Opt[? <: Tuple]] {

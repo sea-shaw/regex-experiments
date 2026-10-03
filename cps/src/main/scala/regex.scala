@@ -40,7 +40,10 @@ object regex {
   case class Cat[A <: Tuple](regs: RList[A]) extends Reg[A](regs.tag) {
     override val numCaps: Int = regs.numCaps
   }
-  case class Cap[A <: Tuple](reg: Reg[A]) extends Reg[String *: A](NonEmptyTag()) {
+  case class CapEmpty(reg: Reg[EmptyTuple]) extends Reg[Tuple1[String]](NonEmptyTag()) {
+    override val numCaps: Int = 1
+  }
+  case class CapNonEmpty[A <: NonEmptyTuple](reg: Reg[A]) extends Reg[Tuple2[String, TidyNonEmpty[A]]](NonEmptyTag()) {
     override val numCaps: Int = 1 + reg.numCaps
   }
   case class Opt[A <: Tuple](reg: Reg[A]) extends Reg[Tuple1[Option[Tidy[A]]]](NonEmptyTag()) {
@@ -54,7 +57,8 @@ object regex {
     def cps[A <: Tuple](reg: Reg[A], next: State, i: Int): State = reg match {
       case Lit(c)           => Item(c, next)
       case Cat(regs)        => cpsRegs(regs, next, i)
-      case Cap(reg)         => Begin(i, cps(reg, End(i, next), i + 1))
+      case CapEmpty(reg)    => Begin(i, cps(reg, End(i, next), i + 1))
+      case CapNonEmpty(reg) => Begin(i, cps(reg, End(i, next), i + 1))
       case Opt(reg)         => Split(cps(reg, next, i), next)
       case Alt(left, right) => Split(cps(left, next, i), cps(right, next, i + left.numCaps))
     }
