@@ -33,6 +33,7 @@ lazy val cps = project
   .settings(
     name := "cps",
     libraryDependencies ++= Seq(
+      cats,
       parsley,
       scalatest,
     )

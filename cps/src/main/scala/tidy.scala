@@ -9,5 +9,4 @@ object tidy {
     case Tuple1[a] => a
     case _         => T
   }
-
 }
