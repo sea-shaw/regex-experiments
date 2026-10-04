@@ -1,7 +1,5 @@
 package experiments.cps
 
-import experiments.cps.tidy.*
-
 object hlist {
   sealed trait HList[T <: Tuple]
   case object HNil extends HList[EmptyTuple]
