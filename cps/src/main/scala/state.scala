@@ -1,12 +1,9 @@
 package experiments.cps
 
+import experiments.cps.hlist.*
 import experiments.cps.tidy.*
 
 object state {
-  sealed trait HList[T <: Tuple]
-  case object HNil extends HList[EmptyTuple]
-  case class HCons[H, T <: Tuple](head: H, tail: HList[T]) extends HList[H *: T]
-
   sealed trait Op[Ins <: Tuple, Outs <: Tuple] {
     def toStack(tape: Tape[Ins]): HList[Outs]
   }
