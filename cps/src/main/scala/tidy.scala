@@ -16,10 +16,9 @@ object tidy {
     case NonEmptyTuple => TidyNonEmpty[NonEmptyTuple & H] *: T
   }
 
-  def tcons[H <: Tuple, T <: Tuple](head: H, tail: T): TCons[H, T] = head match {
-    case _: EmptyTuple => tail
-    case nonEmpty: NonEmptyTuple => tidyNonEmpty(nonEmpty) *: tail
-  }
+  sealed trait TupleTag[T <: Tuple]
+  case object EmptyTag extends TupleTag[EmptyTuple]
+  case class NonEmptyTag[T <: NonEmptyTuple]() extends TupleTag[T]
 
   def tidy[T <: Tuple](tup: T): Tidy[T] = tup match {
     case _: EmptyTuple           => ()
