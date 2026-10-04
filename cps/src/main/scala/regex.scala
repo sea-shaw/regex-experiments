@@ -1,7 +1,7 @@
 package experiments.cps
 
 import experiments.cps.state.*
-import experiments.cps.tidy.{Tidy, TidyNonEmpty}
+import experiments.cps.tidy.*
 
 object regex {
   sealed trait TupleTag[T <: Tuple]
@@ -11,67 +11,93 @@ object regex {
   sealed trait RList[T <: Tuple](val tag: TupleTag[T]) {
     val numCaps: Int
   
-    final def +:[H <: Tuple](reg: Reg[H]): RCons[H, T] = reg.tag match {
+    final def +:[H <: Tuple](reg: Reg[H]): RList[TCons[H, T]] = reg.tag match {
       case EmptyTag      => RConsEmpty(reg, this)
       case NonEmptyTag() => RConsNonEmpty(reg, this)
     }
 
-    def cps(next: State, i: Int): State
+    def cps[Tape <: Tuple, R <: Tuple](next: State[T *: Tape, R], i: Int): State[Tape, R]
   }
 
   case object RNil extends RList[EmptyTuple](EmptyTag) {
     override val numCaps: Int = 0
-    override def cps(next: State, i: Int): State = next
+    override def cps[Tape <: Tuple, R <: Tuple](next: State[EmptyTuple *: Tape, R], i: Int): State[Tape, R] = {
+      Output(Push(EmptyTuple), next)
+    }
   }
 
   case class RConsEmpty[T <: Tuple](head: Reg[EmptyTuple], tail: RList[T]) extends RList[T](tail.tag) {
     override val numCaps: Int = tail.numCaps
-    override def cps(next: State, i: Int): State = head.cps(tail.cps(next, i + head.numCaps), i)
+    override def cps[Tape <: Tuple, R <: Tuple](next: State[T *: Tape, R], i: Int): State[Tape, R] = {
+      head.cps(tail.cps(next, i + head.numCaps), i)
+    }
   }
 
   case class RConsNonEmpty[H <: NonEmptyTuple, T <: Tuple](head: Reg[H], tail: RList[T]) extends RList[TidyNonEmpty[H] *: T](NonEmptyTag()) {
     override val numCaps: Int = head.numCaps + tail.numCaps
-    override def cps(next: State, i: Int): State = head.cps(tail.cps(next, i + head.numCaps), i)
-  }
-
-  type RCons[H <: Tuple, T <: Tuple] = H match {
-    case EmptyTuple    => RConsEmpty[T]
-    case NonEmptyTuple => RConsNonEmpty[H, T]
+  
+    override def cps[Tape <: Tuple, R <: Tuple](next: State[(TidyNonEmpty[H] *: T) *: Tape, R], i: Int): State[Tape, R] = {
+      head.cps(tail.cps(Output(Reduce(_ *: _), next), i + head.numCaps), i)
+    }
   }
 
   sealed trait Reg[A <: Tuple](val tag: TupleTag[A]) {
     val numCaps: Int
-    final def compile: State = cps(Accept, 0)
-    def cps(next: State, i: Int): State
+  
+    final def compile: State[EmptyTuple, A] = cps(Accept(), 0)
+    def cps[T <: Tuple, R <: Tuple](next: State[TCons[A, T], R], i: Int): State[T, R]
   }
 
   case class Lit(c: Char) extends Reg[EmptyTuple](EmptyTag) {
     override val numCaps: Int = 0
-    override def cps(next: State, i: Int): State = Item(c, next)
+    override def cps[T <: Tuple, R <: Tuple](next: State[T, R], i: Int): State[T, R] = {
+      Item(c, next)
+    }
   }
 
   case class Cat[A <: Tuple](regs: RList[A]) extends Reg[A](regs.tag) {
     override val numCaps: Int = regs.numCaps
-    override def cps(next: State, i: Int): State = regs.cps(next, i)
+    override def cps[T <: Tuple, R <: Tuple](next: State[TCons[A, T], R], i: Int): State[T, R] = {
+      regs.tag match {
+        case EmptyTag      => regs.cps(Output(Drop(), next), i)
+        case NonEmptyTag() => regs.cps(Output(Apply(tidy), next), i)
+      }
+    }
   }
 
   case class CapEmpty(reg: Reg[EmptyTuple]) extends Reg[Tuple1[String]](NonEmptyTag()) {
     override val numCaps: Int = 1
-    override def cps(next: State, i: Int): State = Begin(i, reg.cps(End(i, next), i + 1))
+    override def cps[T <: Tuple, R <: Tuple](next: State[String *: T, R], i: Int): State[T, R] = {
+      Begin(i, reg.cps(End(i, next), i + 1))
+    }
   }
 
   case class CapNonEmpty[A <: NonEmptyTuple](reg: Reg[A]) extends Reg[Tuple2[String, TidyNonEmpty[A]]](NonEmptyTag()) {
     override val numCaps: Int = 1 + reg.numCaps
-    override def cps(next: State, i: Int): State = Begin(i, reg.cps(End(i, next), i + 1))
+    override def cps[T <: Tuple, R <: Tuple](next: State[Tuple2[String, TidyNonEmpty[A]] *: T, R], i: Int): State[T, R] = {
+      Begin(i, reg.cps(End(i, Output(Reduce((inner, cap) => (cap, inner)), next)), i + 1))
+    }
   }
 
   case class Opt[A <: Tuple](reg: Reg[A]) extends Reg[Tuple1[Option[Tidy[A]]]](NonEmptyTag()) {
     override val numCaps: Int = reg.numCaps
-    override def cps(next: State, i: Int): State = Split(reg.cps(next, i), next)
+    override def cps[T <: Tuple, R <: Tuple](next: State[Option[Tidy[A]] *: T, R], i: Int): State[T, R] = {
+      val someOp = op[A, Option[Tidy[A]], T](reg.tag)(Some(_))
+      Split(reg.cps(Output(someOp, next), i), Output(Push(None), next))
+    }
   }
 
   case class Alt[A <: Tuple, B <: Tuple](left: Reg[A], right: Reg[B]) extends Reg[Tuple1[Either[Tidy[A], Tidy[B]]]](NonEmptyTag()) {
     override val numCaps: Int = left.numCaps + right.numCaps
-    override def cps(next: State, i: Int): State = Split(left.cps(next, i), right.cps(next, i + left.numCaps))
+    override def cps[T <: Tuple, R <: Tuple](next: State[Either[Tidy[A], Tidy[B]] *: T, R], i: Int): State[T, R] = {
+      val leftOp = op[A, Either[Tidy[A], Tidy[B]], T](left.tag)(Left(_))
+      val rightOp = op[B, Either[Tidy[A], Tidy[B]], T](right.tag)(Right(_))
+      Split(left.cps(Output(leftOp, next), i), right.cps(Output(rightOp, next), i + left.numCaps))
+    }
+  }
+
+  private def op[A <: Tuple, B, T <: Tuple](tag: TupleTag[A])(f: Tidy[A] => B): Op[TCons[A, T], B *: T] = tag match {
+    case EmptyTag      => Push(f(()))
+    case NonEmptyTag() => Apply(f(_))
   }
 }
