@@ -1,7 +1,7 @@
-package experiments.cps
+package experiments.cps.runtime
 
-import experiments.cps.hlist.*
-import experiments.cps.tidy.*
+import experiments.cps.runtime.hlist.*
+import experiments.cps.runtime.tidy.*
 
 object state {
   sealed trait Op[Ins <: Tuple, Outs <: Tuple] {

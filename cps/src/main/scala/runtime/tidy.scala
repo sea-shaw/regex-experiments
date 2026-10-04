@@ -1,4 +1,4 @@
-package experiments.cps
+package experiments.cps.runtime
 
 object tidy {
   type Tidy[T <: Tuple] = T match {

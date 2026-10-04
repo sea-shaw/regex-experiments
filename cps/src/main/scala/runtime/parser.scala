@@ -1,7 +1,7 @@
-package experiments.cps
+package experiments.cps.runtime
 
-import experiments.cps.regex.Reg
-import experiments.cps.bridges.*
+import experiments.cps.runtime.regex.Reg
+import experiments.cps.runtime.bridges.*
 import parsley.{Parsley, Result}
 import parsley.combinator.option
 import parsley.expr.chain

@@ -1,4 +1,4 @@
-package experiments.cps
+package experiments.cps.runtime
 
 object hlist {
   sealed trait HList[T <: Tuple]

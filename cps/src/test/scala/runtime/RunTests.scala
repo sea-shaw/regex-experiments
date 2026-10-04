@@ -1,6 +1,6 @@
-package experiments.cps
+package experiments.cps.runtime
 
-import experiments.cps.regex.*
+import experiments.cps.runtime.regex.*
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.shouldBe
 import scala.language.implicitConversions
