@@ -42,12 +42,12 @@ object state {
     override def toStack: HList[Outs] = op.toStack(tape)
   }
 
-  sealed trait State[T <: Tuple, R <: Tuple: TupleTag](using val tag: TupleTag[R]) {
-    def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int])(using TupleTag[R]): Option[Tidy[R]]
+  sealed trait State[T <: Tuple, R <: Tuple] {
+    def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int]): Option[Tidy[R]]
   }
 
-  case class Accept[R <: Tuple: TupleTag]() extends State[TCons[R, EmptyTuple], R] {
-    override def go(tape: Tape[TCons[R, EmptyTuple]], s: String, i: Int, starts: Map[Int, Int])(using tag: TupleTag[R]): Option[Tidy[R]] = {
+  case class Accept[R <: Tuple: TupleTag as tag]() extends State[TCons[R, EmptyTuple], R] {
+    override def go(tape: Tape[TCons[R, EmptyTuple]], s: String, i: Int, starts: Map[Int, Int]): Option[Tidy[R]] = {
       if i == s.length then tag match {
         case EmptyTag      => Some(())
         case NonEmptyTag() => tape.toStack match {
@@ -57,37 +57,37 @@ object state {
     }
   }
 
-  case class Item[T <: Tuple, R <: Tuple: TupleTag](c: Char, next: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int])(using TupleTag[R]): Option[Tidy[R]] = {
+  case class Item[T <: Tuple, R <: Tuple](c: Char, next: State[T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int]): Option[Tidy[R]] = {
       if i < s.length && s.charAt(i) == c then next.go(tape, s, i + 1, starts) else None
     }
   }
 
-  case class Begin[T <: Tuple, R <: Tuple: TupleTag](n: Int, next: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int])(using TupleTag[R]): Option[Tidy[R]] = {
+  case class Begin[T <: Tuple, R <: Tuple](n: Int, next: State[T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int]): Option[Tidy[R]] = {
       next.go(tape, s, i, starts.updated(n, i))
     }
   }
 
-  case class End[T <: Tuple, R <: Tuple: TupleTag](n: Int, next: State[String *: T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int])(using TupleTag[R]): Option[Tidy[R]] = {
+  case class End[T <: Tuple, R <: Tuple](n: Int, next: State[String *: T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int]): Option[Tidy[R]] = {
       next.go(Cell(Push(s.substring(starts(n), i)), tape), s, i, starts)
     }
   }
 
-  case class Split[T <: Tuple, R <: Tuple: TupleTag](left: State[T, R], right: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int])(using TupleTag[R]): Option[Tidy[R]] = {
+  case class Split[T <: Tuple, R <: Tuple](left: State[T, R], right: State[T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], s: String, i: Int, starts: Map[Int, Int]): Option[Tidy[R]] = {
       left.go(tape, s, i, starts) orElse right.go(tape, s, i, starts)
     }
   }
 
-  case class Output[Ins <: Tuple, Outs <: Tuple, R <: Tuple: TupleTag](op: Op[Ins, Outs], next: State[Outs, R]) extends State[Ins, R] {
-    override def go(tape: Tape[Ins], s: String, i: Int, starts: Map[Int, Int])(using TupleTag[R]): Option[Tidy[R]] = {
+  case class Output[Ins <: Tuple, Outs <: Tuple, R <: Tuple](op: Op[Ins, Outs], next: State[Outs, R]) extends State[Ins, R] {
+    override def go(tape: Tape[Ins], s: String, i: Int, starts: Map[Int, Int]): Option[Tidy[R]] = {
       next.go(Cell(op, tape), s, i, starts)
     }
   }
 
-  extension [R <: Tuple: TupleTag] (state: State[EmptyTuple, R]) {
+  extension [R <: Tuple] (state: State[EmptyTuple, R]) {
     def run(s: String): Option[Tidy[R]] = state.go(Empty, s, 0, Map.empty)
   }
 }
