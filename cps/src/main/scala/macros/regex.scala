@@ -10,7 +10,7 @@ object regex {
     def unapply(s: String): Option[A]
   }
 
-  extension (sc: StringContext) {
+  extension (inline sc: StringContext) {
     transparent inline def r(): Regex[?] = ${ isInlineable('sc) }
   }
 
@@ -22,6 +22,7 @@ object regex {
         case Success(reg) => regexCode(reg)
         case Failure(msg) => report.errorAndAbort(msg, Position.ofMacroExpansion)
       }
+      case _ => report.errorAndAbort("Regular expression must be a compile-time constant", Position.ofMacroExpansion)
     }
   }
 
