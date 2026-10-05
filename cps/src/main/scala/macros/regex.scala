@@ -9,12 +9,17 @@ object regex {
   sealed trait RList[T <: Tuple](using val tag: TupleTag[T]) {
     val numCaps: Int
 
-    final def +:[H <: Tuple: Type](reg: Reg[H])(using Type[T]): RList[TCons[H, T]] = reg.tag match {
+    final def +:[H <: Tuple](reg: Reg[H])(using Quotes): RList[TCons[H, T]] = reg.tag match {
       case EmptyTag      => RConsEmpty(reg, this)
-      case NonEmptyTag() => RConsNonEmpty(reg, this)
+      case NonEmptyTag() => {
+        given Type[H] = reg.tpe
+        given Type[T] = tpe
+        RConsNonEmpty(reg, this)
+      }
     }
 
     def cps[Xs <: Tuple, R <: Tuple: Type](next: State[T *: Xs, R], i: Int)(using Quotes): State[Xs, R]
+    def tpe(using Quotes): Type[T]
   }
 
   case object RNil extends RList[EmptyTuple] {
@@ -23,6 +28,8 @@ object regex {
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[EmptyTuple *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
       Output(Push('{ EmptyTuple }), next)
     }
+
+    override def tpe(using Quotes): Type[EmptyTuple] = Type.of
   }
 
   case class RConsEmpty[T <: Tuple](head: Reg[EmptyTuple], tail: RList[T]) extends RList[T](using tail.tag) {
@@ -31,6 +38,8 @@ object regex {
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[T *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
       head.cps(tail.cps(next, i + head.numCaps), i)
     }
+
+    override def tpe(using Quotes): Type[T] = tail.tpe
   }
 
   case class RConsNonEmpty[H <: NonEmptyTuple: Type, T <: Tuple: Type](head: Reg[H], tail: RList[T]) extends RList[TidyNonEmpty[H] *: T] {
@@ -39,12 +48,16 @@ object regex {
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[(TidyNonEmpty[H] *: T) *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
       head.cps(tail.cps(Output(Reduce((h, t) => '{ $h *: $t }), next), i + head.numCaps), i)
     }
+
+    override def tpe(using Quotes): Type[TidyNonEmpty[H] *: T] = Type.of
   }
 
   sealed trait Reg[A <: Tuple](using val tag: TupleTag[A]) {
     val numCaps: Int
 
-    def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[A, T], R], i: Int)(using Quotes): State[T, R] = ???
+    def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[A, T], R], i: Int)(using Quotes): State[T, R]
+
+    def tpe(using Quotes): Type[A]
   }
 
   case class Lit(c: Char) extends Reg[EmptyTuple] {
@@ -53,6 +66,8 @@ object regex {
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[EmptyTuple, T], R], i: Int)(using Quotes): State[T, R] = {
       Item(c, next)
     }
+
+    override def tpe(using Quotes): Type[EmptyTuple] = Type.of
   }
 
   case class Cat[A <: Tuple: Type](regs: RList[A]) extends Reg[A](using regs.tag) {
@@ -64,6 +79,8 @@ object regex {
         case NonEmptyTag() => regs.cps(Output(Apply(x => '{ tidy($x) }), next), i) // TODO: Lift `tidy`
       }
     }
+
+    override def tpe(using Quotes): Type[A] = regs.tpe
   }
 
   case class CapEmpty(reg: Reg[EmptyTuple]) extends Reg[Tuple1[String]] {
@@ -72,6 +89,8 @@ object regex {
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[String *: T, R], i: Int)(using Quotes): State[T, R] = {
       Begin(i, reg.cps(End(i, next), i + 1))
     }
+
+    override def tpe(using Quotes): Type[Tuple1[String]] = Type.of
   }
 
   case class CapNonEmpty[A <: NonEmptyTuple: Type](reg: Reg[A]) extends Reg[Tuple2[String, TidyNonEmpty[A]]] {
@@ -80,6 +99,8 @@ object regex {
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[(String, TidyNonEmpty[A]), T], R], i: Int)(using Quotes): State[T, R] = {
       Begin(i, reg.cps(End(i, Output(Reduce((inner, cap) => '{ ($cap, $inner) }), next)), i + 1))
     }
+
+    override def tpe(using Quotes): Type[(String, TidyNonEmpty[A])] = Type.of
   }
 
   case class Opt[A <: Tuple: Type](reg: Reg[A]) extends Reg[Tuple1[Option[Tidy[A]]]] {
@@ -89,6 +110,8 @@ object regex {
       val someOp = op(reg.tag, x => '{ Some($x) }, next)
       Split(reg.cps(Output(someOp, next), i), Output(Push('{ None }), next))
     }
+
+    override def tpe(using Quotes): Type[Tuple1[Option[Tidy[A]]]] = Type.of
   }
 
   case class Alt[A <: Tuple: Type, B <: Tuple: Type](left: Reg[A], right: Reg[B]) extends Reg[Tuple1[Either[Tidy[A], Tidy[B]]]] {
@@ -99,6 +122,8 @@ object regex {
       val rightOp = op(right.tag, x => '{ Right($x) }, next)
       Split(left.cps(Output(leftOp, next), i), right.cps(Output(rightOp, next), i + left.numCaps))
     }
+
+    override def tpe(using Quotes): Type[Tuple1[Either[Tidy[A], Tidy[B]]]] = Type.of
   }
 
   private def op[A <: Tuple, B, T <: Tuple](tag: TupleTag[A], f: Expr[Tidy[A]] => Quotes ?=> Expr[B], @unused next: State[B *: T, ?])(using Quotes): Op[TCons[A, T], B *: T] = tag match {
