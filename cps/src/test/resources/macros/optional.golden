@@ -1,0 +1,7 @@
+{
+  final class $anon() extends Regex[Tidy[Tuple1[Option[Tidy[Tuple1[String]]]]]] {
+    override def unapply(s: String): Option[Tidy[Tuple1[Option[Tidy[Tuple1[String]]]]]] = if (0.<(s.length()).&&(s.charAt(0).==('a'))) if (1.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[Option[Tidy[Tuple1[String]]]]]](Some.apply[Tidy[Tuple1[String]]](s.substring(0, 1))) else None else None.orElse[Tidy[Tuple1[Option[Tidy[Tuple1[String]]]]]](if (0.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[Option[Tidy[Tuple1[String]]]]]](None) else None)
+  }
+
+  (new $anon(): Regex[Tidy[Tuple1[Option[Tidy[Tuple1[String]]]]]])
+}

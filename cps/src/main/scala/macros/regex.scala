@@ -36,4 +36,18 @@ object regex {
       }
     }
   }
+
+  inline def codeString(inline s: String): String = ${ codeStringCode('s) }
+
+  private def codeStringCode(expr: Expr[String])(using Quotes): Expr[String] = {
+    import quotes.reflect.{Position, Printer, asTerm, report}
+
+    expr match {
+      case Expr(s) => parser.parse(s) match {
+        case Success(reg: Reg[a]) => Expr(regexCode(reg).asTerm.show(using Printer.TreeShortCode))
+        case Failure(msg)         => Expr(msg)
+      }
+      case _       => report.errorAndAbort("Regex string must be a compile-time constant", Position.ofMacroExpansion)
+    }
+  }
 }

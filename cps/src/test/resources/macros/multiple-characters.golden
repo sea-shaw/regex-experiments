@@ -1,0 +1,7 @@
+{
+  final class $anon() extends Regex[Tidy[EmptyTuple.type]] {
+    override def unapply(s: String): Option[Tidy[EmptyTuple.type]] = if (0.<(s.length()).&&(s.charAt(0).==('a'))) if (1.<(s.length()).&&(s.charAt(1).==('b'))) if (2.<(s.length()).&&(s.charAt(2).==('c'))) if (3.==(s.length())) Some.apply[Unit](()) else None else None else None else None
+  }
+
+  (new $anon(): Regex[Tidy[EmptyTuple]])
+}

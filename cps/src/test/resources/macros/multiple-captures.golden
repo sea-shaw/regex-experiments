@@ -1,0 +1,16 @@
+{
+  final class $anon() extends Regex[Tidy[*:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], EmptyTuple]]]]] {
+    override def unapply(s: String): Option[Tidy[*:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], EmptyTuple]]]]] = if (0.<(s.length()).&&(s.charAt(0).==('a'))) if (1.<(s.length()).&&(s.charAt(1).==('b'))) if (2.<(s.length()).&&(s.charAt(2).==('c'))) if (3.==(s.length())) Some.apply[TidyNonEmpty[*:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], EmptyTuple]]]]](tidy[*:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], EmptyTuple]]]]({
+      val x$1: TidyNonEmpty[Tuple1[String]] = s.substring(0, 1)
+      {
+        val `x$1₂`: TidyNonEmpty[Tuple1[String]] = s.substring(1, 2)
+        {
+          val `x$1₃`: TidyNonEmpty[Tuple1[String]] = s.substring(2, 3)
+          EmptyTuple.*:[TidyNonEmpty[Tuple1[String]], EmptyTuple.type](`x$1₃`)
+        }.*:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], EmptyTuple]](`x$1₂`)
+      }.*:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], EmptyTuple]]](x$1)
+    })) else None else None else None else None
+  }
+
+  (new $anon(): Regex[Tidy[*:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], *:[TidyNonEmpty[Tuple1[String]], EmptyTuple]]]]])
+}
