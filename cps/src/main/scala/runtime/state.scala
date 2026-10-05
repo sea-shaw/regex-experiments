@@ -30,13 +30,14 @@ object state {
     }
   }
 
-
   sealed trait Tape[T <: Tuple] {
     def toStack: HList[T]
   }
+
   case object Empty extends Tape[EmptyTuple] {
     override def toStack: HList[EmptyTuple] = HNil
   }
+
   case class Cell[Ins <: Tuple, Outs <: Tuple](op: Op[Ins, Outs], tape: Tape[Ins]) extends Tape[Outs] {
     override def toStack: HList[Outs] = op.toStack(tape)
   }

@@ -44,6 +44,7 @@ object regex {
   
     final def run(s: String): Option[Tidy[A]] = compile.run(s)
     final def compile: State[EmptyTuple, A] = cps(Accept(), 0)
+
     def cps[T <: Tuple, R <: Tuple: TupleTag](next: State[TCons[A, T], R], i: Int): State[T, R]
   }
 
@@ -57,10 +58,11 @@ object regex {
   case class Cat[A <: Tuple](regs: RList[A]) extends Reg[A](regs.tag) {
     override val numCaps: Int = regs.numCaps
     override def cps[T <: Tuple, R <: Tuple: TupleTag](next: State[TCons[A, T], R], i: Int): State[T, R] = {
-      regs.tag match {
-        case EmptyTag      => regs.cps(Output(Drop(), next), i)
-        case NonEmptyTag() => regs.cps(Output(Apply(tidy), next), i)
+      val catOp: Op[A *: T, TCons[A, T]] = regs.tag match {
+        case EmptyTag      => Drop()
+        case NonEmptyTag() => Apply(tidy)
       }
+      regs.cps(Output(catOp, next), i)
     }
   }
 
