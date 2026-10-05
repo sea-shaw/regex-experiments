@@ -1,4 +1,4 @@
-package experiments.cps.runtime
+package experiments.cps
 
 object tidy {
   type Tidy[T <: Tuple] = T match {
@@ -19,6 +19,11 @@ object tidy {
   sealed trait TupleTag[T <: Tuple]
   case object EmptyTag extends TupleTag[EmptyTuple]
   case class NonEmptyTag[T <: NonEmptyTuple]() extends TupleTag[T]
+
+  object TupleTag {
+    given TupleTag[EmptyTuple] = EmptyTag
+    given [T <: NonEmptyTuple] => TupleTag[T] = NonEmptyTag()
+  }
 
   def tidy[T <: Tuple](tup: T): Tidy[T] = tup match {
     case _: EmptyTuple           => ()

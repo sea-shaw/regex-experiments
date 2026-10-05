@@ -1,7 +1,7 @@
 package experiments.cps.runtime
 
 import experiments.cps.runtime.regex.*
-import experiments.cps.runtime.tidy.*
+import experiments.cps.tidy.*
 import parsley.templates.{PureParserBridge1, PureParserBridge2}
 
 object bridges {

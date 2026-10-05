@@ -1,7 +1,8 @@
 package experiments.cps.runtime
 
 import experiments.cps.runtime.state.*
-import experiments.cps.runtime.tidy.*
+import experiments.cps.tidy.*
+import scala.annotation.unused
 
 object regex {
   sealed trait RList[T <: Tuple](val tag: TupleTag[T]) {
