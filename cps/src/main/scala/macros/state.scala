@@ -88,4 +88,8 @@ object state {
       next.go(Cell(op, tape), s, i, starts)
     }
   }
+
+  extension [R <: Tuple] (state: State[EmptyTuple, R]) {
+    def run(s: Expr[String])(using Quotes): Expr[Option[Tidy[R]]] = state.go(Empty, s, 0, Map.empty)
+  }
 }
