@@ -1,5 +1,6 @@
 package experiments.cps.macros
 
+import experiments.cps.macros.stack.*
 import experiments.cps.macros.state.*
 import experiments.cps.tidy.*
 import scala.quoted.{Expr, Quotes, Type}
@@ -26,7 +27,7 @@ object ast {
     override val numCaps: Int = 0
 
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[EmptyTuple *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
-      Output(Push('{ EmptyTuple }), next)
+      Output(Push(CodeTuple(QNil)), next)
     }
 
     override def tpe(using Quotes): Type[EmptyTuple] = Type.of
@@ -46,7 +47,7 @@ object ast {
     override val numCaps: Int = head.numCaps + tail.numCaps
 
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[(TidyNonEmpty[H] *: T) *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
-      head.cps(tail.cps(Output(Reduce((h, t) => '{ $h *: $t }), next), i + head.numCaps), i)
+      head.cps(tail.cps(Output(Reduce(qTcons), next), i + head.numCaps), i)
     }
 
     override def tpe(using Quotes): Type[TidyNonEmpty[H] *: T] = Type.of
@@ -78,7 +79,7 @@ object ast {
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[A, T], R], i: Int)(using Quotes): State[T, R] = {
       tag match {
         case EmptyTag      => regs.cps(Output(Drop(), next), i)
-        case NonEmptyTag() => regs.cps(Output(Apply(x => '{ tidy($x) }), next), i) // TODO: Lift `tidy`
+        case NonEmptyTag() => regs.cps(Output(Apply(qTidyNonEmpty), next), i) // TODO: Lift `tidy`
       }
     }
 
@@ -106,7 +107,7 @@ object ast {
     override val numCaps: Int = 1 + reg.numCaps
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[(String, TidyNonEmpty[A]), T], R], i: Int)(using Quotes): State[T, R] = {
-      Begin(i, reg.cps(End(i, Output(Reduce((inner, cap) => '{ ($cap, $inner) }), next)), i + 1))
+      Begin(i, reg.cps(End(i, Output(Reduce((inner, cap) => CodeExpr('{ (${ cap.toExpr }, $ {inner.toExpr }) })), next)), i + 1))
     }
 
     override def tpe(using Quotes): Type[(String, TidyNonEmpty[A])] = Type.of
@@ -124,7 +125,7 @@ object ast {
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[Option[Tidy[A]]], T], R], i: Int)(using Quotes): State[T, R] = {
       val someOp = op(reg.tag, x => '{ Some($x) }, next)
-      Split(reg.cps(Output(someOp, next), i), Output(Push('{ None }), next))
+      Split(reg.cps(Output(someOp, next), i), Output(Push(CodeExpr('{ None })), next))
     }
 
     override def tpe(using Quotes): Type[Tuple1[Option[Tidy[A]]]] = Type.of
@@ -157,8 +158,8 @@ object ast {
     }
   }
 
-  private def op[A <: Tuple, B, T <: Tuple](tag: TupleTag[A], f: Expr[Tidy[A]] => Quotes ?=> Expr[B], @unused next: State[B *: T, ?])(using Quotes): Op[TCons[A, T], B *: T] = tag match {
-    case EmptyTag      => Push(f('{ () }))
-    case NonEmptyTag() => Apply(f)
+  private def op[A <: Tuple, B: Type, T <: Tuple](tag: TupleTag[A], f: Expr[Tidy[A]] => Quotes ?=> Expr[B], @unused next: State[B *: T, ?])(using Quotes): Op[TCons[A, T], B *: T] = tag match {
+    case EmptyTag      => Push(CodeExpr(f('{ () })))
+    case NonEmptyTag() => Apply(expr => CodeExpr(f(expr.toExpr)))
   }
 }

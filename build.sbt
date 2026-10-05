@@ -34,6 +34,7 @@ lazy val cps = project
     name := "cps",
     libraryDependencies ++= Seq(
       cats,
+      goldenScalatest,
       parsley,
       scalatest,
     )
