@@ -5,7 +5,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.golden.GoldenMatchers
 import org.scalatest.matchers.should.Matchers.should
 
-
 class GoldenTests extends AnyFlatSpec with GoldenMatchers {
   val dir = "cps/src/test/resources/macros"
 

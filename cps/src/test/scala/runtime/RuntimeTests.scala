@@ -5,7 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.shouldBe
 import scala.language.implicitConversions
 
-class RunTests extends AnyFlatSpec {
+class RuntimeTests extends AnyFlatSpec {
   given Conversion[Char, Lit] = Lit(_)
 
   behavior of "run"
