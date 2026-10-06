@@ -47,7 +47,7 @@ object ast {
     override val numCaps: Int = head.numCaps + tail.numCaps
 
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[(TidyNonEmpty[H] *: T) *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
-      head.cps(tail.cps(Output(Reduce(qTcons), next), i + head.numCaps), i)
+      head.cps(tail.cps(Output(Reduce(codeCons), next), i + head.numCaps), i)
     }
 
     override def tpe(using Quotes): Type[TidyNonEmpty[H] *: T] = Type.of
@@ -79,7 +79,7 @@ object ast {
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[A, T], R], i: Int)(using Quotes): State[T, R] = {
       tag match {
         case EmptyTag      => regs.cps(Output(Drop(), next), i)
-        case NonEmptyTag() => regs.cps(Output(Apply(qTidyNonEmpty), next), i) // TODO: Lift `tidy`
+        case NonEmptyTag() => regs.cps(Output(Apply(codeTidyNonEmpty), next), i)
       }
     }
 
