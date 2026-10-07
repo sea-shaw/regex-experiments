@@ -45,4 +45,12 @@ class GoldenTests extends AnyFlatSpec with GoldenMatchers {
   it should "match multiple alternatives" in {
     codeString("(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))") should matchGolden(s"$dir/multiple-alternatives.golden")
   }
+
+  it should "match repeated patterns" in {
+    codeString("a*") should matchGolden(s"$dir/repeated-pattern.golden")
+  }
+
+  it should "match repeated capture groups" in {
+    codeString("(a)*") should matchGolden(s"$dir/repeated-capture-group.golden")
+  }
 }

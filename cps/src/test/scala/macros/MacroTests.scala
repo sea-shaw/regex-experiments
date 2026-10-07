@@ -1,6 +1,6 @@
 package experiments.cps.macros
 
-import experiments.cps.macros.regex.r
+import experiments.cps.macros.regex.{Regex, r}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.shouldBe
 
@@ -18,6 +18,8 @@ class MacroTests extends AnyFlatSpec {
   val `(a)|(b)` = r"(a)|(b)"
   val `(?:(a)|(b))c` = r"(?:(a)|(b))c"
   val `(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))` = r"(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))"
+  val `a*` = r"a*"
+  val `(a)*` = r"(a)*"
 
   it should "match characters" in {
     `a`.unapply("a") shouldBe Some(())
