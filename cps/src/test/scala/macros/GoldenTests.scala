@@ -37,4 +37,12 @@ class GoldenTests extends AnyFlatSpec with GoldenMatchers {
   it should "match alternative patterns" in {
     codeString("(a)|(b)") should matchGolden (s"$dir/alternative.golden")
   }
+
+  it should "match join" in {
+    codeString("(?:a|b)c") should matchGolden(s"$dir/join.golden")
+  }
+
+  it should "match multiple alternatives" in {
+    codeString("(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))") should matchGolden(s"$dir/multiple-alternatives.golden")
+  }
 }

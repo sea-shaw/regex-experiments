@@ -16,6 +16,8 @@ class MacroTests extends AnyFlatSpec {
   val `(a)?` = r"(a)?"
   val `a|b` = r"a|b"
   val `(a)|(b)` = r"(a)|(b)"
+  val `(?:(a)|(b))c` = r"(?:(a)|(b))c"
+  val `(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))` = r"(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))"
 
   it should "match characters" in {
     `a`.unapply("a") shouldBe Some(())
@@ -59,5 +61,15 @@ class MacroTests extends AnyFlatSpec {
 
   it should "match the whole string" in {
     `a`.unapply("ab") shouldBe None
+  }
+
+  it should "match alternative followed by pattern" in {
+    `(?:(a)|(b))c`.unapply("ac") shouldBe Some(Left("a"))
+    `(?:(a)|(b))c`.unapply("bc") shouldBe Some(Right("b"))
+  }
+
+  it should "match multiple alternatives" in {
+    `(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))`.unapply("ace") shouldBe Some((Left("a"), Left("c"), Left("e")))
+    `(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))`.unapply("bdf") shouldBe Some((Right("b"), Right("d"), Right("f")))
   }
 }
