@@ -161,7 +161,7 @@ object ast {
     }
   }
 
-  case class Rep0[A <: Tuple: Type](reg: Reg[A]) extends Reg[Tuple1[List[Tidy[A]]]] {
+  case class Rep0[A <: Tuple: Type] private (reg: Reg[A]) extends Reg[Tuple1[List[Tidy[A]]]] {
     override val numCaps: Int = reg.numCaps
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[List[Tidy[A]]], T], R], i: Int)(using Quotes): State[T, R] = {
@@ -176,6 +176,13 @@ object ast {
     }
 
     override def tpe(using Quotes): Type[Tuple1[List[Tidy[A]]]] = Type.of
+  }
+
+  object Rep0 {
+    def apply[A <: Tuple](reg: Reg[A])(using Quotes): Rep0[A] = {
+      given Type[A] = reg.tpe
+      new Rep0(reg)
+    }
   }
 
   private def op[A <: Tuple, B: Type, T <: Tuple](tag: TupleTag[A], f: Expr[Tidy[A]] => Quotes ?=> Expr[B], @unused next: State[B *: T, ?])(using Quotes): Op[TCons[A, T], B *: T] = tag match {
