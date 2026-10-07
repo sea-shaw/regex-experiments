@@ -1,6 +1,6 @@
 package experiments.cps.macros
 
-import experiments.cps.macros.context.{Binding, Ctx, JoinPoint}
+import experiments.cps.macros.context.{Ctx, JoinPoint}
 import experiments.cps.macros.pos.{Pos, PosExpr, PosInt}
 import experiments.cps.macros.stack.*
 import experiments.cps.tidy.*
@@ -95,16 +95,21 @@ object state {
   case class MkJoin[H <: Tuple: {TupleTag as tag, Type}, T <: Tuple, R <: Tuple: Type](joinPoint: JoinPoint[H], binder: State[TCons[H, T], R], receiver: State[T, R]) extends State[T, R] {
     override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
       def newCtx(qjoin: (Pos, Code[Tidy[H]]) => Quotes ?=> Expr[Option[Tidy[R]]]): Ctx[R] = {
-        ctx.withBinding(joinPoint, Binding(qjoin))
+        ctx.withBinding(joinPoint, qjoin)
       }
 
       tag match {
-        case EmptyTag => ???
-        case NonEmptyTag() => '{
-          def join(i: Int, x: TidyNonEmpty[H]): Option[Tidy[R]] = ${ 
-            binder.go(Cell(Push(CodeExpr('x)), tape), PosExpr('i))(using newCtx((j, y) => '{ join(${ j.toExpr }, ${ y.toExpr }) }))
+        case EmptyTag => '{
+          def join(pos: Int): Option[Tidy[R]] = ${
+            binder.go(tape, PosExpr('pos))(using newCtx((pos, _) => '{ join(${ pos.toExpr }) }))
           }
-          ${ receiver.go(tape, pos)(using newCtx((j, y) => '{ join(${ j.toExpr }, ${ y.toExpr }) })) }
+          ${ receiver.go(tape, pos)(using newCtx((pos, _) => '{ join(${ pos.toExpr }) })) }
+        }
+        case NonEmptyTag() => '{
+          def join(pos: Int, res: TidyNonEmpty[H]): Option[Tidy[R]] = ${ 
+            binder.go(Cell(Push(CodeExpr('res)), tape), PosExpr('pos))(using newCtx((pos, res) => '{ join(${ pos.toExpr }, ${ res.toExpr }) }))
+          }
+          ${ receiver.go(tape, pos)(using newCtx((pos, res) => '{ join(${ pos.toExpr }, ${ res.toExpr }) })) }
         }
       }
     }
@@ -112,7 +117,7 @@ object state {
 
   case class Join[H <: Tuple: TupleTag as tag, T <: Tuple, R <: Tuple: Type](joinPoint: JoinPoint[H]) extends State[TCons[H, T], R] {
     override def go(tape: Tape[TCons[H, T]], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
-      val Binding(qjoin) = ctx.binding(joinPoint)
+      val qjoin = ctx.binding(joinPoint)
       tag match {
         case EmptyTag      => qjoin(pos, Code.unit)
         case NonEmptyTag() => tape.toStack match {

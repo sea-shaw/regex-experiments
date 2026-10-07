@@ -1,7 +1,7 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Tidy[EmptyTuple]]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Tidy[EmptyTuple]]]]] = {
-      def join(i: Int, x: TidyNonEmpty[Tuple1[List[Tidy[EmptyTuple]]]]): Option[Tidy[Tuple1[List[Tidy[EmptyTuple]]]]] = if (i.<(s.length()).&&(s.charAt(i).==('a'))) join(i.+(1), x.::[Unit](())) else None.orElse[Tidy[Tuple1[List[Tidy[EmptyTuple]]]]](if (i.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[List[Tidy[EmptyTuple]]]]](x) else None)
+      def join(pos: Int, res: TidyNonEmpty[Tuple1[List[Tidy[EmptyTuple]]]]): Option[Tidy[Tuple1[List[Tidy[EmptyTuple]]]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) join(pos.+(1), res.::[Unit](())) else None.orElse[Tidy[Tuple1[List[Tidy[EmptyTuple]]]]](if (pos.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[List[Tidy[EmptyTuple]]]]](res) else None)
       join(0, Nil)
     }
   }

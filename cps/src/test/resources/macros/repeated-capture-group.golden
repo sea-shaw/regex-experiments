@@ -1,10 +1,10 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] = {
-      def join(i: Int, x: TidyNonEmpty[Tuple1[List[Tidy[Tuple1[String]]]]]): Option[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] = if (i.<(s.length()).&&(s.charAt(i).==('a'))) join(i.+(1), {
-        val elem$1: Tidy[Tuple1[String]] = s.substring(i, i.+(1))
-        x.::[Tidy[Tuple1[String]]](elem$1)
-      }) else None.orElse[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]](if (i.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[List[Tidy[Tuple1[String]]]]]](x) else None)
+      def join(pos: Int, res: TidyNonEmpty[Tuple1[List[Tidy[Tuple1[String]]]]]): Option[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) join(pos.+(1), {
+        val elem$1: Tidy[Tuple1[String]] = s.substring(pos, pos.+(1))
+        res.::[Tidy[Tuple1[String]]](elem$1)
+      }) else None.orElse[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]](if (pos.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[List[Tidy[Tuple1[String]]]]]](res) else None)
       join(0, Nil)
     }
   }

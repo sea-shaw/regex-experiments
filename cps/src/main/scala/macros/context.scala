@@ -7,15 +7,16 @@ import scala.quoted.{Expr, Quotes}
 
 object context {
   final class JoinPoint[A <: Tuple]
-  case class Binding[A <: Tuple, R <: Tuple](qjoin: (Pos, Code[Tidy[A]]) => Quotes ?=> Expr[Option[Tidy[R]]])
+  type QJoin[A <: Tuple, R <: Tuple] = (Pos, Code[Tidy[A]]) => Quotes ?=> Expr[Option[Tidy[R]]]
+  private case class Binding[A <: Tuple, R <: Tuple](qjoin: QJoin[A, R])
 
   class Ctx[R <: Tuple] private (
     val s: Expr[String],
     private val bindings: Map[JoinPoint[?], Binding[?, R]],
     private val starts: Map[Int, Pos],
   ) {
-    def binding[A <: Tuple](key: JoinPoint[A]): Binding[A, R] = bindings(key).asInstanceOf[Binding[A, R]]
-    def withBinding[A <: Tuple](key: JoinPoint[A], value: Binding[A, R]): Ctx[R] = Ctx(s, bindings.updated(key, value), starts)
+    def binding[A <: Tuple](key: JoinPoint[A]): QJoin[A, R] = bindings(key).qjoin.asInstanceOf
+    def withBinding[A <: Tuple](key: JoinPoint[A], value: QJoin[A, R]): Ctx[R] = Ctx(s, bindings.updated(key, Binding(value)), starts)
     def start(group: Int): Pos = starts(group)
     def withStart(group: Int, start: Pos): Ctx[R] = Ctx(s, bindings, starts.updated(group, start))
   }
