@@ -1,6 +1,7 @@
 package experiments.cps.macros
 
 import experiments.cps.macros.context.{Ctx, JoinPoint}
+import experiments.cps.macros.pos.{Pos, PosInt}
 import experiments.cps.macros.stack.*
 import experiments.cps.tidy.*
 import scala.quoted.{Expr, Quotes, Type}
@@ -44,69 +45,62 @@ object state {
     override def toStack(using Quotes): Stack[Outs] = op.toStack(tape)
   }
 
+
   sealed trait State[T <: Tuple, R <: Tuple: Type] {
-    def go(tape: Tape[T], i: Expr[Int])(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]]
+    def go(tape: Tape[T], pos: Pos)(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]]
   }
 
   case class Accept[R <: Tuple: {TupleTag as tag, Type}]() extends State[TCons[R, EmptyTuple], R] {
-    override def go(tape: Tape[TCons[R, EmptyTuple]], i: Expr[Int])(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
+    override def go(tape: Tape[TCons[R, EmptyTuple]], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
       tag match {
-        case EmptyTag     => '{ if $i == ${ ctx.s }.length then Some(()) else None }
+        case EmptyTag     => '{ if ${ pos.toExpr } == ${ ctx.s }.length then Some(()) else None }
         case NonEmptyTag() => tape.toStack match {
-          case SCons(code, SNil) => '{ if $i == $ { ctx.s }.length then Some(${ code.toExpr }) else None }
+          case SCons(code, SNil) => '{ if ${ pos.toExpr } == $ { ctx.s }.length then Some(${ code.toExpr }) else None }
         }
       }
     }
   }
 
   case class Item[T <: Tuple, R <: Tuple: Type](c: Char, next: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], i: Expr[Int])(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
-      '{ if $i < ${ ctx.s }.length && ${ ctx.s }.charAt($i) == ${ Expr(c) } then ${ next.go(tape, i + 1) } else None }
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
+      '{ if ${ pos.toExpr } < ${ ctx.s }.length && ${ ctx.s }.charAt(${ pos.toExpr }) == ${ Expr(c) } then ${ next.go(tape, pos + 1) } else None }
     }
   }
 
   case class Begin[T <: Tuple, R <: Tuple: Type](n: Int, next: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], i: Expr[Int])(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
-      next.go(tape, i)(using ctx.withStart(n, i))
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
+      next.go(tape, pos)(using ctx.withStart(n, pos))
     }
   }
 
   case class End[T <: Tuple, R <: Tuple: Type](n: Int, next: State[String *: T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], i: Expr[Int])(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
-      val cap = '{ ${ ctx.s }.substring(${ ctx.start(n) }, $i) }
-      next.go(Cell(Push(CodeExpr(cap)), tape), i)
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
+      val cap = '{ ${ ctx.s }.substring(${ ctx.start(n).toExpr }, ${ pos.toExpr }) }
+      next.go(Cell(Push(CodeExpr(cap)), tape), pos)
     }
   }
 
   case class Split[T <: Tuple, R <: Tuple: Type](left: State[T, R], right: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], i: Expr[Int])(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
-      '{ ${ left.go(tape, i) } orElse ${ right.go(tape, i) } }
+    override def go(tape: Tape[T], pos: Pos)(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
+      '{ ${ left.go(tape, pos) } orElse ${ right.go(tape, pos) } }
     }
   }
 
   case class Output[Ins <: Tuple, Outs <: Tuple, R <: Tuple: Type](op: Op[Ins, Outs], next: State[Outs, R]) extends State[Ins, R] {
-    override def go(tape: Tape[Ins], i: Expr[Int])(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
-      next.go(Cell(op, tape), i)
+    override def go(tape: Tape[Ins], pos: Pos)(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
+      next.go(Cell(op, tape), pos)
     }
   }
 
   case class MkJoin[H <: Tuple, T <: Tuple, R <: Tuple: Type](joinPoint: JoinPoint[H], binder: State[TCons[H, T], R], receiver: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], i: Expr[Int])(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = ???
+    override def go(tape: Tape[T], pos: Pos)(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = ???
   }
 
   case class Join[H <: Tuple, T <: Tuple, R <: Tuple: Type](joinPoint: JoinPoint[H]) extends State[TCons[H, T], R] {
-    override def go(tape: Tape[TCons[H, T]], i: Expr[Int])(using Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = ???
+    override def go(tape: Tape[TCons[H, T]], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = ???
   }
 
   extension [R <: Tuple] (state: State[EmptyTuple, R]) {
-    def run(s: Expr[String])(using Quotes): Expr[Option[Tidy[R]]] = state.go(Empty, Expr(0))(using Ctx.empty(s))
-  }
-
-  extension (expr: Expr[Int]) {
-    def +(n: Int)(using Quotes): Expr[Int] = expr match {
-      case Expr(m)                                 => Expr(m + n)
-      case '{ ($expr: Int) + (${ Expr(m) }: Int) } => '{ $expr + ${ Expr(m + n) } }
-      case _                                       => '{ $expr + ${ Expr(n) } }
-    }
+    def run(s: Expr[String])(using Quotes): Expr[Option[Tidy[R]]] = state.go(Empty, PosInt(0))(using Ctx.empty(s))
   }
 }
