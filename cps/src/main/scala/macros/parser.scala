@@ -23,7 +23,7 @@ object parser {
   private lazy val nonCapture = atomic("(?:") ~> expr <~ ')'
   private lazy val capture = Cap('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars))
-  private lazy val postfixOps = Opt from '?'
+  private lazy val postfixOps = (Opt from '?') | (Rep0 from '*')
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 }

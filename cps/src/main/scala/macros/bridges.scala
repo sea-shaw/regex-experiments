@@ -39,4 +39,8 @@ object bridges {
   object Alt extends PureParserBridge2[ToReg, ToReg, ToReg] {
     override def apply(left: ToReg, right: ToReg): ToReg = ast.Alt(left, right)
   }
+
+  object Rep0 extends PureParserBridge1[ToReg, ToReg] {
+    override def apply(reg: ToReg): ToReg = ast.Rep0(reg)
+  }
 }
