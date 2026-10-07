@@ -12,6 +12,10 @@ object stack {
     def toExpr(using Quotes): Expr[A]
   }
 
+  object Code {
+    def unit(using Quotes): Code[Unit] = CodeExpr('{ () })
+  }
+
   case class CodeExpr[A](expr: Expr[A]) extends Code[A] {
     override def toExpr(using Quotes): Expr[A] = expr
   }
