@@ -6,8 +6,8 @@ import parsley.{Parsley, Result}
 import parsley.combinator.option
 import parsley.expr.chain
 import parsley.errors.ErrorBuilder
-import parsley.syntax.character.charLift
-import parsley.quick.{eof, many, noneOf}
+import parsley.syntax.character.{charLift, stringLift}
+import parsley.quick.{atomic, eof, many, noneOf}
 import scala.quoted.Quotes
 
 object parser {
@@ -19,7 +19,8 @@ object parser {
     case (reg, None)     => reg
     case (reg, Some(op)) => op(reg)
   }
-  private lazy val quantifiable = capture | lit
+  private lazy val quantifiable = nonCapture | capture | lit
+  private lazy val nonCapture = atomic("(?:") ~> expr <~ ')'
   private lazy val capture = Cap('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars))
   private lazy val postfixOps = Opt from '?'
