@@ -161,6 +161,23 @@ object ast {
     }
   }
 
+  case class Rep0[A <: Tuple: Type](reg: Reg[A]) extends Reg[Tuple1[List[Tidy[A]]]] {
+    override val numCaps: Int = reg.numCaps
+
+    override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[List[Tidy[A]]], T], R], i: Int)(using Quotes): State[T, R] = {
+      val joinPoint = JoinPoint[Tuple1[List[Tidy[A]]]]
+      val emptyConsOp: Op[List[Unit] *: T, List[Unit] *: T] = Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } }))
+      val nonEmptyConsOp: Op[Tidy[A] *: List[Tidy[A]] *: T, List[Tidy[A]] *: T] = Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } }))
+      val consOp: Op[TCons[A, List[Tidy[A]] *: T], List[Tidy[A]] *: T] = reg.tag match {
+        case EmptyTag      => emptyConsOp
+        case NonEmptyTag() => nonEmptyConsOp
+      }
+      MkJoin(joinPoint, Split(reg.cps(Output(consOp, Join(joinPoint)), i), next), Output(Push(CodeExpr('{ Nil })), Join(joinPoint)))
+    }
+
+    override def tpe(using Quotes): Type[Tuple1[List[Tidy[A]]]] = Type.of
+  }
+
   private def op[A <: Tuple, B: Type, T <: Tuple](tag: TupleTag[A], f: Expr[Tidy[A]] => Quotes ?=> Expr[B], @unused next: State[B *: T, ?])(using Quotes): Op[TCons[A, T], B *: T] = tag match {
     case EmptyTag      => Push(CodeExpr(f('{ () })))
     case NonEmptyTag() => Apply(expr => CodeExpr(f(expr.toExpr)))
