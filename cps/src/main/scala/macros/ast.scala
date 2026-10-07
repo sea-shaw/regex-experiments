@@ -11,15 +11,16 @@ object ast {
   sealed trait RList[T <: Tuple](using val tag: TupleTag[T]) {
     val numCaps: Int
 
-    final def +:[H <: Tuple](reg: Reg[H])(using Quotes): RList[TCons[H, T]] = reg.tag match {
-      case EmptyTag      => RConsEmpty(reg, this)
-      case NonEmptyTag() => {
-        given Type[H] = reg.tpe
-        given Type[T] = tpe
-        RConsNonEmpty(reg, this)
+    final def +:[H <: Tuple](reg: Reg[H])(using Quotes): RList[TCons[H, T]] = {
+      given Type[H] = reg.tpe
+      given Type[T] = tpe
+
+      reg.tag match {
+        case EmptyTag      => RConsEmpty(reg, this)
+        case NonEmptyTag() => RConsNonEmpty(reg, this)
       }
     }
-  
+
     def cps[Xs <: Tuple, R <: Tuple: Type](next: State[T *: Xs, R], i: Int)(using Quotes): State[Xs, R]
     def tpe(using Quotes): Type[T]
   }
@@ -34,14 +35,14 @@ object ast {
     override def tpe(using Quotes): Type[EmptyTuple] = Type.of
   }
 
-  case class RConsEmpty[T <: Tuple](head: Reg[EmptyTuple], tail: RList[T]) extends RList[T](using tail.tag) {
+  case class RConsEmpty[T <: Tuple: Type](head: Reg[EmptyTuple], tail: RList[T]) extends RList[T](using tail.tag) {
     override val numCaps: Int = tail.numCaps
 
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[T *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
       head.cps(tail.cps(next, i + head.numCaps), i)
     }
 
-    override def tpe(using Quotes): Type[T] = tail.tpe
+    override def tpe(using Quotes): Type[T] = Type.of
   }
 
   case class RConsNonEmpty[H <: NonEmptyTuple: Type, T <: Tuple: Type](head: Reg[H], tail: RList[T]) extends RList[TidyNonEmpty[H] *: T] {
@@ -84,7 +85,7 @@ object ast {
       }
     }
 
-    override def tpe(using Quotes): Type[A] = regs.tpe
+    override def tpe(using Quotes): Type[A] = Type.of
   }
 
   object Cat {
