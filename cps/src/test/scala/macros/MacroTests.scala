@@ -74,4 +74,16 @@ class MacroTests extends AnyFlatSpec {
     `(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))`.unapply("ace") shouldBe Some((Left("a"), Left("c"), Left("e")))
     `(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))`.unapply("bdf") shouldBe Some((Right("b"), Right("d"), Right("f")))
   }
+
+  it should "match repeated patterns" in {
+    (0 to 4).foreach { n =>
+      `a*`.unapply("a" * n) shouldBe Some(List.fill(n)(()))
+    }
+  }
+
+  it should "match repeated capture groups" in {
+    (0 to 4).foreach { n =>
+      `(a)*`.unapply("a" * n) shouldBe Some(List.fill(n)("a"))
+    }
+  }
 }
