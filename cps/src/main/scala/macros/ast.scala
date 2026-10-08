@@ -3,6 +3,7 @@ package experiments.cps.macros
 import experiments.cps.macros.context.JoinPoint
 import experiments.cps.macros.stack.*
 import experiments.cps.macros.state.*
+import experiments.cps.macros.tape.*
 import experiments.cps.tidy.*
 import scala.quoted.{Expr, Quotes, Type}
 import scala.annotation.unused

@@ -5,7 +5,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.shouldBe
 
 class UnapplyTests extends AnyFlatSpec {
-  behavior of "macro"
+  behavior of "unapply"
 
   val `a` = r"a"
   val `(a)` = r"(a)"
