@@ -89,11 +89,19 @@ class UnapplyTests extends AnyFlatSpec {
     }
   }
 
-  ignore should "match nested repetitions" in {
+  it should "match nested repetitions" in {
     `(a(b)*)*`.unapply("aababbabbb") shouldBe Some(List.from(0 to 3).map(i => ("a" + "b" * i, List.fill(i)("b"))))
   }
 
-  ignore should "match repeated optional patterns" in {
+  it should "not stack overflow for large loop input" in {
+    `(a)*`.unapply("a" * 1000000)
+  }
+
+  it should "not stack overflow for large nested loop input" in {
+    `(a(b)*)*`.unapply(("a" + "b" * 1000) * 1000)
+  }
+
+  it should "stop looping when no progress is made" in {
     `(?:a?)*`.unapply("") shouldBe Some(Nil)
   }
 }

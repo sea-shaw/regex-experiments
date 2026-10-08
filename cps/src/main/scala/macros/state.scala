@@ -4,6 +4,7 @@ import experiments.cps.macros.context.{Ctx, JoinPoint}
 import experiments.cps.macros.pos.{Pos, PosExpr, PosInt}
 import experiments.cps.macros.stack.*
 import experiments.cps.tidy.*
+import scala.annotation.tailrec
 import scala.quoted.{Expr, Quotes, Type}
 
 object state {
@@ -46,7 +47,7 @@ object state {
   }
 
 
-  sealed trait State[T <: Tuple, R <: Tuple: Type] {
+  sealed trait State[T <: Tuple, R <: Tuple] {
     def go(tape: Tape[T], pos: Pos)(using Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]]
     def goPos(tape: Tape[T], pos: Pos)(using Ctx[Option[(Tidy[R], Int)]])(using Quotes): Expr[Option[(Tidy[R], Int)]]
   }
@@ -89,7 +90,7 @@ object state {
     }
   }
 
-  case class Begin[T <: Tuple, R <: Tuple: Type](n: Int, next: State[T, R]) extends State[T, R] {
+  case class Begin[T <: Tuple, R <: Tuple](n: Int, next: State[T, R]) extends State[T, R] {
     override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
       next.go(tape, pos)(using ctx.withStart(n, pos))
     }
@@ -99,7 +100,7 @@ object state {
     }
   }
 
-  case class End[T <: Tuple, R <: Tuple: Type](n: Int, next: State[String *: T, R]) extends State[T, R] {
+  case class End[T <: Tuple, R <: Tuple](n: Int, next: State[String *: T, R]) extends State[T, R] {
     override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
       val cap = '{ ${ ctx.s }.substring(${ ctx.start(n).toExpr }, ${ pos.toExpr }) }
       next.go(Cell(Push(CodeExpr(cap)), tape), pos)
@@ -121,7 +122,7 @@ object state {
     }
   }
 
-  case class Output[Ins <: Tuple, Outs <: Tuple, R <: Tuple: Type](op: Op[Ins, Outs], next: State[Outs, R]) extends State[Ins, R] {
+  case class Output[Ins <: Tuple, Outs <: Tuple, R <: Tuple](op: Op[Ins, Outs], next: State[Outs, R]) extends State[Ins, R] {
     override def go(tape: Tape[Ins], pos: Pos)(using Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
       next.go(Cell(op, tape), pos)
     }
@@ -175,7 +176,7 @@ object state {
     }
   }
 
-  case class Join[H <: Tuple: TupleTag as tag, T <: Tuple, R <: Tuple: Type](joinPoint: JoinPoint[H]) extends State[TCons[H, T], R] {
+  case class Join[H <: Tuple: TupleTag as tag, T <: Tuple, R <: Tuple](joinPoint: JoinPoint[H]) extends State[TCons[H, T], R] {
     override def go(tape: Tape[TCons[H, T]], pos: Pos)(using ctx: Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
       val qjoin = ctx.binding(joinPoint)
       tag match {
@@ -209,5 +210,39 @@ object state {
 
   extension [R <: Tuple] (state: State[EmptyTuple, R]) {
     def run(s: Expr[String])(using Quotes): Expr[Option[Tidy[R]]] = state.go(Empty, PosInt(0))(using Ctx.empty(s))
+  }
+
+  case class Loop[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
+      '{
+        @tailrec
+        def loop(pos: Int, acc: List[Tidy[H]]): Option[Tidy[R]] = {
+          ${ elem.goPos(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) } match {
+            case None              => continue(pos, acc)
+            case Some(res, newPos) => if newPos == pos then continue(pos, acc) else loop(newPos, res :: acc)
+          }
+        }
+
+        def continue(pos: Int, acc: List[Tidy[H]]): Option[Tidy[R]] = ${ next.go(Cell(Push(CodeExpr('{ acc.reverse })), tape), PosExpr('pos)) }
+
+        loop(${ pos.toExpr }, Nil)
+      }
+    }
+
+    override def goPos(tape: Tape[T], pos: Pos)(using ctx: Ctx[Option[(Tidy[R], Int)]])(using Quotes): Expr[Option[(Tidy[R], Int)]] = {
+      '{
+        @tailrec
+        def loop(pos: Int, acc: List[Tidy[H]]): Option[(Tidy[R], Int)] = {
+          ${ elem.goPos(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) } match {
+            case None              => continue(pos, acc)
+            case Some(res, newPos) => if newPos == pos then continue(pos, acc) else loop(newPos, res :: acc)
+          }
+        }
+
+        def continue(pos: Int, acc: List[Tidy[H]]): Option[(Tidy[R], Int)] = ${ next.goPos(Cell(Push(CodeExpr('{ acc.reverse })), tape), PosExpr('pos)) }
+
+        loop(${ pos.toExpr }, Nil)
+      }
+    }
   }
 }
