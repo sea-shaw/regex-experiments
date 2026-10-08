@@ -109,7 +109,7 @@ object ast {
     override val numCaps: Int = 1 + reg.numCaps
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[(String, TidyNonEmpty[A]), T], R], i: Int)(using Quotes): State[T, R] = {
-      Begin(i, reg.cps(End(i, Output(Reduce((inner, cap) => CodeExpr('{ (${ cap.toExpr }, $ {inner.toExpr }) })), next)), i + 1))
+      Begin(i, reg.cps(End(i, Output(Reduce((inner, cap) => CodeExpr('{ (${ cap.toExpr }, ${ inner.toExpr }) })), next)), i + 1))
     }
 
     override def tpe(using Quotes): Type[(String, TidyNonEmpty[A])] = Type.of

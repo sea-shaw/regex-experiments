@@ -4,7 +4,7 @@ import experiments.cps.macros.regex.{Regex, r}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers.shouldBe
 
-class MacroTests extends AnyFlatSpec {
+class UnapplyTests extends AnyFlatSpec {
   behavior of "macro"
 
   val `a` = r"a"
@@ -20,6 +20,8 @@ class MacroTests extends AnyFlatSpec {
   val `(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))` = r"(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))"
   val `a*` = r"a*"
   val `(a)*` = r"(a)*"
+  val `(a(b)*)*` = r"(a(b)*)*"
+  val `(?:a?)*` = r"(?:a?)*"
 
   it should "match characters" in {
     `a`.unapply("a") shouldBe Some(())
@@ -85,5 +87,13 @@ class MacroTests extends AnyFlatSpec {
     (0 to 4).foreach { n =>
       `(a)*`.unapply("a" * n) shouldBe Some(List.fill(n)("a"))
     }
+  }
+
+  ignore should "match nested repetitions" in {
+    `(a(b)*)*`.unapply("aababbabbb") shouldBe Some(List.from(0 to 3).map(i => ("a" + "b" * i, List.fill(i)("b"))))
+  }
+
+  ignore should "match repeated optional patterns" in {
+    `(?:a?)*`.unapply("") shouldBe Some(Nil)
   }
 }
