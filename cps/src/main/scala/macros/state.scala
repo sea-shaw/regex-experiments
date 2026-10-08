@@ -53,9 +53,9 @@ object state {
   case class Accept[R <: Tuple: {TupleTag as tag, Type}]() extends State[TCons[R, EmptyTuple], R] {
     override def go(tape: Tape[TCons[R, EmptyTuple]], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
       tag match {
-        case EmptyTag     => '{ if ${ pos.toExpr } == ${ ctx.s }.length then Some(()) else None }
+        case EmptyTag     => '{ Some(()) }
         case NonEmptyTag() => tape.toStack match {
-          case SCons(code, SNil) => '{ if ${ pos.toExpr } == $ { ctx.s }.length then Some(${ code.toExpr }) else None }
+          case SCons(code, SNil) => '{ Some(${ code.toExpr }) }
         }
       }
     }
@@ -124,6 +124,12 @@ object state {
           case SCons(head, _) => qjoin(pos, head)
         }
       }
+    }
+  }
+
+  case class Eof[T <: Tuple, R <: Tuple: Type](next: State[T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[R])(using Quotes): Expr[Option[Tidy[R]]] = {
+      '{ if ${ pos.toExpr } == ${ ctx.s }.length then ${ next.go(tape, pos) } else None }
     }
   }
 

@@ -58,7 +58,7 @@ object ast {
   sealed trait Reg[A <: Tuple](using val tag: TupleTag[A]) {
     val numCaps: Int
 
-    final def compile(using Quotes, Type[A]): State[EmptyTuple, A] = cps(Accept(), 0)
+    final def compile(using Quotes, Type[A]): State[EmptyTuple, A] = cps(Eof(Accept()), 0)
 
     def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[A, T], R], i: Int)(using Quotes): State[T, R]
 
