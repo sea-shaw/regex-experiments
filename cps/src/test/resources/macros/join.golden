@@ -1,7 +1,7 @@
 {
   final class $anon() extends Regex[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]] {
     override def unapply(s: String): Option[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]] = {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]]): Option[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('c'))) if (pos.+(1).==(s.length())) Some.apply[TidyNonEmpty[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]](res) else None else None
+      def join(pos: Int, res: TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]] = if (pos.<(s.length()).&&(s.charAt(pos).==('c'))) if (pos.+(1).==(s.length())) Some.apply[TidyNonEmpty[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]](res) else None else None
       if (0.<(s.length()).&&(s.charAt(0).==('a'))) join(1, Left.apply[Tidy[EmptyTuple], Nothing](())) else None.orElse[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]](if (0.<(s.length()).&&(s.charAt(0).==('b'))) join(1, Right.apply[Nothing, Tidy[EmptyTuple]](())) else None)
     }
   }

@@ -1,13 +1,16 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] = {
-      @tailrec def loop(pos: Int, acc: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): Option[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) Some.apply[Tuple2[TidyNonEmpty[Tuple1[String]], Int]](Tuple2.apply[TidyNonEmpty[Tuple1[String]], Int](s.substring(pos, pos.+(1)), pos.+(1))) else None match {
-        case None =>
-          continue(pos, acc)
-        case Some(res, newPos) =>
-          if (newPos.==(pos)) continue(pos, acc) else loop(newPos, acc.::[Tidy[Tuple1[String]]](res))
+      @tailrec def loop(pos: Int, acc: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Tidy[Tuple1[String]]]]] = {
+        val withPos: WithPos[Tuple1[String]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) WithPos.apply[Tuple1[String]](Some.apply[TidyNonEmpty[Tuple1[String]]](s.substring(pos, pos.+(1))).$asInstanceOf$[Option[Tidy[Tuple1[String]]]], pos.+(1)) else WithPos.apply[Tuple1[String]](None, -1)
+        withPos.res match {
+          case None =>
+            continue(pos, acc)
+          case Some(res) =>
+            if (withPos.pos.==(pos)) continue(pos, acc) else loop(withPos.pos, acc.::[Tidy[Tuple1[String]]](res))
+        }
       }
-      def continue(`pos₂`: Int, `acc₂`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): Option[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] = if (`pos₂`.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[List[Tidy[Tuple1[String]]]]]](`acc₂`.reverse) else None
+      def continue(`pos₂`: Int, `acc₂`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Tidy[Tuple1[String]]]]] = if (`pos₂`.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[List[Tidy[Tuple1[String]]]]]](`acc₂`.reverse) else None
       loop(0, Nil)
     }
   }
