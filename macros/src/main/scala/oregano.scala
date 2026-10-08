@@ -9,7 +9,7 @@ object oregano {
 
   private class Oregano(using Type[EitherIor]) extends AST {
     type InclusiveOr = EitherIor
-    
+
     protected def fromLeft[A: Type](left: Expr[A])(using Quotes): Expr[InclusiveOr[A, Nothing]] = {
       '{ Left(Left($left)) }
     }

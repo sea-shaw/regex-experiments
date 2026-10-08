@@ -20,13 +20,13 @@ object state {
 
   case class Drop[A, T <: Tuple]() extends Op[A *: T, T] {
     override def toStack(tape: Tape[A *: T]): HList[T] = tape.toStack match {
-      case HCons(_, tail) => tail 
+      case HCons(_, tail) => tail
     }
   }
 
   case class Apply[A, B, T <: Tuple](f: A => B) extends Op[A *: T, B *: T] {
     override def toStack(tape: Tape[A *: T]): HList[B *: T] = tape.toStack match {
-      case HCons(head, tail) => HCons(f(head), tail) 
+      case HCons(head, tail) => HCons(f(head), tail)
     }
   }
 
@@ -51,7 +51,7 @@ object state {
       if i == s.length then tag match {
         case EmptyTag      => Some(())
         case NonEmptyTag() => tape.toStack match {
-          case HCons(x, HNil) => Some(x) 
+          case HCons(x, HNil) => Some(x)
         }
       } else None
     }

@@ -7,7 +7,7 @@ import scala.annotation.unused
 object regex {
   sealed trait RList[T <: Tuple](using val tag: TupleTag[T]) {
     val numCaps: Int
-  
+
     final def +:[H <: Tuple](reg: Reg[H]): RList[TCons[H, T]] = reg.tag match {
       case EmptyTag      => RConsEmpty(reg, this)
       case NonEmptyTag() => RConsNonEmpty(reg, this)
@@ -32,15 +32,15 @@ object regex {
 
   case class RConsNonEmpty[H <: NonEmptyTuple, T <: Tuple](head: Reg[H], tail: RList[T]) extends RList[TidyNonEmpty[H] *: T] {
     override val numCaps: Int = head.numCaps + tail.numCaps
-  
+
     override def cps[Xs <: Tuple, R <: Tuple](next: State[(TidyNonEmpty[H] *: T) *: Xs, R], i: Int): State[Xs, R] = {
       head.cps(tail.cps(Output(Reduce(_ *: _), next), i + head.numCaps), i)
     }
   }
 
-  sealed trait Reg[A <: Tuple](using val tag: TupleTag[A]) {  
+  sealed trait Reg[A <: Tuple](using val tag: TupleTag[A]) {
     val numCaps: Int
-  
+
     final def run(s: String): Option[Tidy[A]] = compile.run(s)
     final def compile: State[EmptyTuple, A] = cps(Accept(), 0)
 

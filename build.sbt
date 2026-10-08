@@ -16,6 +16,7 @@ ThisBuild / scalacOptions ++= Seq(
   "-feature",
   "-explain-cyclic",
   // "-Vprint:postInlining", // Enable and use `console` to better see generated code
+  // "-Vprint:lambdaLift",
 )
 
 val goldenScalatest = "com.github.j-mie6" %% "golden-scalatest" % "0.1.0-M2"
