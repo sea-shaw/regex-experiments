@@ -1,6 +1,5 @@
 package experiments.cps.macros
 
-import experiments.cps.macros.context.JoinPoint
 import experiments.cps.macros.stack.*
 import experiments.cps.macros.state.*
 import experiments.cps.macros.tape.*
@@ -128,8 +127,7 @@ object ast {
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[Option[Tidy[A]]], T], R], i: Int)(using Quotes): State[T, R] = {
       val someOp = op(reg.tag, x => '{ Some($x) }, next)
-      val joinPoint = JoinPoint[Tuple1[Option[Tidy[A]]]]
-      MkJoin(joinPoint, next, Split(reg.cps(Output(someOp, Join(joinPoint)), i), Output(Push(CodeExpr('{ None })), Join(joinPoint))))
+      Split(reg.cps(Output(someOp, next), i), Output(Push(CodeExpr('{ None })), next))
     }
 
     override def tpe(using Quotes): Type[Tuple1[Option[Tidy[A]]]] = Type.of
@@ -148,8 +146,7 @@ object ast {
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[Either[Tidy[A], Tidy[B]]], T], R], i: Int)(using Quotes): State[T, R] = {
       val leftOp = op(left.tag, x => '{ Left($x) }, next)
       val rightOp = op(right.tag, x => '{ Right($x) }, next)
-      val joinPoint = JoinPoint[Tuple1[Either[Tidy[A], Tidy[B]]]]
-      MkJoin(joinPoint, next, Split(left.cps(Output(leftOp, Join(joinPoint)), i), right.cps(Output(rightOp, Join(joinPoint)), i + left.numCaps)))
+      Split(left.cps(Output(leftOp, next), i), right.cps(Output(rightOp, next), i + left.numCaps))
     }
 
     override def tpe(using Quotes): Type[Tuple1[Either[Tidy[A], Tidy[B]]]] = Type.of
