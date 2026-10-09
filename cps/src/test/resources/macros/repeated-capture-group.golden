@@ -1,17 +1,17 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Tidy[Tuple1[String]]]]]] = {
-      @tailrec def loop(pos: Int, acc: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Tidy[Tuple1[String]]]]] = {
-        val withPos: WithPos[Tuple1[String]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) WithPos.apply[Tuple1[String]](Some.apply[TidyNonEmpty[Tuple1[String]]](s.substring(pos, pos.+(1))).$asInstanceOf$[Option[Tidy[Tuple1[String]]]], pos.+(1)) else WithPos.apply[Tuple1[String]](None, -1)
+      @tailrec def loop(pos: Int, acc: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]] = {
+        val withPos: WithPos[Option[Tidy[Tuple1[String]]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) WithPos.apply[Option[Tidy[Tuple1[String]]]](Some.apply[TidyNonEmpty[Tuple1[String]]](s.substring(pos, pos.+(1))).$asInstanceOf$[Option[Tidy[Tuple1[String]]]], pos.+(1)).$asInstanceOf$[WithPos[Option[TidyNonEmpty[Tuple1[String]]]]] else WithPos.apply[Option[Tidy[Tuple1[String]]]](None, -1)
         withPos.res match {
           case None =>
-            continue(pos, acc)
+            WithPos.apply[List[Tidy[Tuple1[String]]]](acc.reverse, pos)
           case Some(res) =>
-            if (withPos.pos.==(pos)) continue(pos, acc) else loop(withPos.pos, acc.::[Tidy[Tuple1[String]]](res))
+            if (withPos.pos.==(pos)) WithPos.apply[List[Tidy[Tuple1[String]]]](acc.reverse, pos) else loop(withPos.pos, acc.::[Tidy[Tuple1[String]]](res))
         }
       }
-      def continue(`pos₂`: Int, `acc₂`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Tidy[Tuple1[String]]]]] = if (`pos₂`.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[List[Tidy[Tuple1[String]]]]]](`acc₂`.reverse) else None
-      loop(0, Nil)
+      val `res₂`: WithPos[List[Tidy[Tuple1[String]]]] = loop(0, Nil)
+      if (`res₂`.pos.>=(0)) if (`res₂`.pos.==(s.length())) Some.apply[TidyNonEmpty[Tuple1[List[Tidy[Tuple1[String]]]]]](`res₂`.res) else None else None
     }
   }
 
