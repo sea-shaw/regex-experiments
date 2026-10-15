@@ -1,10 +1,10 @@
 {
-  final class $anon() extends Regex[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]] {
-    override def unapply(s: String): Option[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]] = {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]]): Option[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('c'))) if (pos.+(1).==(s.length())) Some.apply[TidyNonEmpty[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]](res) else None else None
-      if (0.<(s.length()).&&(s.charAt(0).==('a'))) join(1, Left.apply[Tidy[EmptyTuple], Nothing](())) else None.orElse[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]](if (0.<(s.length()).&&(s.charAt(0).==('b'))) join(1, Right.apply[Nothing, Tidy[EmptyTuple]](())) else None)
+  final class $anon() extends Regex[Tidy[*:[Either[Unit, Unit], EmptyTuple]]] {
+    override def unapply(s: String): Option[Tidy[*:[Either[Unit, Unit], EmptyTuple]]] = {
+      def join(pos: Int, res: TidyNonEmpty[Tuple1[Either[Unit, Unit]]]): Option[Either[Unit, Unit]] = if (pos.<(s.length()).&&(s.charAt(pos).==('c'))) if (pos.+(1).==(s.length())) Some.apply[Either[Unit, Unit]](res) else None else None
+      if (0.<(s.length()).&&(s.charAt(0).==('a'))) join(1, Left.apply[Unit, Nothing](())) else None.orElse[Either[Unit, Unit]](if (0.<(s.length()).&&(s.charAt(0).==('b'))) join(1, Right.apply[Nothing, Unit](())) else None)
     }
   }
 
-  (new $anon(): Regex[Tidy[*:[TidyNonEmpty[Tuple1[Either[Tidy[EmptyTuple], Tidy[EmptyTuple]]]], EmptyTuple]]])
+  (new $anon(): Regex[Either[Unit, Unit]])
 }

@@ -1,6 +1,7 @@
 package experiments.cps.macros
 
-import experiments.cps.macros.regex.codeString
+import experiments.cps.macros.regex.r
+import experiments.cps.macros.utils.code
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.golden.GoldenMatchers
 import org.scalatest.matchers.should.Matchers.should
@@ -11,54 +12,54 @@ class GoldenTests extends AnyFlatSpec with GoldenMatchers {
   behavior of "code"
 
   it should "match single character" in {
-    codeString("a") should matchGolden (s"$dir/single-character.golden")
+    code(r"a") should matchGolden (s"$dir/single-character.golden")
   }
 
   it should "match single capture" in {
-    codeString("(a)") should matchGolden (s"$dir/single-capture.golden")
+    code(r"(a)") should matchGolden (s"$dir/single-capture.golden")
   }
 
   it should "match multiple characters" in {
-    codeString("abc") should matchGolden (s"$dir/multiple-characters.golden")
+    code(r"abc") should matchGolden (s"$dir/multiple-characters.golden")
   }
 
   it should "match multiple captures" in {
-    codeString("(a)(b)(c)") should matchGolden (s"$dir/multiple-captures.golden")
+    code(r"(a)(b)(c)") should matchGolden (s"$dir/multiple-captures.golden")
   }
 
   it should "match nested captures" in {
-    codeString("(a(b(c)))") should matchGolden (s"$dir/nested-captures.golden")
+    code(r"(a(b(c)))") should matchGolden (s"$dir/nested-captures.golden")
   }
 
   it should "match optional patterns" in {
-    codeString("(a)?") should matchGolden (s"$dir/optional.golden")
+    code(r"(a)?") should matchGolden (s"$dir/optional.golden")
   }
 
   it should "match alternative patterns" in {
-    codeString("(a)|(b)") should matchGolden (s"$dir/alternative.golden")
+    code(r"(a)|(b)") should matchGolden (s"$dir/alternative.golden")
   }
 
   it should "match join" in {
-    codeString("(?:a|b)c") should matchGolden(s"$dir/join.golden")
+    code(r"(?:a|b)c") should matchGolden(s"$dir/join.golden")
   }
 
   it should "match multiple alternatives" in {
-    codeString("(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))") should matchGolden(s"$dir/multiple-alternatives.golden")
+    code(r"(?:(a)|(b))(?:(c)|(d))(?:(e)|(f))") should matchGolden(s"$dir/multiple-alternatives.golden")
   }
 
   it should "match repeated patterns" in {
-    codeString("a*") should matchGolden(s"$dir/repeated-pattern.golden")
+    code(r"a*") should matchGolden(s"$dir/repeated-pattern.golden")
   }
 
   it should "match repeated capture groups" in {
-    codeString("(a)*") should matchGolden(s"$dir/repeated-capture-group.golden")
+    code(r"(a)*") should matchGolden(s"$dir/repeated-capture-group.golden")
   }
 
   it should "match nested repetitions" in {
-    codeString("(a(b)*)*") should matchGolden(s"$dir/nested-repetition.golden")
+    code(r"(a(b)*)*") should matchGolden(s"$dir/nested-repetition.golden")
   }
 
   it should "match repeated optionals" in {
-    codeString("(?:a?)*") should matchGolden(s"$dir/repeated-optional.golden")
+    code(r"(?:a?)*") should matchGolden(s"$dir/repeated-optional.golden")
   }
 }
