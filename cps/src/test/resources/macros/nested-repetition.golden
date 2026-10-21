@@ -2,13 +2,13 @@
   final class $anon() extends Regex[Tidy[Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]]] = {
       def join(pos: Int, res: TidyNonEmpty[Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]]): Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) {
-        def `join₂`(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[List[String]]]): Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = if (`pos₂`.<(s.length()).&&(s.charAt(`pos₂`).==('b'))) `join₂`(`pos₂`.+(1), {
+        def `join₂`(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[List[String]]]): Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = if (`pos₂`.<(s.length()).&&(s.charAt(`pos₂`).==('b'))) if (`pos₂`.+(1).>(`pos₂`)) `join₂`(`pos₂`.+(1), {
           val elem$1: String = s.substring(`pos₂`, `pos₂`.+(1))
           `res₂`.::[String](elem$1)
-        }) else None.orElse[List[NonEmptyTuple & Tuple2[String, List[String]]]](join(`pos₂`, {
+        }) else None else None.orElse[List[NonEmptyTuple & Tuple2[String, List[String]]]](if (`pos₂`.>(pos)) join(`pos₂`, {
           val `elem$1₂`: NonEmptyTuple & Tuple2[String, List[String]] = Tuple2.apply[String, List[String]](s.substring(pos, `pos₂`), `res₂`)
           res.::[NonEmptyTuple & Tuple2[String, List[String]]](`elem$1₂`)
-        }))
+        }) else None)
         `join₂`(pos.+(1), Nil)
       } else None.orElse[List[NonEmptyTuple & Tuple2[String, List[String]]]](if (pos.==(s.length())) Some.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]](res) else None)
       join(0, Nil)

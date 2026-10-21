@@ -1,10 +1,10 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[String]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[String]]]] = {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[List[String]]]): Option[List[String]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) join(pos.+(1), {
+      def join(pos: Int, res: TidyNonEmpty[Tuple1[List[String]]]): Option[List[String]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) if (pos.+(1).>(pos)) join(pos.+(1), {
         val elem$1: String = s.substring(pos, pos.+(1))
         res.::[String](elem$1)
-      }) else None.orElse[List[String]](if (pos.==(s.length())) Some.apply[List[String]](res) else None)
+      }) else None else None.orElse[List[String]](if (pos.==(s.length())) Some.apply[List[String]](res) else None)
       join(0, Nil)
     }
   }

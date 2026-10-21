@@ -1,6 +1,6 @@
 package experiments.cps.macros
 
-import experiments.cps.macros.context.{Ctx, JoinPoint}
+import experiments.cps.macros.context.{Ctx, JoinPoint, Progress}
 import experiments.cps.macros.pos.{Pos, PosExpr, PosInt}
 import experiments.cps.macros.stack.*
 import experiments.cps.macros.tape.*
@@ -168,10 +168,6 @@ object state {
     }
   }
 
-  extension [R <: Tuple] (state: State[EmptyTuple, R]) {
-    def run(s: Expr[String])(using Quotes): Expr[Res[R]] = state.go(Empty, PosInt(0))(using Ctx.empty(s))
-  }
-
   case class Loop[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
     private def goWith[A: Type](tape: Tape[T], pos: Pos)(fail: Expr[A])(goNext: (Tape[List[Tidy[H]] *: T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
@@ -196,5 +192,33 @@ object state {
     override def goPos(tape: Tape[T], pos: Pos)(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
       goWith(tape, pos)('{ WithPos(None, -1) })(next.goPos)
     }
+  }
+
+  case class SaveProgress[T <: Tuple, R <: Tuple: Type](progress: Progress, next: State[T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Option[Tidy[R]]] = {
+      next.go(tape, pos)(using ctx.withProgress(progress, pos))
+    }
+    override def goPos(tape: Tape[T], pos: Pos)(using ctx: Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Option[Tidy[R]]]] = {
+      next.goPos(tape, pos)(using ctx.withProgress(progress, pos))
+    }
+  }
+
+  case class RequireProgress[T <: Tuple, R <: Tuple: Type](progress: Progress, next: State[T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Option[Tidy[R]]] = {
+      val prev = ctx.progress(progress)
+      '{
+        if ${ pos.toExpr } > ${ prev.toExpr } then ${ next.go(tape, pos) } else None
+      }
+    }
+    override def goPos(tape: Tape[T], pos: Pos)(using ctx: Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Option[Tidy[R]]]] = {
+      val prev = ctx.progress(progress)
+      '{
+        if ${ pos.toExpr } > ${ prev.toExpr } then ${ next.goPos(tape, pos) } else WithPos(None, -1)
+      }
+    }
+  }
+
+  extension [R <: Tuple] (state: State[EmptyTuple, R]) {
+    def run(s: Expr[String])(using Quotes): Expr[Res[R]] = state.go(Empty, PosInt(0))(using Ctx.empty(s))
   }
 }

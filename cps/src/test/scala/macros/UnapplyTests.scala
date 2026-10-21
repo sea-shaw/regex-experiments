@@ -101,7 +101,9 @@ class UnapplyTests extends AnyFlatSpec {
     `(a(b)*)*`.unapply(("a" + "b" * 1000) * 1000)
   }
 
-  ignore should "stop looping when no progress is made" in {
-    `(?:a?)*`.unapply("") shouldBe Some(Nil)
+  it should "stop looping when no progress is made" in {
+    (0 to 4).foreach { n =>
+      `(?:a?)*`.unapply("a" * n) shouldBe Some(List.fill(n)(Some(())))
+    }
   }
 }
