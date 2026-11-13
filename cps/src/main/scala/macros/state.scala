@@ -169,79 +169,41 @@ object state {
   }
 
   case class Loop[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
-    private def goWith[A: Type](tape: Tape[T], pos: Pos, fail: Expr[A], goNext: (Tape[List[Tidy[H]] *: T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, isValid: Expr[A] => Quotes ?=> Expr[Boolean], goNext: (Tape[List[Tidy[H]] *: T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
         @tailrec
-        def loop(pos: Int, acc: List[Tidy[H]]): WithPos[List[Tidy[H]]] = {
+        def loop(pos: Int, elems: List[Tidy[H]], acc: List[WithPos[List[Tidy[H]]]]): A = {
           val withPos = ${ elem.goPos(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) }
           withPos.res match {
-            case None      => WithPos(acc.reverse, pos)
-            case Some(res) => if withPos.pos == pos then WithPos(acc.reverse, pos) else loop(withPos.pos, res :: acc)
+            case None => backtrack(acc)
+            case Some(elem) => if withPos.pos == pos then backtrack(acc) else {
+              val newElems = elem :: elems
+              loop(withPos.pos, newElems, WithPos(newElems, withPos.pos) :: acc)
+            }
           }
         }
 
-        val res = loop(${ pos.toExpr }, Nil)
-        if res.pos >= 0 then ${ goNext(Cell(Push(CodeExpr('{ res.res })), tape), PosExpr('{ res.pos })) } else $fail
+        @tailrec
+        def backtrack(acc: List[WithPos[List[Tidy[H]]]]): A = acc match {
+          case Nil => continue(${ pos.toExpr }, Nil)
+          case WithPos(list, pos) :: tail => {
+            val res = continue(pos, list)
+            if ${ isValid('res) } then res else backtrack(tail)
+          }
+        }
+
+        def continue(pos: Int, list: List[Tidy[H]]): A = ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
+
+        loop(${ pos.toExpr }, Nil, Nil)
       }
     }
 
     override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
-      '{
-        @tailrec
-        def loop(pos: Int, elems: List[Tidy[H]], acc: List[WithPos[List[Tidy[H]]]]): Res[R] = {
-          val withPos = ${ elem.goPos(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) }
-          withPos.res match {
-            case None => backtrack(acc)
-            case Some(elem) => if withPos.pos == pos then backtrack(acc) else {
-              val newElems = elem :: elems
-              loop(withPos.pos, newElems, WithPos(newElems, withPos.pos) :: acc)
-            }
-          }
-        }
-
-        @tailrec
-        def backtrack(acc: List[WithPos[List[Tidy[H]]]]): Res[R] = acc match {
-          case Nil => continue(${ pos.toExpr }, Nil)
-          case WithPos(list, pos) :: tail => continue(pos, list) match {
-            case None => backtrack(tail)
-            case Some(res) => Some(res)
-          }
-        }
-
-        def continue(pos: Int, list: List[Tidy[H]]): Res[R] = ${ next.go(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
-
-        loop(${ pos.toExpr }, Nil, Nil)
-      }
+      goWith(tape, pos, expr => '{ $expr.isDefined }, next.go)
     }
 
     override def goPos(tape: Tape[T], pos: Pos)(using ctx: Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
-      '{
-        @tailrec
-        def loop(pos: Int, elems: List[Tidy[H]], acc: List[WithPos[List[Tidy[H]]]]): WithPos[Res[R]] = {
-          val withPos = ${ elem.goPos(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) }
-          withPos.res match {
-            case None => backtrack(acc)
-            case Some(elem) => if withPos.pos == pos then backtrack(acc) else {
-              println(s"Loop to ${withPos.pos}")
-              val newElems = elem :: elems
-              loop(withPos.pos, newElems, WithPos(newElems, withPos.pos) :: acc)
-            }
-          }
-        }
-
-        @tailrec
-        def backtrack(acc: List[WithPos[List[Tidy[H]]]]): WithPos[Res[R]] = acc match {
-          case Nil => continue(${ pos.toExpr }, Nil)
-          case WithPos(list, pos) :: tail => {
-            val withPos = continue(pos, list)
-            if withPos.pos >= 0 then withPos else backtrack(tail)
-          }
-        }
-
-        def continue(pos: Int, list: List[Tidy[H]]): WithPos[Res[R]] = ${ next.goPos(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
-
-        loop(${ pos.toExpr }, Nil, Nil)
-      }
+      goWith(tape, pos, expr => '{ $expr.pos >= 0 }, next.goPos)
     }
   }
 
