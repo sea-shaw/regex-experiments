@@ -62,4 +62,8 @@ class GoldenTests extends AnyFlatSpec with GoldenMatchers {
   it should "match repeated optionals" in {
     code(r"(?:a?)*") should matchGolden(s"$dir/repeated-optional.golden")
   }
+
+  it should "match repetition without nested backtracking" in {
+    code(r"a*a") should matchGolden(s"$dir/tail-rec-repetition.golden")
+  }
 }

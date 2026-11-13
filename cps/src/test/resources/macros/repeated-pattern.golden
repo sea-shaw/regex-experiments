@@ -1,17 +1,31 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Unit]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Unit]]]] = {
-      @tailrec def loop(pos: Int, acc: [A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]): WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]] = {
+      @tailrec def loop(pos: Int, elems: [A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Unit]]] = {
         val withPos: WithPos[Option[Unit]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) WithPos.apply[Option[Unit]](Some.apply[Unit](()).$asInstanceOf$[Option[Unit]], pos.+(1)).$asInstanceOf$[WithPos[Option[Unit]]] else WithPos.apply[Option[Unit]](None, -1)
         withPos.res match {
           case None =>
-            WithPos.apply[List[Unit]](acc.reverse, pos)
-          case Some(res) =>
-            if (withPos.pos.==(pos)) WithPos.apply[List[Unit]](acc.reverse, pos) else loop(withPos.pos, acc.::[Unit](res))
+            backtrack(acc)
+          case Some(elem) =>
+            if (withPos.pos.==(pos)) backtrack(acc) else {
+              val newElems: List[Unit] = elems.::[Unit](elem)
+              loop(withPos.pos, newElems, acc.::[WithPos[List[Unit]]](WithPos.apply[List[Unit]](newElems, withPos.pos)))
+            }
         }
       }
-      val `res₂`: WithPos[List[Unit]] = loop(0, Nil)
-      if (`res₂`.pos.>=(0)) if (`res₂`.pos.==(s.length())) Some.apply[List[Unit]](`res₂`.res) else None else None
+      @tailrec def backtrack(`acc₂`: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Unit]]] = `acc₂` match {
+        case Nil =>
+          continue(0, Nil)
+        case ::(WithPos(list, pos), tail) =>
+          continue(`pos₂`, list) match {
+            case None =>
+              backtrack(tail)
+            case Some(res) =>
+              Some.apply[List[Unit]](res)
+          }
+      }
+      def continue(`pos₃`: Int, `list₂`: [A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Unit]]] = if (`pos₃`.==(s.length())) Some.apply[List[Unit]](`list₂`) else None
+      loop(0, Nil, Nil)
     }
   }
 
