@@ -1,8 +1,17 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Unit]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Unit]]]] = {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[List[Unit]]]): Option[List[Unit]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) if (pos.+(1).>(pos)) join(pos.+(1), res.::[Unit](())) else None else None.orElse[List[Unit]](if (pos.==(s.length())) Some.apply[List[Unit]](res) else None)
-      join(0, Nil)
+      @tailrec def loop(pos: Int, acc: [A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]): WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]] = {
+        val withPos: WithPos[Option[Unit]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) WithPos.apply[Option[Unit]](Some.apply[Unit](()).$asInstanceOf$[Option[Unit]], pos.+(1)).$asInstanceOf$[WithPos[Option[Unit]]] else WithPos.apply[Option[Unit]](None, -1)
+        withPos.res match {
+          case None =>
+            WithPos.apply[List[Unit]](acc.reverse, pos)
+          case Some(res) =>
+            if (withPos.pos.==(pos)) WithPos.apply[List[Unit]](acc.reverse, pos) else loop(withPos.pos, acc.::[Unit](res))
+        }
+      }
+      val `res₂`: WithPos[List[Unit]] = loop(0, Nil)
+      if (`res₂`.pos.>=(0)) if (`res₂`.pos.==(s.length())) Some.apply[List[Unit]](`res₂`.res) else None else None
     }
   }
 

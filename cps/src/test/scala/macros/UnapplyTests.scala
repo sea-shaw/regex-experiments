@@ -22,6 +22,8 @@ class UnapplyTests extends AnyFlatSpec {
   val `(a)*` = r"(a)*"
   val `(a(b)*)*` = r"(a(b)*)*"
   val `(?:a?)*` = r"(?:a?)*"
+  val `a*a` = r"a*a"
+  val `(?:ab|a)*b` = r"(?:ab|a)*b"
 
   it should "match characters" in {
     `a`.unapply("a") shouldBe Some(())
@@ -93,11 +95,11 @@ class UnapplyTests extends AnyFlatSpec {
     `(a(b)*)*`.unapply("aababbabbb") shouldBe Some(List.from(0 to 3).reverse.map(i => ("a" + "b" * i, List.fill(i)("b"))))
   }
 
-  ignore should "not stack overflow for large loop input" in {
+  it should "not stack overflow for large loop input without nested control flow" in {
     `(a)*`.unapply("a" * 1000000)
   }
 
-  ignore should "not stack overflow for large nested loop input" in {
+  it should "not stack overflow for large nested loop input with nested control flow" in {
     `(a(b)*)*`.unapply(("a" + "b" * 1000) * 1000)
   }
 
@@ -105,5 +107,13 @@ class UnapplyTests extends AnyFlatSpec {
     (0 to 4).foreach { n =>
       `(?:a?)*`.unapply("a" * n) shouldBe Some(List.fill(n)(Some(())))
     }
+  }
+
+  it should "backtrack loops" in {
+    `a*a`.unapply("a") shouldBe Some(Nil)
+  }
+
+  it should "backtrack loops with nested backtracking" in {
+    `(?:ab|a)*b`.unapply("ab") shouldBe Some(List(Right(())))
   }
 }

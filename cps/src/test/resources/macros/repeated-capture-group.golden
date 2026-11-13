@@ -1,11 +1,17 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[String]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[String]]]] = {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[List[String]]]): Option[List[String]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) if (pos.+(1).>(pos)) join(pos.+(1), {
-        val elem$1: String = s.substring(pos, pos.+(1))
-        res.::[String](elem$1)
-      }) else None else None.orElse[List[String]](if (pos.==(s.length())) Some.apply[List[String]](res) else None)
-      join(0, Nil)
+      @tailrec def loop(pos: Int, acc: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]] = {
+        val withPos: WithPos[Option[String]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) WithPos.apply[Option[String]](Some.apply[String](s.substring(pos, pos.+(1))).$asInstanceOf$[Option[String]], pos.+(1)).$asInstanceOf$[WithPos[Option[String]]] else WithPos.apply[Option[String]](None, -1)
+        withPos.res match {
+          case None =>
+            WithPos.apply[List[String]](acc.reverse, pos)
+          case Some(res) =>
+            if (withPos.pos.==(pos)) WithPos.apply[List[String]](acc.reverse, pos) else loop(withPos.pos, acc.::[String](res))
+        }
+      }
+      val `res₂`: WithPos[List[String]] = loop(0, Nil)
+      if (`res₂`.pos.>=(0)) if (`res₂`.pos.==(s.length())) Some.apply[List[String]](`res₂`.res) else None else None
     }
   }
 

@@ -11,6 +11,7 @@ import scala.annotation.unused
 object ast {
   sealed trait RList[T <: Tuple](using val tag: TupleTag[T]) {
     val numCaps: Int
+    val backtracking: Boolean
 
     final def +:[H <: Tuple](reg: Reg[H])(using Quotes): RList[TCons[H, T]] = {
       given Type[H] = reg.tpe
@@ -28,6 +29,7 @@ object ast {
 
   case object RNil extends RList[EmptyTuple] {
     override val numCaps: Int = 0
+    override val backtracking: Boolean = false
 
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[EmptyTuple *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
       Output(Push(CodeTuple(QNil)), next)
@@ -38,6 +40,7 @@ object ast {
 
   case class RConsEmpty[T <: Tuple: Type](head: Reg[EmptyTuple], tail: RList[T]) extends RList[T](using tail.tag) {
     override val numCaps: Int = tail.numCaps
+    override val backtracking: Boolean = head.backtracking || tail.backtracking
 
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[T *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
       head.cps(tail.cps(next, i + head.numCaps), i)
@@ -48,6 +51,7 @@ object ast {
 
   case class RConsNonEmpty[H <: NonEmptyTuple: Type, T <: Tuple: Type](head: Reg[H], tail: RList[T]) extends RList[TidyNonEmpty[H] *: T] {
     override val numCaps: Int = head.numCaps + tail.numCaps
+    override val backtracking: Boolean = head.backtracking || tail.backtracking
 
     override def cps[Xs <: Tuple, R <: Tuple: Type](next: State[(TidyNonEmpty[H] *: T) *: Xs, R], i: Int)(using Quotes): State[Xs, R] = {
       head.cps(tail.cps(Output(Reduce(codeCons), next), i + head.numCaps), i)
@@ -58,6 +62,7 @@ object ast {
 
   sealed trait Reg[A <: Tuple](using val tag: TupleTag[A]) {
     val numCaps: Int
+    val backtracking: Boolean
 
     final def compile(using Quotes, Type[A]): State[EmptyTuple, A] = cps(Eof(Accept()), 0)
 
@@ -68,6 +73,7 @@ object ast {
 
   case class Lit(c: Char) extends Reg[EmptyTuple] {
     override val numCaps: Int = 0
+    override val backtracking: Boolean = false
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[EmptyTuple, T], R], i: Int)(using Quotes): State[T, R] = {
       Item(c, next)
@@ -78,6 +84,7 @@ object ast {
 
   case class Cat[A <: Tuple: Type] private (regs: RList[A]) extends Reg[A](using regs.tag) {
     override val numCaps: Int = regs.numCaps
+    override val backtracking: Boolean = regs.backtracking
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[A, T], R], i: Int)(using Quotes): State[T, R] = {
       tag match {
@@ -98,6 +105,7 @@ object ast {
 
   case class CapEmpty(reg: Reg[EmptyTuple]) extends Reg[Tuple1[String]] {
     override val numCaps: Int = 1
+    override val backtracking: Boolean = reg.backtracking
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[String *: T, R], i: Int)(using Quotes): State[T, R] = {
       Begin(i, reg.cps(End(i, next), i + 1))
@@ -108,6 +116,7 @@ object ast {
 
   case class CapNonEmpty[A <: NonEmptyTuple: Type] private (reg: Reg[A]) extends Reg[Tuple2[String, TidyNonEmpty[A]]] {
     override val numCaps: Int = 1 + reg.numCaps
+    override val backtracking: Boolean = reg.backtracking
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[(String, TidyNonEmpty[A]), T], R], i: Int)(using Quotes): State[T, R] = {
       Begin(i, reg.cps(End(i, Output(Reduce((inner, cap) => CodeExpr('{ (${ cap.toExpr }, ${ inner.toExpr }) })), next)), i + 1))
@@ -125,6 +134,7 @@ object ast {
 
   case class Opt[A <: Tuple: Type] private (reg: Reg[A]) extends Reg[Tuple1[Option[Tidy[A]]]] {
     override val numCaps: Int = reg.numCaps
+    override val backtracking: Boolean = true
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[Option[Tidy[A]]], T], R], i: Int)(using Quotes): State[T, R] = {
       val someOp = op(reg.tag, x => '{ Some($x) }, next)
@@ -144,6 +154,7 @@ object ast {
 
   case class Alt[A <: Tuple: Type, B <: Tuple: Type] private (left: Reg[A], right: Reg[B]) extends Reg[Tuple1[Either[Tidy[A], Tidy[B]]]] {
     override val numCaps: Int = left.numCaps + right.numCaps
+    override val backtracking: Boolean = true
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[Either[Tidy[A], Tidy[B]]], T], R], i: Int)(using Quotes): State[T, R] = {
       val leftOp = op(left.tag, x => '{ Left($x) }, next)
@@ -163,19 +174,24 @@ object ast {
     }
   }
 
-  case class Rep0[A <: Tuple: Type] private (reg: Reg[A]) extends Reg[Tuple1[List[Tidy[A]]]] {
+  case class Rep0[A <: Tuple: {Type, TupleTag}] private (reg: Reg[A]) extends Reg[Tuple1[List[Tidy[A]]]] {
     override val numCaps: Int = reg.numCaps
+    override val backtracking: Boolean = true
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[List[Tidy[A]]], T], R], i: Int)(using Quotes): State[T, R] = {
-      val progress = Progress()
-      val joinPoint = JoinPoint[Tuple1[List[Tidy[A]]]]
-      val emptyConsOp: Op[List[Unit] *: T, List[Unit] *: T] = Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } }))
-      val nonEmptyConsOp: Op[Tidy[A] *: List[Tidy[A]] *: T, List[Tidy[A]] *: T] = Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } }))
-      val consOp: Op[TCons[A, List[Tidy[A]] *: T], List[Tidy[A]] *: T] = reg.tag match {
-        case EmptyTag      => emptyConsOp
-        case NonEmptyTag() => nonEmptyConsOp
+      if (reg.backtracking) {
+        val progress = Progress()
+        val joinPoint = JoinPoint[Tuple1[List[Tidy[A]]]]
+        val emptyConsOp: Op[List[Unit] *: T, List[Unit] *: T] = Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } }))
+        val nonEmptyConsOp: Op[Tidy[A] *: List[Tidy[A]] *: T, List[Tidy[A]] *: T] = Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } }))
+        val consOp: Op[TCons[A, List[Tidy[A]] *: T], List[Tidy[A]] *: T] = reg.tag match {
+          case EmptyTag      => emptyConsOp
+          case NonEmptyTag() => nonEmptyConsOp
+        }
+        MkJoin(joinPoint, Split(SaveProgress(progress, reg.cps(RequireProgress(progress, Output(consOp, Join(joinPoint))), i)), next), Output(Push(CodeExpr('{ Nil })), Join(joinPoint)))
+      } else {
+        Loop(reg.cps(Accept(), i), next)
       }
-      MkJoin(joinPoint, Split(SaveProgress(progress, reg.cps(RequireProgress(progress, Output(consOp, Join(joinPoint))), i)), next), Output(Push(CodeExpr('{ Nil })), Join(joinPoint)))
     }
 
     override def tpe(using Quotes): Type[Tuple1[List[Tidy[A]]]] = Type.of
@@ -184,6 +200,7 @@ object ast {
   object Rep0 {
     def apply[A <: Tuple](reg: Reg[A])(using Quotes): Rep0[A] = {
       given Type[A] = reg.tpe
+      given TupleTag[A] = reg.tag
       new Rep0(reg)
     }
   }
