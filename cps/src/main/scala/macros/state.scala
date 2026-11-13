@@ -10,6 +10,7 @@ import scala.quoted.{Expr, Quotes, Type}
 
 object state {
   type Res[R <: Tuple] = Option[Tidy[R]]
+  type Go[T <: Tuple, A] = (Tape[T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A]
   case class WithPos[A](res: A, pos: Int)
 
   sealed trait State[T <: Tuple, R <: Tuple] {
@@ -18,27 +19,26 @@ object state {
   }
 
   case class Accept[R <: Tuple: {TupleTag as tag, Type}]() extends State[TCons[R, EmptyTuple], R] {
-    override def go(tape: Tape[TCons[R, EmptyTuple]], pos: Pos)(using Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
+    private def goWith[A: Type](tape: Tape[TCons[R, EmptyTuple]], succeed: Expr[Tidy[R]] => Quotes ?=> Expr[A])(using Quotes): Expr[A] = {
       tag match {
-        case EmptyTag     => '{ Some(()) }
+        case EmptyTag      => succeed('{ () })
         case NonEmptyTag() => tape.toStack match {
-          case SCons(code, SNil) => '{ Some(${ code.toExpr }) }
+          case SCons(code, SNil) => succeed(code.toExpr)
         }
       }
     }
 
+    override def go(tape: Tape[TCons[R, EmptyTuple]], pos: Pos)(using Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
+      goWith(tape, expr => '{ Some($expr) })
+    }
+
     override def goPos(tape: Tape[TCons[R, EmptyTuple]], pos: Pos)(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
-      tag match {
-        case EmptyTag      => '{ WithPos(Some(()), ${ pos.toExpr }) }
-        case NonEmptyTag() => tape.toStack match {
-          case SCons(code, SNil) => '{ WithPos(Some(${ code.toExpr }), ${ pos.toExpr }) }
-        }
-      }
+      goWith(tape, expr => '{ WithPos(Some($expr), ${ pos.toExpr }) })
     }
   }
 
   case class Item[T <: Tuple, R <: Tuple: Type](c: Char, next: State[T, R]) extends State[T, R] {
-    private def goWith[A: Type](tape: Tape[T], pos: Pos, fail: Expr[A], continue: (Tape[T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, fail: Expr[A], continue: Go[T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
         if (${ pos.toExpr } < ${ ctx.s }.length && ${ ctx.s }.charAt(${ pos.toExpr }) == ${ Expr(c) }) {
           ${ continue(tape, pos + 1) }
@@ -56,7 +56,7 @@ object state {
   }
 
   case class Begin[T <: Tuple, R <: Tuple](n: Int, next: State[T, R]) extends State[T, R] {
-    private def goWith[A](tape: Tape[T], pos: Pos, continue: (Tape[T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+    private def goWith[A](tape: Tape[T], pos: Pos, continue: Go[T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       continue(tape, pos)(using ctx.withStart(n, pos))
     }
 
@@ -70,7 +70,7 @@ object state {
   }
 
   case class End[T <: Tuple, R <: Tuple](n: Int, next: State[String *: T, R]) extends State[T, R] {
-    private def goWith[A](tape: Tape[T], pos: Pos, continue: (Tape[String *: T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+    private def goWith[A](tape: Tape[T], pos: Pos, continue: Go[String *: T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       val cap = '{ ${ ctx.s }.substring(${ ctx.start(n).toExpr }, ${ pos.toExpr }) }
       continue(Cell(Push(CodeExpr(cap)), tape), pos)
     }
@@ -108,7 +108,7 @@ object state {
   }
 
   case class MkJoin[H <: Tuple: {TupleTag as tag, Type}, T <: Tuple, R <: Tuple: Type](joinPoint: JoinPoint[H], binder: State[TCons[H, T], R], receiver: State[T, R]) extends State[T, R] {
-    private def goWith[A: Type](tape: Tape[T], pos: Pos, goBinder: (Tape[TCons[H, T]], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A], goReceiver: (Tape[T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, goBinder: Go[TCons[H, T], A], goReceiver: Go[T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       def newCtx(qjoin: (Pos, Code[Tidy[H]]) => Quotes ?=> Expr[A]): Ctx[A] = {
         ctx.withBinding(joinPoint, qjoin)
       }
@@ -149,27 +149,31 @@ object state {
       }
     }
 
-    override def go(tape: Tape[TCons[H, T]], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
+    override def go(tape: Tape[TCons[H, T]], pos: Pos)(using Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
       goWith(tape, pos)
     }
 
-    override def goPos(tape: Tape[TCons[H, T]], pos: Pos)(using ctx: Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
+    override def goPos(tape: Tape[TCons[H, T]], pos: Pos)(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
       goWith(tape, pos)
     }
   }
 
   case class Eof[T <: Tuple, R <: Tuple: Type](next: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
-      '{ if ${ pos.toExpr } == ${ ctx.s }.length then ${ next.go(tape, pos) } else None }
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, goNext: Go[T, A], fail: Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+      '{ if ${ pos.toExpr } == ${ ctx.s }.length then ${ goNext(tape, pos) } else $fail }
     }
 
-    override def goPos(tape: Tape[T], pos: Pos)(using ctx: Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
-      '{ if ${ pos.toExpr } == ${ ctx.s }.length then ${ next.goPos(tape, pos) } else WithPos(None, -1) }
+    override def go(tape: Tape[T], pos: Pos)(using Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
+      goWith(tape, pos, next.go, '{ None })
+    }
+
+    override def goPos(tape: Tape[T], pos: Pos)(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
+      goWith(tape, pos, next.goPos, '{ WithPos(None, -1) })
     }
   }
 
   case class Loop[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
-    private def goWith[A: Type](tape: Tape[T], pos: Pos, isValid: Expr[A] => Quotes ?=> Expr[Boolean], goNext: (Tape[List[Tidy[H]] *: T], Pos) => Ctx[A] ?=> Quotes ?=> Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, isValid: Expr[A] => Quotes ?=> Expr[Boolean], goNext: Go[List[Tidy[H]] *: T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
         @tailrec
         def loop(pos: Int, elems: List[Tidy[H]], acc: List[WithPos[List[Tidy[H]]]]): A = {
@@ -198,36 +202,43 @@ object state {
       }
     }
 
-    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
+    override def go(tape: Tape[T], pos: Pos)(using Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
       goWith(tape, pos, expr => '{ $expr.isDefined }, next.go)
     }
 
-    override def goPos(tape: Tape[T], pos: Pos)(using ctx: Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
+    override def goPos(tape: Tape[T], pos: Pos)(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
       goWith(tape, pos, expr => '{ $expr.pos >= 0 }, next.goPos)
     }
   }
 
   case class SaveProgress[T <: Tuple, R <: Tuple: Type](progress: Progress, next: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Option[Tidy[R]]] = {
-      next.go(tape, pos)(using ctx.withProgress(progress, pos))
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, goNext: Go[T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+      goNext(tape, pos)(using ctx.withProgress(progress, pos))
     }
+
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Option[Tidy[R]]] = {
+      goWith(tape, pos, next.go)
+    }
+  
     override def goPos(tape: Tape[T], pos: Pos)(using ctx: Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Option[Tidy[R]]]] = {
-      next.goPos(tape, pos)(using ctx.withProgress(progress, pos))
+      goWith(tape, pos, next.goPos)
     }
   }
 
   case class RequireProgress[T <: Tuple, R <: Tuple: Type](progress: Progress, next: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Option[Tidy[R]]] = {
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, goNext: Go[T, A], fail: Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       val prev = ctx.progress(progress)
       '{
-        if ${ pos.toExpr } > ${ prev.toExpr } then ${ next.go(tape, pos) } else None
+        if ${ pos.toExpr } > ${ prev.toExpr } then ${ goNext(tape, pos) } else $fail
       }
     }
-    override def goPos(tape: Tape[T], pos: Pos)(using ctx: Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Option[Tidy[R]]]] = {
-      val prev = ctx.progress(progress)
-      '{
-        if ${ pos.toExpr } > ${ prev.toExpr } then ${ next.goPos(tape, pos) } else WithPos(None, -1)
-      }
+
+    override def go(tape: Tape[T], pos: Pos)(using Ctx[Res[R]])(using Quotes): Expr[Option[Tidy[R]]] = {
+      goWith(tape, pos, next.go, '{ None })
+    }
+
+    override def goPos(tape: Tape[T], pos: Pos)(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Option[Tidy[R]]]] = {
+      goWith(tape, pos, next.goPos, '{ WithPos(None, -1) })
     }
   }
 

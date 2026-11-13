@@ -2,7 +2,7 @@
   final class $anon() extends Regex[Tidy[Tuple1[List[Unit]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Unit]]]] = {
       @tailrec def loop(pos: Int, elems: [A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): Option[List[Unit]] = {
-        val withPos: WithPos[Option[Unit]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) WithPos.apply[Option[Unit]](Some.apply[Unit](()).$asInstanceOf$[Option[Unit]], pos.+(1)).$asInstanceOf$[WithPos[Option[Unit]]] else WithPos.apply[Option[Unit]](None, -1)
+        val withPos: WithPos[Option[Unit]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) WithPos.apply[Option[Unit]](Some.apply[Unit](()), pos.+(1)) else WithPos.apply[Option[Unit]](None, -1)
         withPos.res match {
           case None =>
             backtrack(acc)

@@ -1,6 +1,6 @@
 {
   final class $anon() extends Regex[Tidy[*:[String, *:[String, *:[String, EmptyTuple]]]]] {
-    override def unapply(s: String): Option[Tidy[*:[String, *:[String, *:[String, EmptyTuple]]]]] = if (0.<(s.length()).&&(s.charAt(0).==('a'))) if (1.<(s.length()).&&(s.charAt(1).==('b'))) if (2.<(s.length()).&&(s.charAt(2).==('c'))) if (3.==(s.length())) Some.apply[*:[String, *:[String, *:[String, EmptyTuple]]]](Tuple3.apply[String, String, String](s.substring(0, 1), s.substring(1, 2), s.substring(2, 3))) else None else None else None else None
+    override def unapply(s: String): Option[Tidy[*:[String, *:[String, *:[String, EmptyTuple]]]]] = if (0.<(s.length()).&&(s.charAt(0).==('a'))) if (1.<(s.length()).&&(s.charAt(1).==('b'))) if (2.<(s.length()).&&(s.charAt(2).==('c'))) if (3.==(s.length())) Some.apply[NonEmptyTuple & *:[String, *:[String, *:[String, EmptyTuple]]]](Tuple3.apply[String, String, String](s.substring(0, 1), s.substring(1, 2), s.substring(2, 3))) else None else None else None else None
   }
 
   (new $anon(): Regex[NonEmptyTuple & *:[String, *:[String, *:[String, EmptyTuple]]]])
