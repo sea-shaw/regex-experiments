@@ -1,14 +1,33 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Option[Unit]]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Option[Unit]]]]] = {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[List[Option[Unit]]]]): Option[List[Option[Unit]]] = {
-        def `join₂`(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Option[Unit]]]): Option[List[Option[Unit]]] = if (`pos₂`.>(pos)) join(`pos₂`, {
-          val elem$1: Option[Unit] = `res₂`
-          res.::[Option[Unit]](elem$1)
-        }) else None
-        if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) `join₂`(pos.+(1), Some.apply[Unit](())) else None.orElse[List[Option[Unit]]](`join₂`(pos, None))
-      }.orElse[List[Option[Unit]]](if (pos.==(s.length())) Some.apply[List[Option[Unit]]](res) else None)
-      join(0, Nil)
+      @tailrec def loop(next: [A >: Nothing <: Any] =>> List[A][Tuple2[WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]], Boolean]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Option[Unit]]]] = next match {
+        case Nil =>
+          backtrack(acc.reverse)
+        case ::(Tuple2(withPos, true), tail) =>
+          loop(tail, acc.::[WithPos[List[Option[Unit]]]](withPos))
+        case ::(Tuple2(wp @ WithPos(list, pos), false), tail) =>
+          val all: Chain[WithPos[List[Option[Unit]]]] = {
+            def join(pos: Int, res: TidyNonEmpty[Tuple1[Option[Unit]]]): Chain[WithPos[Option[Unit]]] = Chain.one[WithPos[Option[Unit]]](WithPos.apply[Option[Unit]](res, pos))
+            if (`pos₂`.<(s.length()).&&(s.charAt(`pos₂`).==('a'))) join(`pos₂`.+(1), Some.apply[Unit](())) else Chain.nil.++[WithPos[Option[Unit]]](join(`pos₂`, None))
+          }.collect[WithPos[List[Option[Unit]]]](((x$1: WithPos[Option[Unit]]) => x$1 match {
+            case WithPos(res, newPos) if newPos.>(`pos₂`) =>
+              WithPos.apply[List[Option[Unit]]](list.::[Option[Unit]](`res₂`), newPos)
+          }))
+          loop({
+            val prefix$1: Iterator[Tuple2[WithPos[List[Option[Unit]]], Boolean]] = all.iterator.map[Tuple2[WithPos[List[Option[Unit]]], Boolean]](((_$3: WithPos[List[Option[Unit]]]) => Tuple2.apply[WithPos[List[Option[Unit]]], Boolean](_$3, false)))
+            `tail₂`.::[Tuple2[WithPos[List[Option[Unit]]], Boolean]](Tuple2.apply[WithPos[List[Option[Unit]]], Boolean](wp, true)).++:[Tuple2[WithPos[List[Option[Unit]]], Boolean]](prefix$1)
+          }, acc)
+      }
+      @tailrec def backtrack(`acc₂`: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Option[Unit]]]] = `acc₂` match {
+        case Nil =>
+          None
+        case ::(WithPos(list, pos), tail) =>
+          val `res₃`: Option[List[Option[Unit]]] = continue(`pos₃`, `list₂`)
+          if (`res₃`.isDefined) `res₃` else backtrack(`tail₃`)
+      }
+      def continue(`pos₄`: Int, `list₃`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[Option[Unit]]]] = if (`pos₄`.==(s.length())) Some.apply[List[Option[Unit]]](`list₃`) else None
+      loop(List.apply[Tuple2[WithPos[List[Option[Unit]]], Boolean]](Tuple2.apply[WithPos[List[Option[Unit]]], Boolean](WithPos.apply[List[Option[Unit]]](Nil, 0), false)), Nil)
     }
   }
 

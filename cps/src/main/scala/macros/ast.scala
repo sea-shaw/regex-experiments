@@ -180,17 +180,18 @@ object ast {
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[List[Tidy[A]]], T], R], i: Int)(using Quotes): State[T, R] = {
       if (reg.backtracking) {
-        val progress = Progress()
-        val joinPoint = JoinPoint[Tuple1[List[Tidy[A]]]]
-        val emptyConsOp: Op[List[Unit] *: T, List[Unit] *: T] = Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } }))
-        val nonEmptyConsOp: Op[Tidy[A] *: List[Tidy[A]] *: T, List[Tidy[A]] *: T] = Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } }))
-        val consOp: Op[TCons[A, List[Tidy[A]] *: T], List[Tidy[A]] *: T] = reg.tag match {
-          case EmptyTag      => emptyConsOp
-          case NonEmptyTag() => nonEmptyConsOp
-        }
-        MkJoin(joinPoint, Split(SaveProgress(progress, reg.cps(RequireProgress(progress, Output(consOp, Join(joinPoint))), i)), next), Output(Push(CodeExpr('{ Nil })), Join(joinPoint)))
+        // val progress = Progress()
+        // val joinPoint = JoinPoint[Tuple1[List[Tidy[A]]]]
+        // val emptyConsOp: Op[List[Unit] *: T, List[Unit] *: T] = Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } }))
+        // val nonEmptyConsOp: Op[Tidy[A] *: List[Tidy[A]] *: T, List[Tidy[A]] *: T] = Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } }))
+        // val consOp: Op[TCons[A, List[Tidy[A]] *: T], List[Tidy[A]] *: T] = reg.tag match {
+        //   case EmptyTag      => emptyConsOp
+        //   case NonEmptyTag() => nonEmptyConsOp
+        // }
+        // MkJoin(joinPoint, Split(SaveProgress(progress, reg.cps(RequireProgress(progress, Output(consOp, Join(joinPoint))), i)), next), Output(Push(CodeExpr('{ Nil })), Join(joinPoint)))
+        LoopNested(reg.cps(Accept(), i), next)
       } else {
-        Loop(reg.cps(Accept(), i), next)
+        LoopFlat(reg.cps(Accept(), i), next)
       }
     }
 

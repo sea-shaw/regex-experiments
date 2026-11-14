@@ -1,33 +1,51 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]]] = {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]]): Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) {
-        @tailrec def loop(`pos₂`: Int, elems: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]]]): Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = {
-          val withPos: WithPos[Option[String]] = if (`pos₂`.<(s.length()).&&(s.charAt(`pos₂`).==('b'))) WithPos.apply[Option[String]](Some.apply[String](s.substring(`pos₂`, `pos₂`.+(1))), `pos₂`.+(1)) else WithPos.apply[Option[String]](None, -1)
-          withPos.res match {
-            case None =>
-              backtrack(acc)
-            case Some(elem) =>
-              if (withPos.pos.==(`pos₂`)) backtrack(acc) else {
-                val newElems: List[String] = elems.::[String](elem)
-                loop(withPos.pos, newElems, acc.::[WithPos[List[String]]](WithPos.apply[List[String]](newElems, withPos.pos)))
+      @tailrec def loop(next: [A >: Nothing <: Any] =>> List[A][Tuple2[WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple2[String, List[String]]]]], Boolean]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple2[String, List[String]]]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]] = next match {
+        case Nil =>
+          backtrack(acc.reverse)
+        case ::(Tuple2(withPos, true), tail) =>
+          loop(tail, acc.::[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]](withPos))
+        case ::(Tuple2(wp @ WithPos(list, pos), false), tail) =>
+          val all: Chain[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) {
+            @tailrec def `loop₂`(`pos₂`: Int, elems: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]], `acc₂`: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]]]): Chain[WithPos[Tidy[Tuple2[String, List[String]]]]] = {
+              val `withPos₂`: WithPos[Option[String]] = if (`pos₂`.<(s.length()).&&(s.charAt(`pos₂`).==('b'))) WithPos.apply[Option[String]](Some.apply[String](s.substring(`pos₂`, `pos₂`.+(1))), `pos₂`.+(1)) else WithPos.apply[Option[String]](None, -1)
+              `withPos₂`.res match {
+                case None =>
+                  `backtrack₂`(`acc₂`, Chain.nil)
+                case Some(elem) =>
+                  if (`withPos₂`.pos.==(`pos₂`)) `backtrack₂`(`acc₂`, Chain.nil) else {
+                    val newElems: List[String] = elems.::[String](elem)
+                    `loop₂`(`withPos₂`.pos, newElems, `acc₂`.::[WithPos[List[String]]](WithPos.apply[List[String]](newElems, `withPos₂`.pos)))
+                  }
               }
-          }
-        }
-        @tailrec def backtrack(lists: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]]]): Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = lists match {
-          case Nil =>
-            continue(pos.+(1), Nil)
-          case ::(WithPos(list, pos), tail) =>
-            val `res₂`: Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = continue(`pos₃`, list)
-            if (`res₂`.isDefined) `res₂` else backtrack(tail)
-        }
-        def continue(`pos₄`: Int, `list₂`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = if (`pos₄`.>(pos)) join(`pos₄`, {
-          val elem$1: NonEmptyTuple & Tuple2[String, List[String]] = Tuple2.apply[String, List[String]](s.substring(pos, `pos₄`), `list₂`)
-          res.::[NonEmptyTuple & Tuple2[String, List[String]]](elem$1)
-        }) else None
-        loop(pos.+(1), Nil, Nil)
-      } else None.orElse[List[NonEmptyTuple & Tuple2[String, List[String]]]](if (pos.==(s.length())) Some.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]](res) else None)
-      join(0, Nil)
+            }
+            @tailrec def `backtrack₂`(lists: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]]], `acc₃`: Chain[WithPos[Tidy[Tuple2[String, List[String]]]]]): Chain[WithPos[Tidy[Tuple2[String, List[String]]]]] = lists match {
+              case Nil =>
+                `acc₃`.++[WithPos[NonEmptyTuple & Tuple2[String, List[String]]]](continue(pos.+(1), Nil))
+              case ::(WithPos(list, pos), tail) =>
+                `backtrack₂`(`tail₂`, `acc₃`.++[WithPos[NonEmptyTuple & Tuple2[String, List[String]]]](continue(`pos₃`, list)))
+            }
+            def continue(`pos₄`: Int, `list₂`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): Chain[WithPos[Tidy[Tuple2[String, List[String]]]]] = Chain.one[WithPos[NonEmptyTuple & Tuple2[String, List[String]]]](WithPos.apply[NonEmptyTuple & Tuple2[String, List[String]]](Tuple2.apply[String, List[String]](s.substring(pos, `pos₄`), `list₂`), `pos₄`))
+            `loop₂`(pos.+(1), Nil, Nil)
+          } else Chain.nil.collect[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]](((x$1: WithPos[NonEmptyTuple & Tuple2[String, List[String]]]) => x$1 match {
+            case WithPos(res, newPos) if newPos.>(pos) =>
+              WithPos.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]](`list₃`.::[NonEmptyTuple & Tuple2[String, List[String]]](res), newPos)
+          }))
+          loop({
+            val prefix$1: Iterator[Tuple2[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean]] = all.iterator.map[Tuple2[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean]](((_$3: WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]) => Tuple2.apply[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean](_$3, false)))
+            `tail₃`.::[Tuple2[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean]](Tuple2.apply[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean](wp, true)).++:[Tuple2[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean]](prefix$1)
+          }, acc)
+      }
+      @tailrec def backtrack(`acc₄`: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple2[String, List[String]]]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]] = `acc₄` match {
+        case Nil =>
+          None
+        case ::(WithPos(list, pos), tail) =>
+          val `res₂`: Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = `continue₂`(`pos₅`, `list₄`)
+          if (`res₂`.isDefined) `res₂` else backtrack(`tail₄`)
+      }
+      def `continue₂`(`pos₆`: Int, `list₅`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple2[String, List[String]]]]): [R >: Nothing <: Tuple] =>> Option[Tidy[R]][Tuple1[List[NonEmptyTuple & Tuple2[String, List[String]]]]] = if (`pos₆`.==(s.length())) Some.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]](`list₅`) else None
+      loop(List.apply[Tuple2[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean]](Tuple2.apply[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean](WithPos.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]](Nil, 0), false)), Nil)
     }
   }
 

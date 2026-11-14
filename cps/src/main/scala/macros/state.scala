@@ -212,7 +212,7 @@ object state {
     }
   }
 
-  case class Loop[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
+  case class LoopFlat[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
     private def goWith[A: Type](tape: Tape[T], pos: Pos, isValid: Expr[A] => Quotes ?=> Expr[Boolean], goNext: Go[List[Tidy[H]] *: T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
         @tailrec
@@ -275,6 +275,42 @@ object state {
         loop(${ pos.toExpr }, Nil, Nil)
       }
     }
+  }
+
+  case class LoopNested[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
+    override def go(tape: Tape[T], pos: Pos)(using ctx: Ctx[Res[R]])(using Quotes): Expr[Option[Tidy[R]]] = {
+      '{
+        @tailrec
+        def loop(next: List[(WithPos[List[Tidy[H]]], Boolean)], acc: List[WithPos[List[Tidy[H]]]]): Res[R] = next match {
+          case Nil => backtrack(acc.reverse)
+          case (withPos, true) :: tail => {
+            loop(tail, withPos :: acc)
+          }
+          case (wp @ WithPos(list, pos), false) :: tail => {
+            val all = ${ elem.goAll(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) }.collect {
+              case WithPos(res, newPos) if newPos > pos => WithPos(res :: list, newPos)
+            }
+            loop(all.iterator.map((_, false)) ++: ((wp, true) :: tail), acc)
+          }
+        }
+
+        @tailrec
+        def backtrack(acc: List[WithPos[List[Tidy[H]]]]): Res[R] = acc match {
+          case Nil => None
+          case WithPos(list, pos) :: tail => {
+            val res = continue(pos, list)
+            if res.isDefined then res else backtrack(tail)
+          }
+        }
+
+        def continue(pos: Int, list: List[Tidy[H]]): Res[R] = ${ next.go(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
+
+        loop(List((WithPos(Nil, ${ pos.toExpr }), false)), Nil)
+      }
+    }
+
+    override def goPos(tape: Tape[T], pos: Pos)(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Option[Tidy[R]]]] = ???
+    override def goAll(tape: Tape[T], pos: Pos)(using Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = ???
   }
 
   case class SaveProgress[T <: Tuple, R <: Tuple: Type](progress: Progress, next: State[T, R]) extends State[T, R] {
