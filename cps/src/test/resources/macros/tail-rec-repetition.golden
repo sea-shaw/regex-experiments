@@ -13,7 +13,7 @@
             }
         }
       }
-      @tailrec def backtrack(`acc₂`: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): Option[List[Unit]] = `acc₂` match {
+      @tailrec def backtrack(lists: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): Option[List[Unit]] = lists match {
         case Nil =>
           continue(0, Nil)
         case ::(WithPos(list, pos), tail) =>
