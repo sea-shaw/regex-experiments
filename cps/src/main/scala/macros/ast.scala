@@ -1,6 +1,6 @@
 package experiments.cps.macros
 
-import experiments.cps.macros.context.{JoinPoint, Progress}
+import experiments.cps.macros.context.JoinPoint
 import experiments.cps.macros.stack.*
 import experiments.cps.macros.state.*
 import experiments.cps.macros.tape.*

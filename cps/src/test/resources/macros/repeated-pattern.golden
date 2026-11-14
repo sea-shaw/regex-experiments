@@ -15,13 +15,13 @@
       }
       @tailrec def backtrack(lists: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): Option[List[Unit]] = lists match {
         case Nil =>
-          continue(0, Nil)
+          None
         case ::(WithPos(list, pos), tail) =>
           val res: Option[List[Unit]] = continue(`pos₂`, list)
           if (res.isDefined) res else backtrack(tail)
       }
       def continue(`pos₃`: Int, `list₂`: [A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]): Option[List[Unit]] = if (`pos₃`.==(s.length())) Some.apply[List[Unit]](`list₂`) else None
-      loop(0, Nil, Nil)
+      loop(0, Nil, List.apply[WithPos[List[Unit]]](WithPos.apply[List[Unit]](Nil, 0)))
     }
   }
 
