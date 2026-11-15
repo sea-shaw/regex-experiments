@@ -231,12 +231,10 @@ object state {
         def backtrack(lists: List[WithPos[List[Tidy[H]]]]): A = lists match {
           case Nil => $fail
           case WithPos(list, pos) :: tail => {
-            val res = continue(pos, list)
+            val res = ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
             if ${ isValid('res) } then res else backtrack(tail)
           }
         }
-
-        def continue(pos: Int, list: List[Tidy[H]]): A = ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
 
         loop(${ pos.toExpr }, Nil, List(WithPos(Nil, ${ pos.toExpr })))
       }
@@ -267,10 +265,11 @@ object state {
         @tailrec
         def backtrack(lists: List[WithPos[List[Tidy[H]]]], acc: Chain[WithPos[Tidy[R]]]): Chain[WithPos[Tidy[R]]] = lists match {
           case Nil                        => acc
-          case WithPos(list, pos) :: tail => backtrack(tail, acc ++ continue(pos, list))
+          case WithPos(list, pos) :: tail => {
+            val results = ${ next.goAll(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
+            backtrack(tail, acc ++ results)
+          }
         }
-
-        def continue(pos: Int, list: List[Tidy[H]]): Chain[WithPos[Tidy[R]]] = ${ next.goAll(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
 
         loop(${ pos.toExpr }, Nil, List(WithPos(Nil, ${ pos.toExpr })))
       }

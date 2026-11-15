@@ -25,13 +25,13 @@
               case Nil =>
                 `acc₂`
               case ::(WithPos(list, pos), tail) =>
-                backtrack(`tail₂`, `acc₂`.++[WithPos[NonEmptyTuple & Tuple2[String, List[String]]]](continue(`pos₄`, `list₂`)))
+                val results: Chain[WithPos[NonEmptyTuple & Tuple2[String, List[String]]]] = Chain.one[WithPos[NonEmptyTuple & Tuple2[String, List[String]]]](WithPos.apply[NonEmptyTuple & Tuple2[String, List[String]]](Tuple2.apply[String, List[String]](s.substring(`pos₂`, `pos₄`), `list₂`), `pos₄`))
+                backtrack(`tail₂`, `acc₂`.++[WithPos[NonEmptyTuple & Tuple2[String, List[String]]]](results))
             }
-            def continue(`pos₅`: Int, `list₃`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): Chain[WithPos[Tidy[Tuple2[String, List[String]]]]] = Chain.one[WithPos[NonEmptyTuple & Tuple2[String, List[String]]]](WithPos.apply[NonEmptyTuple & Tuple2[String, List[String]]](Tuple2.apply[String, List[String]](s.substring(`pos₂`, `pos₅`), `list₃`), `pos₅`))
             `loop₂`(`pos₂`.+(1), Nil, List.apply[WithPos[List[String]]](WithPos.apply[List[String]](Nil, `pos₂`.+(1))))
           } else Chain.nil.collect[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]](((x$1: WithPos[NonEmptyTuple & Tuple2[String, List[String]]]) => x$1 match {
             case WithPos(res, newPos) if newPos.>(`pos₂`) =>
-              WithPos.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]](`list₄`.::[NonEmptyTuple & Tuple2[String, List[String]]](`res₂`), newPos)
+              WithPos.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]](`list₃`.::[NonEmptyTuple & Tuple2[String, List[String]]](`res₂`), newPos)
           }))
           loop({
             val prefix$1: Iterator[Tuple2[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean]] = all.iterator.map[Tuple2[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean]](((_$3: WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]) => Tuple2.apply[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]], Boolean](_$3, false)))

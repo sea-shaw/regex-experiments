@@ -17,10 +17,9 @@
         case Nil =>
           None
         case ::(WithPos(list, pos), tail) =>
-          val res: Option[List[String]] = continue(`pos₂`, list)
+          val res: Option[List[String]] = if (`pos₂`.==(s.length())) Some.apply[List[String]](list) else None
           if (res.isDefined) res else backtrack(tail)
       }
-      def continue(`pos₃`: Int, `list₂`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]): Option[List[String]] = if (`pos₃`.==(s.length())) Some.apply[List[String]](`list₂`) else None
       loop(0, Nil, List.apply[WithPos[List[String]]](WithPos.apply[List[String]](Nil, 0)))
     }
   }
