@@ -310,10 +310,10 @@ object state {
       '{
         @tailrec
         def loop(lists: List[(WithPos[List[Tidy[H]]], Boolean)], acc: Chain[WithPos[Tidy[R]]]): Chain[WithPos[Tidy[R]]] = lists match {
-          case Nil => Chain.nil
+          case Nil => acc
           case (WithPos(list, pos), true) :: tail => {
             val results = ${ next.goAll(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
-            loop(tail, results ++ acc)
+            loop(tail, acc ++ results)
           }
           case (withPos @ WithPos(list, pos), false) :: tail => {
             val all = ${ elem.goAll(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) }.collect {
@@ -367,7 +367,8 @@ object state {
     }
   }
 
-  extension [R <: Tuple] (state: State[EmptyTuple, R]) {
+  extension [R <: Tuple: Type] (state: State[EmptyTuple, R]) {
     def run(s: Expr[String])(using Quotes): Expr[Res[R]] = state.go(Empty, PosInt(0))(using Ctx.empty(s))
+    def runAll(s: Expr[String])(using Quotes): Expr[List[Tidy[R]]] = '{ ${ state.goAll(Empty, PosInt(0))(using Ctx.empty(s)) }.toList.map(_.res) }
   }
 }
