@@ -1,33 +1,26 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Option[Unit]]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Option[Unit]]]]] = {
-      @tailrec def loop(next: [A >: Nothing <: Any] =>> List[A][Tuple2[WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]], Boolean]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]]]): Option[List[Option[Unit]]] = next match {
+      @tailrec def loop(lists: [A >: Nothing <: Any] =>> List[A][Tuple2[WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]], Boolean]]): Option[List[Option[Unit]]] = lists match {
         case Nil =>
-          backtrack(acc.reverse)
-        case ::(Tuple2(withPos, true), tail) =>
-          loop(tail, acc.::[WithPos[List[Option[Unit]]]](withPos))
-        case ::(Tuple2(wp @ WithPos(list, pos), false), tail) =>
+          None
+        case ::(Tuple2(WithPos(list, pos), true), tail) =>
+          val res: Option[List[Option[Unit]]] = if (pos.==(s.length())) Some.apply[List[Option[Unit]]](list) else None
+          if (res.isDefined) res else loop(tail)
+        case ::(Tuple2(withPos @ WithPos(list, pos), false), tail) =>
           val all: Chain[WithPos[List[Option[Unit]]]] = {
-            def join(pos: Int, res: TidyNonEmpty[Tuple1[Option[Unit]]]): Chain[WithPos[Option[Unit]]] = Chain.one[WithPos[Option[Unit]]](WithPos.apply[Option[Unit]](res, pos))
-            if (`pos₂`.<(s.length()).&&(s.charAt(`pos₂`).==('a'))) join(`pos₂`.+(1), Some.apply[Unit](())) else Chain.nil.++[WithPos[Option[Unit]]](join(`pos₂`, None))
+            def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Option[Unit]]]): Chain[WithPos[Option[Unit]]] = Chain.one[WithPos[Option[Unit]]](WithPos.apply[Option[Unit]](`res₂`, `pos₂`))
+            if (`pos₃`.<(s.length()).&&(s.charAt(`pos₃`).==('a'))) join(`pos₃`.+(1), Some.apply[Unit](())) else Chain.nil.++[WithPos[Option[Unit]]](join(`pos₃`, None))
           }.collect[WithPos[List[Option[Unit]]]](((x$1: WithPos[Option[Unit]]) => x$1 match {
-            case WithPos(res, newPos) if newPos.>(`pos₂`) =>
-              WithPos.apply[List[Option[Unit]]](list.::[Option[Unit]](`res₂`), newPos)
+            case WithPos(res, newPos) if newPos.>(`pos₃`) =>
+              WithPos.apply[List[Option[Unit]]](`list₂`.::[Option[Unit]](`res₃`), newPos)
           }))
           loop({
             val prefix$1: Iterator[Tuple2[WithPos[List[Option[Unit]]], Boolean]] = all.iterator.map[Tuple2[WithPos[List[Option[Unit]]], Boolean]](((_$3: WithPos[List[Option[Unit]]]) => Tuple2.apply[WithPos[List[Option[Unit]]], Boolean](_$3, false)))
-            `tail₂`.::[Tuple2[WithPos[List[Option[Unit]]], Boolean]](Tuple2.apply[WithPos[List[Option[Unit]]], Boolean](wp, true)).++:[Tuple2[WithPos[List[Option[Unit]]], Boolean]](prefix$1)
-          }, acc)
+            `tail₂`.::[Tuple2[WithPos[List[Option[Unit]]], Boolean]](Tuple2.apply[WithPos[List[Option[Unit]]], Boolean](withPos, true)).++:[Tuple2[WithPos[List[Option[Unit]]], Boolean]](prefix$1)
+          })
       }
-      @tailrec def backtrack(lists: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]]]): Option[List[Option[Unit]]] = lists match {
-        case Nil =>
-          None
-        case ::(WithPos(list, pos), tail) =>
-          val `res₃`: Option[List[Option[Unit]]] = continue(`pos₃`, `list₂`)
-          if (`res₃`.isDefined) `res₃` else backtrack(`tail₃`)
-      }
-      def continue(`pos₄`: Int, `list₃`: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]]): Option[List[Option[Unit]]] = if (`pos₄`.==(s.length())) Some.apply[List[Option[Unit]]](`list₃`) else None
-      loop(List.apply[Tuple2[WithPos[List[Option[Unit]]], Boolean]](Tuple2.apply[WithPos[List[Option[Unit]]], Boolean](WithPos.apply[List[Option[Unit]]](Nil, 0), false)), Nil)
+      loop(List.apply[Tuple2[WithPos[List[Option[Unit]]], Boolean]](Tuple2.apply[WithPos[List[Option[Unit]]], Boolean](WithPos.apply[List[Option[Unit]]](Nil, 0), false)))
     }
   }
 
