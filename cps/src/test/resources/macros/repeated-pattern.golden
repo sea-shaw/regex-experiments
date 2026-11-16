@@ -17,8 +17,7 @@
         case Nil =>
           None
         case ::(WithPos(list, pos), tail) =>
-          val res: Option[List[Unit]] = if (`pos₂`.==(s.length())) Some.apply[List[Unit]](list) else None
-          if (res.isDefined) res else backtrack(tail)
+          if (`pos₂`.==(s.length())) Some.apply[List[Unit]](list) else backtrack(tail)
       }
       loop(0, Nil, List.apply[WithPos[List[Unit]]](WithPos.apply[List[Unit]](Nil, 0)))
     }
