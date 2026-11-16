@@ -1,6 +1,6 @@
 package experiments.cps.macros
 
-import experiments.cps.macros.context.JoinPoint
+import experiments.cps.macros.context.{JoinPoint, Progress}
 import experiments.cps.macros.stack.*
 import experiments.cps.macros.state.*
 import experiments.cps.macros.tape.*
@@ -174,22 +174,28 @@ object ast {
     }
   }
 
-  case class Rep0[A <: Tuple: {Type, TupleTag}] private (reg: Reg[A]) extends Reg[Tuple1[List[Tidy[A]]]] {
+  case class Rep0[A <: Tuple: {Type, TupleTag as tag}] private (reg: Reg[A]) extends Reg[Tuple1[List[Tidy[A]]]] {
     override val numCaps: Int = reg.numCaps
     override val backtracking: Boolean = true
 
     override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[Tuple1[List[Tidy[A]]], T], R], i: Int)(using Quotes): State[T, R] = {
+      // val progress = Progress()
+      // val joinPoint = JoinPoint[Tuple1[List[Tidy[A]]]]
+      // val emptyConsOp: Op[List[Unit] *: T, List[Unit] *: T] = Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } }))
+      // val nonEmptyConsOp: Op[Tidy[A] *: List[Tidy[A]] *: T, List[Tidy[A]] *: T] = Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } }))
+      // val consOp: Op[TCons[A, List[Tidy[A]] *: T], List[Tidy[A]] *: T] = reg.tag match {
+      //   case EmptyTag      => emptyConsOp
+      //   case NonEmptyTag() => nonEmptyConsOp
+      // }
+      // MkJoin(joinPoint, Split(SaveProgress(progress, reg.cps(RequireProgress(progress, Output(consOp, Join(joinPoint))), i)), next), Output(Push(CodeExpr('{ Nil })), Join(joinPoint)))
+
       if (reg.backtracking) {
-        // val progress = Progress()
-        // val joinPoint = JoinPoint[Tuple1[List[Tidy[A]]]]
-        // val emptyConsOp: Op[List[Unit] *: T, List[Unit] *: T] = Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } }))
-        // val nonEmptyConsOp: Op[Tidy[A] *: List[Tidy[A]] *: T, List[Tidy[A]] *: T] = Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } }))
-        // val consOp: Op[TCons[A, List[Tidy[A]] *: T], List[Tidy[A]] *: T] = reg.tag match {
-        //   case EmptyTag      => emptyConsOp
-        //   case NonEmptyTag() => nonEmptyConsOp
-        // }
-        // MkJoin(joinPoint, Split(SaveProgress(progress, reg.cps(RequireProgress(progress, Output(consOp, Join(joinPoint))), i)), next), Output(Push(CodeExpr('{ Nil })), Join(joinPoint)))
-        LoopNested(reg.cps(Accept(), i), next)
+        val progress = Progress()
+        val state: State[TCons[A, Tuple1[List[Tidy[A]]]], Tuple1[List[Tidy[A]]]] = tag match {
+          case EmptyTag      => Output(Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } })), Accept[Tuple1[List[Tidy[A]]]]())
+          case NonEmptyTag() => Output(Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } })), Accept[Tuple1[List[Tidy[A]]]]())
+        }
+        LoopNested(SaveProgress(progress, reg.cps(RequireProgress(progress, state), i)), next)
       } else {
         LoopFlat(reg.cps(Accept(), i), next)
       }

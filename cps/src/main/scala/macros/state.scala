@@ -276,7 +276,7 @@ object state {
     }
   }
 
-  case class LoopNested[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
+  case class LoopNested[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[Tuple1[List[Tidy[H]]], Tuple1[List[Tidy[H]]]], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
     private def goWith[A: Type](tape: Tape[T], pos: Pos, goNext: Go[List[Tidy[H]] *: T, A], fail: Expr[A], isValid: Expr[A] => Quotes ?=> Expr[Boolean])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
         @tailrec
@@ -287,9 +287,7 @@ object state {
             if ${ isValid('res) } then res else loop(tail)
           }
           case (withPos @ WithPos(list, pos), false) :: tail => {
-            val all = ${ elem.goAll(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) }.collect {
-              case WithPos(res, newPos) if newPos > pos => WithPos(res :: list, newPos)
-            }
+            val all = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos))(using Ctx.empty(ctx.s)) }
             loop(all.iterator.map((_, false)) ++: ((withPos, true) :: tail))
           }
         }
@@ -316,9 +314,7 @@ object state {
             loop(tail, acc ++ results)
           }
           case (withPos @ WithPos(list, pos), false) :: tail => {
-            val all = ${ elem.goAll(Empty, PosExpr('pos))(using Ctx.empty(ctx.s)) }.collect {
-              case WithPos(res, newPos) if newPos > pos => WithPos(res :: list, newPos)
-            }
+            val all = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos))(using Ctx.empty(ctx.s)) }
             loop(all.iterator.map((_, false)) ++: ((withPos, true) :: tail), acc)
           }
         }
