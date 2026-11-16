@@ -1,9 +1,9 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[Option[String]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[Option[String]]]] = {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[Option[String]]]): Option[Option[String]] = if (pos.==(s.length())) Some.apply[Option[String]](res) else None
-      def alt: Option[Option[String]] = join(0, None)
-      if (0.<(s.length()).&&(s.charAt(0).==('a'))) join(1, Some.apply[String](s.substring(0, 1))) else alt
+      def join(pos: Int, res: TidyNonEmpty[Tuple1[Option[String]]], fail: Option[Option[String]]): Option[Option[String]] = if (pos.==(s.length())) Some.apply[Option[String]](res) else fail
+      def alt: Option[Option[String]] = join(0, None, None)
+      if (0.<(s.length()).&&(s.charAt(0).==('a'))) join(1, Some.apply[String](s.substring(0, 1)), alt) else alt
     }
   }
 

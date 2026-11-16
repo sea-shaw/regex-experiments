@@ -24,10 +24,13 @@
               case Nil =>
                 `acc₂`
               case ::(WithPos(list, pos), tail) =>
-                backtrack(`tail₂`, `acc₂`.++[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]](if (`pos₄`.>(`pos₂`)) Chain.one[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]](WithPos.apply[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]](Tuple2.apply[List[Tuple2[String, List[String]]], Boolean]({
-                  val elem$1: Tuple2[String, List[String]] = Tuple2.apply[String, List[String]](s.substring(`pos₂`, `pos₄`), `list₂`)
-                  `list₃`.::[Tuple2[String, List[String]]](elem$1)
-                }, false), `pos₄`)) else Chain.nil))
+                backtrack(`tail₂`, `acc₂`.++[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]](if (`pos₄`.>(`pos₂`)) {
+                  val a$1: WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]] = WithPos.apply[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]](Tuple2.apply[List[Tuple2[String, List[String]]], Boolean]({
+                    val elem$1: Tuple2[String, List[String]] = Tuple2.apply[String, List[String]](s.substring(`pos₂`, `pos₄`), `list₂`)
+                    `list₃`.::[Tuple2[String, List[String]]](elem$1)
+                  }, false), `pos₄`)
+                  Chain.nil.+:[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]](a$1)
+                } else Chain.nil))
             }
             `loop₂`(`pos₂`.+(1), Nil, List.apply[WithPos[Nil]](WithPos.apply[Nil.type](Nil, `pos₂`.+(1))))
           } else Chain.nil

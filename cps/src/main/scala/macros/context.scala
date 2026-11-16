@@ -7,7 +7,7 @@ import scala.quoted.{Expr, Quotes}
 
 object context {
   final class JoinPoint[A <: Tuple]
-  type QJoin[A <: Tuple, R] = (Pos, Code[Tidy[A]]) => Quotes ?=> Expr[R]
+  type QJoin[A <: Tuple, R] = (Pos, Code[Tidy[A]], Expr[R]) => Quotes ?=> Expr[R]
   private case class Binding[A <: Tuple, R](qjoin: QJoin[A, R])
 
   class Progress

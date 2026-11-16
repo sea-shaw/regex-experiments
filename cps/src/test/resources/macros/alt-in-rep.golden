@@ -1,0 +1,35 @@
+{
+  final class $anon() extends Regex[Tidy[*:[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], EmptyTuple]]] {
+    override def unapply(s: String): Option[Tidy[*:[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], EmptyTuple]]] = {
+      @tailrec def loop(lists: [A >: Nothing <: Any] =>> List[A][WithPos[Tuple2[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple2[String, Either[Unit, Either[Unit, Unit]]]]], Boolean]]]): Option[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]]] = lists match {
+        case Nil =>
+          None
+        case ::(WithPos(Tuple2(list, true), pos), tail) =>
+          if (pos.<(s.length()).&&(s.charAt(pos).==('b'))) if (pos.+(1).==(s.length())) Some.apply[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]]](list) else loop(tail) else loop(tail)
+        case ::(WithPos(Tuple2(list, false), pos), tail) =>
+          val all: Chain[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = {
+            def join(`pos₂`: Int, res: TidyNonEmpty[Tuple1[Either[Unit, Either[Unit, Unit]]]], fail: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = if (`pos₂`.>(`pos₃`)) {
+              val a$1: WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]] = WithPos.apply[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]](Tuple2.apply[List[Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]({
+                val elem$1: Tuple2[String, Either[Unit, Either[Unit, Unit]]] = Tuple2.apply[String, Either[Unit, Either[Unit, Unit]]](s.substring(`pos₃`, `pos₂`), res)
+                `list₂`.::[Tuple2[String, Either[Unit, Either[Unit, Unit]]]](elem$1)
+              }, false), `pos₂`)
+              fail.+:[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]](a$1)
+            } else fail
+            def alt: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = {
+              def `join₂`(`pos₄`: Int, `res₂`: TidyNonEmpty[Tuple1[Either[Unit, Unit]]], `fail₂`: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = join(`pos₄`, Right.apply[Nothing, Either[Unit, Unit]](`res₂`), `fail₂`)
+              def `alt₂`: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = if (`pos₃`.<(s.length()).&&(s.charAt(`pos₃`).==('b'))) `join₂`(`pos₃`.+(1), Right.apply[Nothing, Unit](()), Chain.nil) else Chain.nil
+              if (`pos₃`.<(s.length()).&&(s.charAt(`pos₃`).==('a'))) `join₂`(`pos₃`.+(1), Left.apply[Unit, Nothing](()), `alt₂`) else `alt₂`
+            }
+            if (`pos₃`.<(s.length()).&&(s.charAt(`pos₃`).==('a'))) if (`pos₃`.+(1).<(s.length()).&&(s.charAt(`pos₃`.+(1)).==('b'))) join(`pos₃`.+(2), Left.apply[Unit, Nothing](()), alt) else alt else alt
+          }
+          loop({
+            val prefix$1: Iterator[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = all.iterator
+            `tail₂`.::[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]](WithPos.apply[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]](Tuple2.apply[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean](`list₂`, true), `pos₃`)).++:[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]](prefix$1)
+          })
+      }
+      loop(List.apply[WithPos[Tuple2[Nil, Boolean]]](WithPos.apply[Tuple2[Nil, Boolean]](Tuple2.apply[Nil.type, Boolean](Nil, false), 0)))
+    }
+  }
+
+  (new $anon(): Regex[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]]])
+}

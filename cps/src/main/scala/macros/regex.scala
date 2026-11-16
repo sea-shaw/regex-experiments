@@ -8,6 +8,7 @@ import scala.quoted.{Expr, Quotes, Type, quotes}
 object regex {
   sealed trait Regex[A] {
     def unapply(s: String): Option[A]
+    // def all(s: String): List[A]
   }
 
   extension (inline sc: StringContext) {
@@ -33,6 +34,7 @@ object regex {
     '{
       new Regex[Tidy[A]] {
         override def unapply(s: String): Option[Tidy[A]] = ${ state.run('s) }
+        // override def all(s: String): List[Tidy[A]] = ${ state.runAll('s) }
       }
     }
   }
