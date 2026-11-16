@@ -13,7 +13,7 @@
               case Nil =>
                 acc
               case ::(Tuple2(WithPos(list, pos), true), tail) =>
-                val results: Chain[WithPos[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]]] = if (`pos₃`.>(`pos₂`)) Chain.one[WithPos[List[Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]]](WithPos.apply[List[Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]]({
+                val results: Chain[WithPos[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]]] = if (`pos₃`.>(`pos₂`)) Chain.one[WithPos[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]]](WithPos.apply[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]]({
                   val elem$1: Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]] = Tuple2.apply[String, List[NonEmptyTuple & Tuple2[String, List[String]]]](s.substring(`pos₂`, `pos₃`), `list₂`)
                   `list₃`.::[Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]](elem$1)
                 }, `pos₃`)) else Chain.nil
@@ -36,7 +36,7 @@
                     case Nil =>
                       `acc₃`
                     case ::(WithPos(list, pos), tail) =>
-                      val `results₂`: Chain[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]] = if (`pos₆`.>(`pos₄`)) Chain.one[WithPos[List[Tuple2[String, List[String]]]]](WithPos.apply[List[Tuple2[String, List[String]]]]({
+                      val `results₂`: Chain[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]] = if (`pos₆`.>(`pos₄`)) Chain.one[WithPos[List[NonEmptyTuple & Tuple2[String, List[String]]]]](WithPos.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]]({
                         val `elem$1₂`: Tuple2[String, List[String]] = Tuple2.apply[String, List[String]](s.substring(`pos₄`, `pos₆`), `list₄`)
                         `list₅`.::[Tuple2[String, List[String]]](`elem$1₂`)
                       }, `pos₆`)) else Chain.nil
