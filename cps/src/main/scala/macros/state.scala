@@ -12,7 +12,7 @@ import scala.quoted.{Expr, Quotes, Type}
 object state {
   type Res[R <: Tuple] = Option[Tidy[R]]
   type Go[T <: Tuple, A] = (Tape[T], Pos, Expr[A]) => Ctx[A] ?=> Quotes ?=> Expr[A]
-  case class WithPos[A](res: A, pos: Int)
+  case class WithPos[+A](res: A, pos: Int)
 
   sealed trait State[T <: Tuple, R <: Tuple] {
     def go(tape: Tape[T], pos: Pos, fail: Expr[Res[R]])(using Ctx[Res[R]])(using Quotes): Expr[Res[R]]
@@ -280,20 +280,20 @@ object state {
     }
   }
 
-  case class LoopNested[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[Tuple1[List[Tidy[H]]], Tuple1[List[Tidy[H]]]], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
+  case class LoopNested[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[Tuple1[List[Tidy[H]]], Tuple2[List[Tidy[H]], Boolean]], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
     private def goWith[A: Type](tape: Tape[T], pos: Pos, goNext: Go[List[Tidy[H]] *: T, A], fail: Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
         @tailrec
-        def loop(lists: List[(WithPos[List[Tidy[H]]], Boolean)]): A = lists match {
+        def loop(lists: List[WithPos[(List[Tidy[H]], Boolean)]]): A = lists match {
           case Nil => $fail
-          case (WithPos(list, pos), true) :: tail => ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), '{ loop(tail) }) }
-          case (withPos @ WithPos(list, pos), false) :: tail => {
+          case WithPos((list, true), pos) :: tail => ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), '{ loop(tail) }) }
+          case WithPos((list, false), pos) :: tail => {
             val all = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos))(using Ctx.empty(ctx.s)) }
-            loop(all.iterator.map((_, false)) ++: ((withPos, true) :: tail))
+            loop(all.iterator ++: (WithPos((list, true), pos) :: tail))
           }
         }
 
-        loop(List((WithPos(Nil, ${ pos.toExpr }), false)))
+        loop(List(WithPos((Nil, false), ${ pos.toExpr })))
       }
     }
 
@@ -308,19 +308,19 @@ object state {
     override def goAll(tape: Tape[T], pos: Pos)(using ctx: Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
       '{
         @tailrec
-        def loop(lists: List[(WithPos[List[Tidy[H]]], Boolean)], acc: Chain[WithPos[Tidy[R]]]): Chain[WithPos[Tidy[R]]] = lists match {
+        def loop(lists: List[WithPos[(List[Tidy[H]], Boolean)]], acc: Chain[WithPos[Tidy[R]]]): Chain[WithPos[Tidy[R]]] = lists match {
           case Nil => acc
-          case (WithPos(list, pos), true) :: tail => {
+          case WithPos((list, true), pos) :: tail => {
             val results = ${ next.goAll(Cell(Push(CodeExpr('list)), tape), PosExpr('pos)) }
             loop(tail, acc ++ results)
           }
-          case (withPos @ WithPos(list, pos), false) :: tail => {
+          case WithPos((list, false), pos) :: tail => {
             val all = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos))(using Ctx.empty(ctx.s)) }
-            loop(all.iterator.map((_, false)) ++: ((withPos, true) :: tail), acc)
+            loop(all.iterator ++: (WithPos((list, true), pos) :: tail), acc)
           }
         }
 
-        loop(List((WithPos(Nil, ${ pos.toExpr }), false)), Chain.nil)
+        loop(List(WithPos((Nil, false), ${ pos.toExpr })), Chain.nil)
       }
     }
   }

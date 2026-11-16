@@ -191,9 +191,9 @@ object ast {
 
       if (reg.backtracking) {
         val progress = Progress()
-        val state: State[TCons[A, Tuple1[List[Tidy[A]]]], Tuple1[List[Tidy[A]]]] = tag match {
-          case EmptyTag      => Output(Apply(tail => CodeExpr('{ () :: ${ tail.toExpr } })), Accept[Tuple1[List[Tidy[A]]]]())
-          case NonEmptyTag() => Output(Reduce((tail, head) => CodeExpr('{ ${ head.toExpr } :: ${ tail.toExpr } })), Accept[Tuple1[List[Tidy[A]]]]())
+        val state: State[TCons[A, Tuple1[List[Tidy[A]]]], Tuple2[List[Tidy[A]], Boolean]] = tag match {
+          case EmptyTag      => Output(Apply(tail => CodeExpr('{ (() :: ${ tail.toExpr }, false) })), Accept[Tuple2[List[Tidy[A]], Boolean]]())
+          case NonEmptyTag() => Output(Reduce((tail, head) => CodeExpr('{ (${ head.toExpr } :: ${ tail.toExpr }, false) })), Accept[Tuple2[List[Tidy[A]], Boolean]]())
         }
         LoopNested(SaveProgress(progress, reg.cps(RequireProgress(progress, state), i)), next)
       } else {
@@ -216,4 +216,6 @@ object ast {
     case EmptyTag      => Push(CodeExpr(f('{ () })))
     case NonEmptyTag() => Apply(expr => CodeExpr(f(expr.toExpr)))
   }
+
+  private inline def fls: false = false
 }
