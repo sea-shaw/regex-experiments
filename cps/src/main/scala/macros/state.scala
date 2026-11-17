@@ -363,6 +363,24 @@ object state {
     }
   }
 
+  case class RestoreProgress[T <: Tuple, R <: Tuple: Type](progress: Progress, next: State[T, R]) extends State[T, R] {
+    private def goWith[A: Type](tape: Tape[T], fail: Expr[A], goNext: Go[T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+      goNext(tape, ctx.progress(progress), fail)
+    }
+
+    override def go(tape: Tape[T], pos: Pos, fail: Expr[Option[Tidy[R]]])(using Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
+      goWith(tape, fail, next.go)
+    }
+
+    override def goPos(tape: Tape[T], pos: Pos, fail: Expr[Option[WithPos[Tidy[R]]]])(using Ctx[Option[WithPos[Tidy[R]]]])(using Quotes): Expr[Option[WithPos[Tidy[R]]]] = {
+      goWith(tape, fail, next.goPos)
+    }
+
+    override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
+      goWith(tape, fail, next.goAll)
+    }
+  }
+
   extension [R <: Tuple: Type] (state: State[EmptyTuple, R]) {
     def run(s: Expr[String])(using Quotes): Expr[Option[Tidy[R]]] = state.go(Empty, PosInt(0), '{ None })(using Ctx.empty(s))
     def runAll(s: Expr[String])(using Quotes): Expr[List[Tidy[R]]] = '{ ${ state.goAll(Empty, PosInt(0), '{ Chain.nil })(using Ctx.empty(s)) }.toList.map(_.res) }

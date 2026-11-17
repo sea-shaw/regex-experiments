@@ -211,10 +211,28 @@ object ast {
     }
   }
 
+  case class Lookahead[A <: Tuple: {TupleTag, Type}] private (reg: Reg[A]) extends Reg[A] {
+    override val numCaps: Int = reg.numCaps
+    override val backtracking: Boolean = reg.backtracking
+
+    override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[A, T], R], i: Int)(using Quotes): State[T, R] = {
+      val progress = Progress()
+      SaveProgress(progress, reg.cps(RestoreProgress(progress, next), i))
+    }
+
+    override def tpe(using Quotes): Type[A] = Type.of
+  }
+
+  object Lookahead {
+    def apply[A <: Tuple](reg: Reg[A])(using Quotes) = {
+      given Type[A] = reg.tpe
+      given TupleTag[A] = reg.tag
+      new Lookahead(reg)
+    }
+  }
+
   private def op[A <: Tuple, B: Type, T <: Tuple](tag: TupleTag[A], f: Expr[Tidy[A]] => Quotes ?=> Expr[B], @unused next: State[B *: T, ?])(using Quotes): Op[TCons[A, T], B *: T] = tag match {
     case EmptyTag      => Push(CodeExpr(f('{ () })))
     case NonEmptyTag() => Apply(expr => CodeExpr(f(expr.toExpr)))
   }
-
-  private inline def fls: false = false
 }

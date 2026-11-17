@@ -74,4 +74,8 @@ class GoldenTests extends AnyFlatSpec with GoldenMatchers {
   it should "match alternation inside repetition" in {
     code(r"(ab|a|b)*b") should matchGolden(s"$dir/alt-in-rep.golden")
   }
+
+  it should "match positive lookahead" in {
+    code(r"(?=a)(a|b)") should matchGolden(s"$dir/positive-lookahead.golden")
+  }
 }

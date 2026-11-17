@@ -15,7 +15,9 @@ object parser {
   private lazy val regex = expr <~ eof
   private lazy val expr: Parsley[ToReg] = chain.right1(term)(Alt from '|')
   private lazy val term = Cat(many(atom))
-  private lazy val atom: Parsley[ToReg] = quantifiable <~> option(postfixOps) map {
+  private lazy val atom = lookaround | quantified 
+
+  private lazy val quantified: Parsley[ToReg] = quantifiable <~> option(postfixOps) map {
     case (reg, None)     => reg
     case (reg, Some(op)) => op(reg)
   }
@@ -24,6 +26,9 @@ object parser {
   private lazy val capture = Cap('(' ~> expr <~ ')')
   private lazy val lit = Lit(noneOf(keyChars))
   private lazy val postfixOps = (Opt from '?') | (Rep0 from '*')
+
+  private lazy val lookaround = positiveLookahead
+  private lazy val positiveLookahead = Lookahead(atomic("(?=") ~> expr <~ ')')
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 }

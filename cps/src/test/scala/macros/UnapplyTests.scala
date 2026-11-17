@@ -24,6 +24,7 @@ class UnapplyTests extends AnyFlatSpec {
   val `(?:a?)*` = r"(?:a?)*"
   val `a*a` = r"a*a"
   val `(?:ab|a)*b` = r"(?:ab|a)*b"
+  val `(?=a)(?:a|b)` = r"(?=a)(?:a|b)" 
 
   it should "match characters" in {
     `a`.unapply("a") shouldBe Some(())
@@ -115,5 +116,10 @@ class UnapplyTests extends AnyFlatSpec {
 
   it should "backtrack loops with nested backtracking" in {
     `(?:ab|a)*b`.unapply("ab") shouldBe Some(List(Right(())))
+  }
+
+  it should "match positive lookaheads" in {
+    `(?=a)(?:a|b)`.unapply("a") shouldBe Some(Left(()))
+    `(?=a)(?:a|b)`.unapply("b") shouldBe None
   }
 }
