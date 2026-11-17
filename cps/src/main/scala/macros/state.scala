@@ -60,11 +60,7 @@ object state {
     }
 
     override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using ctx: Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
-      '{
-        if (${ pos.toExpr } < ${ ctx.s }.length && ${ ctx.s }.charAt(${ pos.toExpr }) == ${ Expr(c) }) {
-          ${ next.goAll(tape, pos + 1, fail) }
-        } else $fail
-      }
+      goWith(tape, pos, fail, next.goAll)
     }
   }
 
@@ -82,7 +78,7 @@ object state {
     }
 
     override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using ctx: Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
-      next.goAll(tape, pos, fail)(using ctx.withStart(n, pos))
+      goWith(tape, pos, fail, next.goAll)
     }
   }
 
@@ -106,39 +102,41 @@ object state {
   }
 
   case class Split[T <: Tuple, R <: Tuple: Type](left: State[T, R], right: State[T, R]) extends State[T, R] {
-    override def go(tape: Tape[T], pos: Pos, fail: Expr[Option[Tidy[R]]])(using Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, fail: Expr[A], goLeft: Go[T, A], goRight: Go[T, A])(using Ctx[A])(using Quotes): Expr[A] = {
       '{
-        def alt = ${ right.go(tape, pos, fail) }
-        ${ left.go(tape, pos, 'alt) }
+        def alt = ${ goRight(tape, pos, fail) }
+        ${ goLeft(tape, pos, 'alt) }
       }
+    }
+
+    override def go(tape: Tape[T], pos: Pos, fail: Expr[Option[Tidy[R]]])(using Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
+      goWith(tape, pos, fail, left.go, right.go)
     }
 
     override def goPos(tape: Tape[T], pos: Pos, fail: Expr[Option[WithPos[Tidy[R]]]])(using Ctx[Option[WithPos[Tidy[R]]]])(using Quotes): Expr[Option[WithPos[Tidy[R]]]] = {
-      '{
-        def alt = ${ right.goPos(tape, pos, fail) }
-        ${ left.goPos(tape, pos, 'alt) }
-      }
+      goWith(tape, pos, fail, left.goPos, right.goPos)
     }
 
     override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
-      '{
-        def alt = ${ right.goAll(tape, pos, fail) }
-        ${ left.goAll(tape, pos, 'alt) }
-      }
+      goWith(tape, pos, fail, left.goAll, right.goAll)
     }
   }
 
   case class Output[Ins <: Tuple, Outs <: Tuple, R <: Tuple](op: Op[Ins, Outs], next: State[Outs, R]) extends State[Ins, R] {
+    private def goWith[A](tape: Tape[Ins], pos: Pos, fail: Expr[A], goNext: Go[Outs, A])(using Ctx[A])(using Quotes): Expr[A] = {
+      goNext(Cell(op, tape), pos, fail)
+    }
+
     override def go(tape: Tape[Ins], pos: Pos, fail: Expr[Option[Tidy[R]]])(using Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
-      next.go(Cell(op, tape), pos, fail)
+      goWith(tape, pos, fail, next.go)
     }
 
     override def goPos(tape: Tape[Ins], pos: Pos, fail: Expr[Option[WithPos[Tidy[R]]]])(using Ctx[Option[WithPos[Tidy[R]]]])(using Quotes): Expr[Option[WithPos[Tidy[R]]]] = {
-      next.goPos(Cell(op, tape), pos, fail)
+      goWith(tape, pos, fail, next.goPos)
     }
 
     override def goAll(tape: Tape[Ins], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
-      next.goAll(Cell(op, tape), pos, fail)
+      goWith(tape, pos, fail, next.goAll)
     }
   }
 
@@ -214,8 +212,8 @@ object state {
       goWith(tape, pos, fail, next.goPos)
     }
 
-    override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using ctx: Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
-      '{ if ${ pos.toExpr } == ${ ctx.s }.length then ${ next.goAll(tape, pos, fail) } else $fail }
+    override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
+      goWith(tape, pos, fail, next.goAll)
     }
   }
 
@@ -333,16 +331,16 @@ object state {
       goNext(tape, pos, fail)(using ctx.withProgress(progress, pos))
     }
 
-    override def go(tape: Tape[T], pos: Pos, fail: Expr[Option[Tidy[R]]])(using ctx: Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
+    override def go(tape: Tape[T], pos: Pos, fail: Expr[Option[Tidy[R]]])(using Ctx[Option[Tidy[R]]])(using Quotes): Expr[Option[Tidy[R]]] = {
       goWith(tape, pos, fail, next.go)
     }
   
-    override def goPos(tape: Tape[T], pos: Pos, fail: Expr[Option[WithPos[Tidy[R]]]])(using ctx: Ctx[Option[WithPos[Tidy[R]]]])(using Quotes): Expr[Option[WithPos[Tidy[R]]]] = {
+    override def goPos(tape: Tape[T], pos: Pos, fail: Expr[Option[WithPos[Tidy[R]]]])(using Ctx[Option[WithPos[Tidy[R]]]])(using Quotes): Expr[Option[WithPos[Tidy[R]]]] = {
       goWith(tape, pos, fail, next.goPos)
     }
 
-    override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using ctx: Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
-      next.goAll(tape, pos, fail)(using ctx.withProgress(progress, pos))
+    override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
+      goWith(tape, pos, fail, next.goAll)
     }
   }
 
@@ -362,11 +360,8 @@ object state {
       goWith(tape, pos, fail, next.goPos)
     }
 
-    override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using ctx: Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
-      val prev = ctx.progress(progress)
-      '{
-        if ${ pos.toExpr } > ${ prev.toExpr } then ${ next.goAll(tape, pos, fail) } else $fail
-      }
+    override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
+      goWith(tape, pos, fail, next.goAll)
     }
   }
 
