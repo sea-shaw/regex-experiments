@@ -221,7 +221,7 @@ object state {
   }
 
   case class LoopFlat[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[EmptyTuple, H], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
-    private def goWith[A: Type](tape: Tape[T], pos: Pos, fail: Expr[A], goNext: Go[List[Tidy[H]] *: T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, fail: Expr[A], isValid: Expr[A] => Quotes ?=> Expr[Boolean], goNext: Go[List[Tidy[H]] *: T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
         @tailrec
         def loop(pos: Int, elems: List[Tidy[H]], acc: List[WithPos[List[Tidy[H]]]]): A = {
@@ -238,7 +238,11 @@ object state {
         @tailrec
         def backtrack(lists: List[WithPos[List[Tidy[H]]]]): A = lists match {
           case Nil                        => $fail
-          case WithPos(list, pos) :: tail => ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), '{ backtrack(tail) }) }
+          // TODO: This isn't always tail recursive (e.g. if there is a join)
+          case WithPos(list, pos) :: tail => {
+            val res = ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), fail) }
+            if ${ isValid('res) } then res else backtrack(tail)
+          }
         }
 
         loop(${ pos.toExpr }, Nil, List(WithPos(Nil, ${ pos.toExpr })))
@@ -246,11 +250,11 @@ object state {
     }
 
     override def go(tape: Tape[T], pos: Pos, fail: Expr[Res[R]])(using Ctx[Res[R]])(using Quotes): Expr[Res[R]] = {
-      goWith(tape, pos, fail, next.go)
+      goWith(tape, pos, fail, expr => '{ $expr.isDefined }, next.go)
     }
 
     override def goPos(tape: Tape[T], pos: Pos, fail: Expr[WithPos[Res[R]]])(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Res[R]]] = {
-      goWith(tape, pos, fail, next.goPos)
+      goWith(tape, pos, fail, expr => '{ $expr.pos >= 0 }, next.goPos)
     }
 
     override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using ctx: Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {
@@ -281,12 +285,16 @@ object state {
   }
 
   case class LoopNested[H <: Tuple: Type, T <: Tuple, R <: Tuple: Type](elem: State[Tuple1[List[Tidy[H]]], Tuple2[List[Tidy[H]], Boolean]], next: State[List[Tidy[H]] *: T, R]) extends State[T, R] {
-    private def goWith[A: Type](tape: Tape[T], pos: Pos, goNext: Go[List[Tidy[H]] *: T, A], fail: Expr[A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
+    private def goWith[A: Type](tape: Tape[T], pos: Pos, fail: Expr[A], isValid: Expr[A] => Quotes ?=> Expr[Boolean], goNext: Go[List[Tidy[H]] *: T, A])(using ctx: Ctx[A])(using Quotes): Expr[A] = {
       '{
         @tailrec
         def loop(lists: List[WithPos[(List[Tidy[H]], Boolean)]]): A = lists match {
           case Nil => $fail
-          case WithPos((list, true), pos) :: tail => ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), '{ loop(tail) }) }
+          // TODO: Not necessarily tail-recursive
+          case WithPos((list, true), pos) :: tail => {
+            val res = ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), fail) }
+            if ${ isValid('res) } then res else loop(tail)
+          }
           case WithPos((list, false), pos) :: tail => {
             val all = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos), '{ Chain.nil })(using Ctx.empty(ctx.s)) }
             loop(all.iterator ++: (WithPos((list, true), pos) :: tail))
@@ -298,11 +306,11 @@ object state {
     }
 
     override def go(tape: Tape[T], pos: Pos, fail: Expr[Res[R]])(using Ctx[Res[R]])(using Quotes): Expr[Option[Tidy[R]]] = {
-      goWith(tape, pos, next.go, fail)
+      goWith(tape, pos, fail, expr => '{ $expr.isDefined }, next.go)
     }
 
     override def goPos(tape: Tape[T], pos: Pos, fail: Expr[WithPos[Res[R]]])(using Ctx[WithPos[Res[R]]])(using Quotes): Expr[WithPos[Option[Tidy[R]]]] = {
-      goWith(tape, pos, next.goPos, fail)
+      goWith(tape, pos, fail, expr => '{ $expr.pos >= 0 }, next.goPos)
     }
 
     override def goAll(tape: Tape[T], pos: Pos, fail: Expr[Chain[WithPos[Tidy[R]]]])(using ctx: Ctx[Chain[WithPos[Tidy[R]]]])(using Quotes): Expr[Chain[WithPos[Tidy[R]]]] = {

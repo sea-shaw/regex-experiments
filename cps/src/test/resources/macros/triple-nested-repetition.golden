@@ -5,7 +5,8 @@
         case Nil =>
           None
         case ::(WithPos(Tuple2(list, true), pos), tail) =>
-          if (pos.==(s.length())) Some.apply[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]](list) else loop(tail)
+          val res: Option[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]] = if (pos.==(s.length())) Some.apply[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]]](list) else None
+          if (res.isDefined) res else loop(tail)
         case ::(WithPos(Tuple2(list, false), pos), tail) =>
           val all: Chain[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]], Boolean]]] = if (`pos₂`.<(s.length()).&&(s.charAt(`pos₂`).==('a'))) {
             @tailrec def `loop₂`(`lists₂`: [A >: Nothing <: Any] =>> List[A][WithPos[Tuple2[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple2[String, List[String]]]], Boolean]]], acc: Chain[WithPos[Tidy[Tuple2[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]], Boolean]]]]): Chain[WithPos[Tidy[Tuple2[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]], Boolean]]]] = `lists₂` match {
