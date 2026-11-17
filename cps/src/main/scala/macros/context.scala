@@ -10,7 +10,7 @@ object context {
   type QJoin[A <: Tuple, R] = (Pos, Code[Tidy[A]], Expr[R]) => Quotes ?=> Expr[R]
   private case class Binding[A <: Tuple, R](qjoin: QJoin[A, R])
 
-  class Progress
+  final class Progress
 
   class Ctx[R] private (
     val s: Expr[String],
@@ -28,5 +28,6 @@ object context {
 
   object Ctx {
     def empty[R](s: Expr[String]): Ctx[R] = Ctx(s, Map.empty, Map.empty, Map.empty)
+    def nested[R](using ctx: Ctx[?]): Ctx[R] = empty(ctx.s)
   }
 }

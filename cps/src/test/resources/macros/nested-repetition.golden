@@ -9,7 +9,7 @@
             val res: Option[List[NonEmptyTuple & Tuple2[String, List[String]]]] = if (pos.==(s.length())) Some.apply[List[NonEmptyTuple & Tuple2[String, List[String]]]](list) else None
             if (res.isDefined) res else loop(tail)
           } else {
-            val all: Chain[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) {
+            val children: Chain[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) {
               @tailrec def `loop₂`(`pos₂`: Int, elems: [A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[String]]]]]): Chain[WithPos[Tidy[Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]]] = if (`pos₂`.<(s.length()).&&(s.charAt(`pos₂`).==('b'))) if (`pos₂`.+(1).>(`pos₂`)) Some.apply[WithPos[String]](WithPos.apply[String](s.substring(`pos₂`, `pos₂`.+(1)), `pos₂`.+(1))) else None else None match {
                 case None =>
                   backtrack(acc, Chain.nil)
@@ -32,7 +32,7 @@
               `loop₂`(pos.+(1), Nil, List.apply[WithPos[Nil]](WithPos.apply[Nil.type](Nil, pos.+(1))))
             } else Chain.nil
             loop({
-              val prefix$1: Iterator[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]] = all.iterator
+              val prefix$1: Iterator[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]] = children.iterator
               tail.::[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]](WithPos.apply[Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]](Tuple2.apply[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean](list, true), pos)).++:[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, List[String]]], Boolean]]](prefix$1)
             })
           }

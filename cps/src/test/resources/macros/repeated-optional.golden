@@ -9,7 +9,7 @@
             val res: Option[List[Option[Unit]]] = if (pos.==(s.length())) Some.apply[List[Option[Unit]]](list) else None
             if (res.isDefined) res else loop(tail)
           } else {
-            val all: Chain[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = {
+            val children: Chain[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = {
               def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Option[Unit]]], fail: Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]] = if (`pos₂`.>(pos)) {
                 val a$1: WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]] = WithPos.apply[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]](Tuple2.apply[List[Option[Unit]], Boolean]({
                   val elem$1: Option[Unit] = `res₂`
@@ -21,7 +21,7 @@
               if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) join(pos.+(1), Some.apply[Unit](()), alt) else alt
             }
             loop({
-              val prefix$1: Iterator[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = all.iterator
+              val prefix$1: Iterator[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = children.iterator
               tail.::[WithPos[Tuple2[List[Option[Unit]], Boolean]]](WithPos.apply[Tuple2[List[Option[Unit]], Boolean]](Tuple2.apply[List[Option[Unit]], Boolean](list, true), pos)).++:[WithPos[Tuple2[List[Option[Unit]], Boolean]]](prefix$1)
             })
           }

@@ -9,7 +9,7 @@
             val res: Option[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('b'))) if (pos.+(1).==(s.length())) Some.apply[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]]](list) else None else None
             if (res.isDefined) res else loop(tail)
           } else {
-            val all: Chain[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = {
+            val children: Chain[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = {
               def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Either[Unit, Either[Unit, Unit]]]], fail: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = if (`pos₂`.>(pos)) {
                 val a$1: WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]] = WithPos.apply[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]](Tuple2.apply[List[Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]({
                   val elem$1: Tuple2[String, Either[Unit, Either[Unit, Unit]]] = Tuple2.apply[String, Either[Unit, Either[Unit, Unit]]](s.substring(pos, `pos₂`), `res₂`)
@@ -25,7 +25,7 @@
               if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) if (pos.+(1).<(s.length()).&&(s.charAt(pos.+(1)).==('b'))) join(pos.+(2), Left.apply[Unit, Nothing](()), alt) else alt else alt
             }
             loop({
-              val prefix$1: Iterator[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = all.iterator
+              val prefix$1: Iterator[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = children.iterator
               tail.::[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]](WithPos.apply[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]](Tuple2.apply[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean](list, true), pos)).++:[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]](prefix$1)
             })
           }
