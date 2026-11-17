@@ -224,7 +224,7 @@ object state {
         def loop(pos: Int, elems: List[Tidy[H]], acc: List[WithPos[List[Tidy[H]]]]): Option[A] = {
           ${ elem.goPos(Empty, PosExpr('pos), '{ None })(using Ctx.empty(ctx.s)) } match {
             case None                        => backtrack(acc)
-            case Some(WithPos(elem, newPos)) => if newPos == pos then backtrack(acc) else {
+            case Some(WithPos(elem, newPos)) => {
               val newElems = elem :: elems
               loop(newPos, newElems, WithPos(newElems, newPos) :: acc)
             }
@@ -258,7 +258,7 @@ object state {
         def loop(pos: Int, elems: List[Tidy[H]], acc: List[WithPos[List[Tidy[H]]]]): Chain[WithPos[Tidy[R]]] = {
           ${ elem.goPos(Empty, PosExpr('pos), '{ None })(using Ctx.empty(ctx.s)) } match {
             case None                        => backtrack(acc, $fail)
-            case Some(WithPos(elem, newPos)) => if newPos == pos then backtrack(acc, $fail) else {
+            case Some(WithPos(elem, newPos)) => {
               val newElems = elem :: elems
               loop(newPos, newElems, WithPos(newElems, newPos) :: acc)
             }

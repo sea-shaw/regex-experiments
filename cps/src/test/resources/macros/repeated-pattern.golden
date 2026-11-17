@@ -1,14 +1,12 @@
 {
   final class $anon() extends Regex[Tidy[Tuple1[List[Unit]]]] {
     override def unapply(s: String): Option[Tidy[Tuple1[List[Unit]]]] = {
-      @tailrec def loop(pos: Int, elems: [A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): Option[List[Unit]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) Some.apply[WithPos[Unit]](WithPos.apply[Unit]((), pos.+(1))) else None match {
+      @tailrec def loop(pos: Int, elems: [A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]], acc: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): Option[List[Unit]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) if (pos.+(1).>(pos)) Some.apply[WithPos[Unit]](WithPos.apply[Unit]((), pos.+(1))) else None else None match {
         case None =>
           backtrack(acc)
         case Some(WithPos(elem, newPos)) =>
-          if (newPos.==(pos)) backtrack(acc) else {
-            val newElems: List[Unit] = elems.::[Unit](elem)
-            loop(newPos, newElems, acc.::[WithPos[List[Unit]]](WithPos.apply[List[Unit]](newElems, newPos)))
-          }
+          val newElems: List[Unit] = elems.::[Unit](elem)
+          loop(newPos, newElems, acc.::[WithPos[List[Unit]]](WithPos.apply[List[Unit]](newElems, newPos)))
       }
       @tailrec def backtrack(lists: [A >: Nothing <: Any] =>> List[A][WithPos[[A >: Nothing <: Any] =>> List[A][Tidy[EmptyTuple.type]]]]): Option[List[Unit]] = lists match {
         case Nil =>
