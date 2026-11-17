@@ -284,13 +284,12 @@ object state {
         @tailrec
         def loop(lists: List[WithPos[(List[Tidy[H]], Boolean)]]): Option[A] = lists match {
           case Nil => $fail
-          case WithPos((list, true), pos) :: tail => {
+          case WithPos((list, visited), pos) :: tail => if (visited) {
             val res = ${ goNext(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), '{ None }) }
             if res.isDefined then res else loop(tail)
-          }
-          case WithPos((list, false), pos) :: tail => {
-            val all = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos), '{ Chain.nil })(using Ctx.empty(ctx.s)) }
-            loop(all.iterator ++: (WithPos((list, true), pos) :: tail))
+          } else {
+            val children = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos), '{ Chain.nil })(using Ctx.empty(ctx.s)) }
+            loop(children.iterator ++: (WithPos((list, true), pos) :: tail))
           }
         }
 
@@ -311,13 +310,12 @@ object state {
         @tailrec
         def loop(lists: List[WithPos[(List[Tidy[H]], Boolean)]], acc: Chain[WithPos[Tidy[R]]]): Chain[WithPos[Tidy[R]]] = lists match {
           case Nil => acc
-          case WithPos((list, true), pos) :: tail => {
+          case WithPos((list, visited), pos) :: tail => if (visited) {
             val results = ${ next.goAll(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), '{ Chain.nil }) }
             loop(tail, acc ++ results)
-          }
-          case WithPos((list, false), pos) :: tail => {
-            val all = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos), '{ Chain.nil })(using Ctx.empty(ctx.s)) }
-            loop(all.iterator ++: (WithPos((list, true), pos) :: tail), acc)
+          } else {
+            val children = ${ elem.goAll(Cell(Push(CodeExpr('list)), Empty), PosExpr('pos), '{ Chain.nil })(using Ctx.empty(ctx.s)) }
+            loop(children.iterator ++: (WithPos((list, true), pos) :: tail), acc)
           }
         }
 

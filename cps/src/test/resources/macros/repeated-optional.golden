@@ -4,25 +4,27 @@
       @tailrec def loop(lists: [A >: Nothing <: Any] =>> List[A][WithPos[Tuple2[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple1[Option[Unit]]]], Boolean]]]): Option[List[Option[Unit]]] = lists match {
         case Nil =>
           None
-        case ::(WithPos(Tuple2(list, true), pos), tail) =>
-          val res: Option[List[Option[Unit]]] = if (pos.==(s.length())) Some.apply[List[Option[Unit]]](list) else None
-          if (res.isDefined) res else loop(tail)
-        case ::(WithPos(Tuple2(list, false), pos), tail) =>
-          val all: Chain[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = {
-            def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Option[Unit]]], fail: Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]] = if (`pos₂`.>(`pos₃`)) {
-              val a$1: WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]] = WithPos.apply[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]](Tuple2.apply[List[Option[Unit]], Boolean]({
-                val elem$1: Option[Unit] = `res₂`
-                `list₂`.::[Option[Unit]](elem$1)
-              }, false), `pos₂`)
-              fail.+:[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]](a$1)
-            } else fail
-            def alt: Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]] = join(`pos₃`, None, Chain.nil)
-            if (`pos₃`.<(s.length()).&&(s.charAt(`pos₃`).==('a'))) join(`pos₃`.+(1), Some.apply[Unit](()), alt) else alt
+        case ::(WithPos(Tuple2(list, visited), pos), tail) =>
+          if (visited) {
+            val res: Option[List[Option[Unit]]] = if (pos.==(s.length())) Some.apply[List[Option[Unit]]](list) else None
+            if (res.isDefined) res else loop(tail)
+          } else {
+            val all: Chain[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = {
+              def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Option[Unit]]], fail: Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]] = if (`pos₂`.>(pos)) {
+                val a$1: WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]] = WithPos.apply[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]](Tuple2.apply[List[Option[Unit]], Boolean]({
+                  val elem$1: Option[Unit] = `res₂`
+                  list.::[Option[Unit]](elem$1)
+                }, false), `pos₂`)
+                fail.+:[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]](a$1)
+              } else fail
+              def alt: Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]] = join(pos, None, Chain.nil)
+              if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) join(pos.+(1), Some.apply[Unit](()), alt) else alt
+            }
+            loop({
+              val prefix$1: Iterator[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = all.iterator
+              tail.::[WithPos[Tuple2[List[Option[Unit]], Boolean]]](WithPos.apply[Tuple2[List[Option[Unit]], Boolean]](Tuple2.apply[List[Option[Unit]], Boolean](list, true), pos)).++:[WithPos[Tuple2[List[Option[Unit]], Boolean]]](prefix$1)
+            })
           }
-          loop({
-            val prefix$1: Iterator[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = all.iterator
-            `tail₂`.::[WithPos[Tuple2[List[Option[Unit]], Boolean]]](WithPos.apply[Tuple2[List[Option[Unit]], Boolean]](Tuple2.apply[List[Option[Unit]], Boolean](`list₂`, true), `pos₃`)).++:[WithPos[Tuple2[List[Option[Unit]], Boolean]]](prefix$1)
-          })
       }
       loop(List.apply[WithPos[Tuple2[Nil, Boolean]]](WithPos.apply[Tuple2[Nil, Boolean]](Tuple2.apply[Nil.type, Boolean](Nil, false), 0)))
     }
