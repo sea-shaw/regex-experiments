@@ -6,24 +6,25 @@ import experiments.cps.tidy.Tidy
 import scala.quoted.{Expr, Quotes}
 
 object context {
-  final class JoinPoint[A <: Tuple]
   type QJoin[A <: Tuple, R] = (Pos, Code[Tidy[A]], Expr[R]) => Quotes ?=> Expr[R]
-  private case class Binding[A <: Tuple, R](qjoin: QJoin[A, R])
+
+  final class JoinPoint[A <: Tuple]
+  private class Binding[A <: Tuple, R](val qjoin: QJoin[A, R])
 
   final class Progress
 
-  class Ctx[R] private (
+  case class Ctx[R] private (
     val s: Expr[String],
     private val bindings: Map[JoinPoint[?], Binding[?, R]],
     private val starts: Map[Int, Pos],
-    private val progresses: Map[Progress, Pos]
+    private val progresses: Map[Progress, Pos],
   ) {
     def binding[A <: Tuple](key: JoinPoint[A]): QJoin[A, R] = bindings(key).qjoin.asInstanceOf
-    def withBinding[A <: Tuple](key: JoinPoint[A], value: QJoin[A, R]): Ctx[R] = Ctx(s, bindings.updated(key, Binding(value)), starts, progresses)
+    def withBinding[A <: Tuple](key: JoinPoint[A], value: QJoin[A, R]): Ctx[R] = copy(bindings = bindings.updated(key, Binding(value)))
     def start(group: Int): Pos = starts(group)
-    def withStart(group: Int, start: Pos): Ctx[R] = Ctx(s, bindings, starts.updated(group, start), progresses)
+    def withStart(group: Int, start: Pos): Ctx[R] = copy(starts = starts.updated(group, start))
     def progress(progress: Progress): Pos = progresses(progress)
-    def withProgress(progress: Progress, pos: Pos) = Ctx(s, bindings, starts, progresses.updated(progress, pos))
+    def withProgress(progress: Progress, pos: Pos) = copy(progresses = progresses.updated(progress, pos))
   }
 
   object Ctx {
