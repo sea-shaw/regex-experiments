@@ -28,7 +28,7 @@ object parser {
   private lazy val postfixOps = (Opt from '?') | (Rep0 from '*')
 
   private lazy val lookaround = positiveLookahead
-  private lazy val positiveLookahead = Lookahead(atomic("(?=") ~> expr <~ ')')
+  private lazy val positiveLookahead = PositiveLookahead(atomic("(?=") ~> expr <~ ')')
 
   private val keyChars = Set('(', ')', '{', '}', '[', '.', '*', '+', '?', '\\', '|', '$', '^')
 }

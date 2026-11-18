@@ -211,7 +211,7 @@ object ast {
     }
   }
 
-  case class Lookahead[A <: Tuple: {TupleTag, Type}] private (reg: Reg[A]) extends Reg[A] {
+  case class PositiveLookahead[A <: Tuple: {TupleTag, Type}] private (reg: Reg[A]) extends Reg[A] {
     override val numCaps: Int = reg.numCaps
     override val backtracking: Boolean = reg.backtracking
 
@@ -223,11 +223,11 @@ object ast {
     override def tpe(using Quotes): Type[A] = Type.of
   }
 
-  object Lookahead {
+  object PositiveLookahead {
     def apply[A <: Tuple](reg: Reg[A])(using Quotes) = {
       given Type[A] = reg.tpe
       given TupleTag[A] = reg.tag
-      new Lookahead(reg)
+      new PositiveLookahead(reg)
     }
   }
 

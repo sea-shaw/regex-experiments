@@ -44,7 +44,7 @@ object bridges {
     override def apply(reg: ToReg): ToReg = ast.Rep0(reg)
   }
 
-  object Lookahead extends PureParserBridge1[ToReg, ToReg] {
-    override def apply(reg: ToReg): ToReg = ast.Lookahead(reg)
+  object PositiveLookahead extends PureParserBridge1[ToReg, ToReg] {
+    override def apply(reg: ToReg): ToReg = ast.PositiveLookahead(reg)
   }
 }
