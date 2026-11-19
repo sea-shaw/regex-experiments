@@ -12,7 +12,7 @@
             val children: Chain[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]], Boolean]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) {
               @tailrec def `loop₂`(`lists₂`: [A >: Nothing <: Any] =>> List[A][WithPos[Tuple2[[A >: Nothing <: Any] =>> List[A][Tidy[Tuple2[String, List[String]]]], Boolean]]], acc: Chain[WithPos[Tidy[Tuple2[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]], Boolean]]]]): Chain[WithPos[Tidy[Tuple2[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]], Boolean]]]] = `lists₂` match {
                 case Nil =>
-                  acc
+                  acc.++[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]], Boolean]]](Chain.nil)
                 case ::(WithPos(Tuple2(list, visited), pos), tail) =>
                   if (`visited₂`) {
                     val results: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, List[NonEmptyTuple & Tuple2[String, List[String]]]]], Boolean]]] = if (`pos₂`.>(pos)) {

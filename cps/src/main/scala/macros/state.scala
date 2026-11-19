@@ -309,7 +309,7 @@ object state {
       '{
         @tailrec
         def loop(lists: List[WithPos[(List[Tidy[H]], Boolean)]], acc: Chain[WithPos[Tidy[R]]]): Chain[WithPos[Tidy[R]]] = lists match {
-          case Nil => acc
+          case Nil => acc ++ $fail
           case WithPos((list, visited), pos) :: tail => if (visited) {
             val results = ${ next.goAll(Cell(Push(CodeExpr('list)), tape), PosExpr('pos), '{ Chain.nil }) }
             loop(tail, acc ++ results)
@@ -319,7 +319,7 @@ object state {
           }
         }
 
-        loop(List(WithPos((Nil, false), ${ pos.toExpr })), $fail)
+        loop(List(WithPos((Nil, false), ${ pos.toExpr })), Chain.nil)
       }
     }
   }
