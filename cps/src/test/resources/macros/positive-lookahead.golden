@@ -1,7 +1,7 @@
 {
   final class $anon() extends Regex[Tidy[*:[Tuple2[String, Either[Unit, Unit]], EmptyTuple]]] {
     override def unapply(s: String): Option[Tidy[*:[Tuple2[String, Either[Unit, Unit]], EmptyTuple]]] = if (0.<(s.length()).&&(s.charAt(0).==('a'))) {
-      def join(pos: Int, res: TidyNonEmpty[Tuple1[Either[Unit, Unit]]], fail: Option[Tuple2[String, Either[Unit, Unit]]]): Option[Tuple2[String, Either[Unit, Unit]]] = if (pos.==(s.length())) Some.apply[Tuple2[String, Either[Unit, Unit]]](Tuple2.apply[String, Either[Unit, Unit]](s.substring(0, pos), res)) else fail
+      def join(pos: Int, res: TidyNonEmpty[Tuple1[Either[Unit, Unit]]], fail: => Option[Tuple2[String, Either[Unit, Unit]]]): Option[Tuple2[String, Either[Unit, Unit]]] = if (pos.==(s.length())) Some.apply[Tuple2[String, Either[Unit, Unit]]](Tuple2.apply[String, Either[Unit, Unit]](s.substring(0, pos), res)) else fail
       def alt: Option[Tuple2[String, Either[Unit, Unit]]] = if (0.<(s.length()).&&(s.charAt(0).==('b'))) join(1, Right.apply[Nothing, Unit](()), None) else None
       if (0.<(s.length()).&&(s.charAt(0).==('a'))) join(1, Left.apply[Unit, Nothing](()), alt) else alt
     } else None

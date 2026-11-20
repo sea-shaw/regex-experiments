@@ -10,7 +10,7 @@
             if (res.isDefined) res else loop(tail)
           } else {
             val children: Chain[WithPos[Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = {
-              def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Either[Unit, Either[Unit, Unit]]]], fail: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = if (`pos₂`.>(pos)) {
+              def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Either[Unit, Either[Unit, Unit]]]], fail: => Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = if (`pos₂`.>(pos)) {
                 val a$1: WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]] = WithPos.apply[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]](Tuple2.apply[List[Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]({
                   val elem$1: Tuple2[String, Either[Unit, Either[Unit, Unit]]] = Tuple2.apply[String, Either[Unit, Either[Unit, Unit]]](s.substring(pos, `pos₂`), `res₂`)
                   list.::[Tuple2[String, Either[Unit, Either[Unit, Unit]]]](elem$1)
@@ -18,7 +18,7 @@
                 fail.+:[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]](a$1)
               } else fail
               def alt: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = {
-                def `join₂`(`pos₃`: Int, `res₃`: TidyNonEmpty[Tuple1[Either[Unit, Unit]]], `fail₂`: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = join(`pos₃`, Right.apply[Nothing, Either[Unit, Unit]](`res₃`), `fail₂`)
+                def `join₂`(`pos₃`: Int, `res₃`: TidyNonEmpty[Tuple1[Either[Unit, Unit]]], `fail₂`: => Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = join(`pos₃`, Right.apply[Nothing, Either[Unit, Unit]](`res₃`), `fail₂`)
                 def `alt₂`: Chain[WithPos[NonEmptyTuple & Tuple2[List[NonEmptyTuple & Tuple2[String, Either[Unit, Either[Unit, Unit]]]], Boolean]]] = if (pos.<(s.length()).&&(s.charAt(pos).==('b'))) `join₂`(pos.+(1), Right.apply[Nothing, Unit](()), Chain.nil) else Chain.nil
                 if (pos.<(s.length()).&&(s.charAt(pos).==('a'))) `join₂`(pos.+(1), Left.apply[Unit, Nothing](()), `alt₂`) else `alt₂`
               }

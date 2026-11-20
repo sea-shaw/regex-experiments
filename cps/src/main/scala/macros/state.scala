@@ -148,13 +148,13 @@ object state {
 
       tag match {
         case EmptyTag => '{
-          def join(pos: Int, fail: A): A = ${
+          def join(pos: Int, fail: => A): A = ${
             goBinder(tape, PosExpr('pos), 'fail)(using newCtx((pos, _, fail) => '{ join(${ pos.toExpr }, $fail) }))
           }
           ${ goReceiver(tape, pos, fail)(using newCtx((pos, _, fail) => '{ join(${ pos.toExpr }, $fail) })) }
         }
         case NonEmptyTag() => '{
-          def join(pos: Int, res: TidyNonEmpty[H], fail: A): A = ${
+          def join(pos: Int, res: TidyNonEmpty[H], fail: => A): A = ${
             goBinder(Cell(Push(CodeExpr('res)), tape), PosExpr('pos), 'fail)(using newCtx((pos, res, fail) => '{ join(${ pos.toExpr }, ${ res.toExpr }, $fail) }))
           }
           ${ goReceiver(tape, pos, fail)(using newCtx((pos, res, fail) => '{ join(${ pos.toExpr }, ${ res.toExpr }, $fail) })) }

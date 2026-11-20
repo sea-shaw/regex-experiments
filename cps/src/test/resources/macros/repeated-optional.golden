@@ -10,7 +10,7 @@
             if (res.isDefined) res else loop(tail)
           } else {
             val children: Chain[WithPos[Tuple2[List[Option[Unit]], Boolean]]] = {
-              def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Option[Unit]]], fail: Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]] = if (`pos₂`.>(pos)) {
+              def join(`pos₂`: Int, `res₂`: TidyNonEmpty[Tuple1[Option[Unit]]], fail: => Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]]): Chain[WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]]] = if (`pos₂`.>(pos)) {
                 val a$1: WithPos[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]] = WithPos.apply[NonEmptyTuple & Tuple2[List[Option[Unit]], Boolean]](Tuple2.apply[List[Option[Unit]], Boolean]({
                   val elem$1: Option[Unit] = `res₂`
                   list.::[Option[Unit]](elem$1)
