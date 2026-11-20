@@ -152,6 +152,18 @@ object ast {
     }
   }
 
+  case class OptEmpty(reg: Reg[EmptyTuple]) extends Reg[EmptyTuple] {
+    override val numCaps: Int = 0
+    override val backtracking: Boolean = true
+
+    override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[EmptyTuple, T], R], i: Int)(using Quotes): State[T, R] = {
+      val joinPoint = JoinPoint[EmptyTuple]
+      MkJoin(joinPoint, next, Split(reg.cps(Join(joinPoint), i), Join(joinPoint)))
+    }
+
+    override def tpe(using Quotes): Type[EmptyTuple] = Type.of
+  }
+
   case class Alt[A <: Tuple: Type, B <: Tuple: Type] private (left: Reg[A], right: Reg[B]) extends Reg[Tuple1[Either[Tidy[A], Tidy[B]]]] {
     override val numCaps: Int = left.numCaps + right.numCaps
     override val backtracking: Boolean = true
@@ -172,6 +184,18 @@ object ast {
       given Type[B] = right.tpe
       new Alt(left, right)
     }
+  }
+
+  case class AltEmpty(left: Reg[EmptyTuple], right: Reg[EmptyTuple]) extends Reg[EmptyTuple] {
+    override val numCaps: Int = 0
+    override val backtracking: Boolean = true
+
+    override def cps[T <: Tuple, R <: Tuple: Type](next: State[TCons[EmptyTuple, T], R], i: Int)(using Quotes): State[T, R] = {
+      val joinPoint = JoinPoint[EmptyTuple]
+      MkJoin(joinPoint, next, Split(left.cps(Join(joinPoint), i), right.cps(Join(joinPoint), i + left.numCaps)))
+    }
+
+    override def tpe(using Quotes): Type[EmptyTuple] = Type.of
   }
 
   case class Rep0[A <: Tuple: {Type, TupleTag as tag}] private (reg: Reg[A]) extends Reg[Tuple1[List[Tidy[A]]]] {

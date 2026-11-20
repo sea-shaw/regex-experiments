@@ -1,6 +1,7 @@
 package experiments.cps.macros
 
 import experiments.cps.macros.ast.Reg
+import experiments.cps.macros.config.Config
 import experiments.cps.tidy.Tidy
 import parsley.{Failure, Success}
 import scala.quoted.{Expr, Quotes, Type, quotes}
@@ -12,10 +13,21 @@ object regex {
   }
 
   extension (inline sc: StringContext) {
-    transparent inline def r(): Regex[?] = ${ isInlineable('sc) }
+    transparent inline def r(): Regex[?] = ${ rCode('sc) }
+    transparent inline def r1(): Regex[?] = ${ r1Code('sc) }
   }
 
-  private def isInlineable(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
+  private def rCode(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
+    given Config = Config(ignoreEmpty = false)
+    isInlineable(sc)
+  }
+
+  private def r1Code(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
+    given Config = Config(ignoreEmpty = true)
+    isInlineable(sc)
+  }
+
+  private def isInlineable(sc: Expr[StringContext])(using Config)(using Quotes): Expr[Regex[?]] = {
     import quotes.reflect.{Position, report}
 
     sc match {
