@@ -12,30 +12,22 @@ object regex {
     // def all(s: String): List[A]
   }
 
-  extension (inline sc: StringContext) {
-    transparent inline def r(): Regex[?] = ${ rCode('sc) }
-    transparent inline def r1(): Regex[?] = ${ r1Code('sc) }
+  extension (inline sc: StringContext)(using inline config: Config) {
+    transparent inline def r(): Regex[?] = ${ isInlineable('sc, 'config) }
   }
 
-  private def rCode(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
-    given Config = Config(ignoreEmpty = false)
-    isInlineable(sc)
-  }
-
-  private def r1Code(sc: Expr[StringContext])(using Quotes): Expr[Regex[?]] = {
-    given Config = Config(ignoreEmpty = true)
-    isInlineable(sc)
-  }
-
-  private def isInlineable(sc: Expr[StringContext])(using Config)(using Quotes): Expr[Regex[?]] = {
-    import quotes.reflect.{Position, report}
+  private def isInlineable(sc: Expr[StringContext], config: Expr[Config])(using Quotes): Expr[Regex[?]] = {
+    import quotes.reflect.{Printer, asTerm, report}
 
     sc match {
-      case '{ StringContext(${ Expr(s) }) } => parser.parse(s) match {
-        case Success(reg) => regexCode(reg)
-        case Failure(msg) => report.errorAndAbort(msg, Position.ofMacroExpansion)
+      case '{ StringContext(${ Expr(s) }) } => config match {
+        case Expr(given Config) => parser.parse(s) match {
+          case Success(reg) => regexCode(reg)
+          case Failure(msg) => report.errorAndAbort(msg)
+        }
+        case _ => report.errorAndAbort(s"Config must be a compile-time constant but was ${ config.asTerm.show(using Printer.TreeShortCode) }")
       }
-      case _ => report.errorAndAbort("Regular expression must be a compile-time constant", Position.ofMacroExpansion)
+      case _ => report.errorAndAbort("Regular expression must be a compile-time constant")
     }
   }
 
