@@ -4,11 +4,11 @@ import scala.quoted.{Expr, FromExpr, Quotes, quotes}
 
 object config {
   val defaultIgnoreEmpty = false
-  val defaultTailRecursive = true
+  // val defaultTailRecursive = true
 
   case class Config(
     ignoreEmpty: Boolean = defaultIgnoreEmpty,
-    tailRecursive: Boolean = defaultTailRecursive,
+    // tailRecursive: Boolean = defaultTailRecursive,
   )
 
   /* If this isn't transparent then it isn't inlined in calls to `r`. I think
@@ -22,13 +22,18 @@ object config {
         /* Can't specify parameters in the match since then it won't match
            default parameters. Need to ensure all parameters are matched and in
            the correct order. */
-        case '{ Config($ignoreEmptyExpr, $tailRecursiveExpr) } => {
+        case '{
+          Config(
+            $ignoreEmptyExpr,
+            // $tailRecursiveExpr,
+          )
+        } => {
           for {
             ignoreEmpty <- parameterValue(ignoreEmptyExpr, 1, defaultIgnoreEmpty)
-            tailRecursive <- parameterValue(tailRecursiveExpr, 2, defaultTailRecursive)
+            // tailRecursive <- parameterValue(tailRecursiveExpr, 2, defaultTailRecursive)
           } yield Config(
             ignoreEmpty = ignoreEmpty,
-            tailRecursive = tailRecursive,
+            // tailRecursive = tailRecursive,
           )
         }
         case _ => None
